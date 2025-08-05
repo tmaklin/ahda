@@ -1,0 +1,28 @@
+[package]
+name = "ahda"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Tommi Mäklin <tommi@maklin.fi>",
+]
+description = "Pseudoalignment compression and conversion between formats."
+readme = "README.md"
+homepage = "https://github.com/tmaklin/ahda"
+repository = "https://github.com/tmaklin/ahda"
+license = "MIT OR Apache-2.0"
+
+[[bin]]
+name = "ntcomp"
+path = "src/main.rs"
+
+[dependencies]
+## core
+bitnuc = "0.2"
+clap = { version = "4", features = ["derive"]}
+csv = "1"
+dsi-bitstream = "0.5"
+log = "0.4"
+stderrlog = "0.6"
+
+[profile.release]
+debug = true
