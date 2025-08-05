@@ -11,6 +11,10 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use std::fs::File;
+use std::io::BufWriter;
+use std::path::PathBuf;
+
 use clap::Parser;
 use log::info;
 
@@ -35,10 +39,21 @@ fn main() {
         // Encode
         Some(cli::Commands::Encode {
             input_files,
+            n_targets,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
-            todo!("Implement encode.")
+
+            input_files.iter().for_each(|file| {
+                let mut conn_in = File::open(file).unwrap();
+                let records = ahda::parse(*n_targets, &mut conn_in);
+
+                let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
+                let f = File::create(out_path).unwrap();
+                let mut conn_out = BufWriter::new(f);
+                ahda::encode(&records, &mut conn_out).unwrap();
+            });
+
         },
 
         // Decode

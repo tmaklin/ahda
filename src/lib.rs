@@ -14,9 +14,13 @@
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
+use std::io::Write;
 
+pub mod pack;
 pub mod parser;
 pub mod printer;
+
+type E = Box<dyn std::error::Error>;
 
 /// Supported formats
 #[non_exhaustive]
@@ -46,6 +50,16 @@ pub fn parse<R: Read>(
     }).collect();
 
     res
+}
+
+pub fn encode<W: Write>(
+    records: &[PseudoAln],
+    conn: &mut W,
+) -> Result<(), E> {
+    let packed = pack::pack(records)?;
+    conn.write_all(&packed)?;
+    conn.flush()?;
+    Ok(())
 }
 
 // Tests
