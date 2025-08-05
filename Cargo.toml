@@ -12,7 +12,7 @@ repository = "https://github.com/tmaklin/ahda"
 license = "MIT OR Apache-2.0"
 
 [[bin]]
-name = "ntcomp"
+name = "ahda"
 path = "src/main.rs"
 
 [dependencies]
