@@ -30,7 +30,6 @@ pub fn read_themisto<R: Read>(
     let separator: char = ' ';
     let mut contents: String = String::new();
     conn.read_to_string(&mut contents)?;
-    eprintln!("{:?}", contents);
 
     let mut records = contents.split(separator);
 
