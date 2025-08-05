@@ -11,4 +11,71 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::Read;
+
 pub mod parser;
+
+/// Supported formats
+#[non_exhaustive]
+pub enum Format {
+    // Bifrost,
+    // Fulgor,
+    // Metagraph,
+    // SAM,
+    Themisto,
+}
+
+#[non_exhaustive]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PseudoAln {
+    pub read_id: u32,
+    pub ones: Vec<bool>,
+}
+
+pub fn parse<R: Read>(
+    num_targets: usize,
+    conn: &mut R,
+) -> Vec<PseudoAln> {
+    let reader = BufReader::new(conn);
+
+    let res: Vec<PseudoAln> = reader.lines().map(|line| {
+            parser::read_themisto(12, &mut line.unwrap().as_bytes()).unwrap()
+    }).collect();
+
+    res
+}
+
+// Tests
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn parse_themisto_output() {
+        use std::io::Cursor;
+
+        use super::parse;
+        use super::PseudoAln;
+
+        let data: Vec<u8> = vec![b"128 0 7 11 3\n".to_vec(),
+                                 b"7 3 2 1 0\n".to_vec(),
+                                 b"8\n".to_vec(),
+                                 b"0\n".to_vec(),
+                                 b"1 4 2 9 7\n".to_vec(),
+        ].concat();
+
+        let expected = vec![
+            PseudoAln{ read_id: 128, ones: vec![true, false, false, true, false, false, false, true, false, false, false, true]},
+            PseudoAln{ read_id: 7,   ones: vec![true, true, true, true, false, false, false, false, false, false, false, false]},
+            PseudoAln{ read_id: 8,   ones: vec![false, false, false, false, false, false, false, false, false, false, false, false]},
+            PseudoAln{ read_id: 0,   ones: vec![false, false, false, false, false, false, false, false, false, false, false, false]},
+            PseudoAln{ read_id: 1,   ones: vec![false, false, true, false, true, false, false, true, false, true, false, false]},
+        ];
+
+        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
+        let got = parse(12, &mut input);
+
+        assert_eq!(got, expected);
+    }
+}

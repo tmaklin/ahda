@@ -13,14 +13,9 @@
 //
 use std::io::Read;
 
-type E = Box<dyn std::error::Error>;
+use crate::PseudoAln;
 
-#[non_exhaustive]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PseudoAln {
-    pub read_id: u32,
-    pub ones: Vec<bool>,
-}
+type E = Box<dyn std::error::Error>;
 
 /// Parse a line from Themisto
 ///
@@ -35,6 +30,7 @@ pub fn read_themisto<R: Read>(
     let separator: char = ' ';
     let mut contents: String = String::new();
     conn.read_to_string(&mut contents)?;
+    eprintln!("{:?}", contents);
 
     let mut records = contents.split(separator);
 
@@ -52,8 +48,6 @@ pub fn read_themisto<R: Read>(
     Ok(res)
 }
 
-/// Parse a
-
 // Tests
 #[cfg(test)]
 mod tests {
@@ -61,8 +55,8 @@ mod tests {
     #[test]
     fn read_themisto() {
         use std::io::Cursor;
+        use crate::PseudoAln;
         use super::read_themisto;
-        use super::PseudoAln;
 
         let data: Vec<u8> = b"128 0 7 11 3".to_vec();
         let expected = PseudoAln{ read_id: 128, ones: vec![true, false, false, true, false, false, false, true, false, false, false, true] };
