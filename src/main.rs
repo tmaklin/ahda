@@ -63,7 +63,6 @@ fn main() {
         // Decode
         Some(cli::Commands::Decode {
             input_files,
-            n_targets,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -72,6 +71,23 @@ fn main() {
                 let mut conn_in = File::open(file).unwrap();
                 let header = ahda::format::read_file_header(&mut conn_in).unwrap();
                 let records = ahda::decode(&header, &mut conn_in).unwrap();
+
+                let out_name = file.file_stem().unwrap().to_string_lossy() + ".txt";
+                let out_path = PathBuf::from(out_name.to_string());
+                let f = File::create(out_path).unwrap();
+
+                let mut conn_out = BufWriter::new(f);
+                records.iter().for_each(|record| {
+                    let mut line = record.read_id.to_string();
+                    line += " ";
+                    record.ones.iter().enumerate().for_each(|(idx, is_set)| {
+                        if *is_set {
+                            line += &idx.to_string();
+                            line += " ";
+                        }
+                    });
+                    let _ = conn_out.write_all(line.as_bytes());
+                });
             });
 
         },

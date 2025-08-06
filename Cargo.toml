@@ -17,7 +17,9 @@ path = "src/main.rs"
 
 [dependencies]
 ## core
+bincode = "2"
 bitnuc = "0.2"
+bitvec = "1"
 clap = { version = "4", features = ["derive"]}
 csv = "1"
 dsi-bitstream = "0.5"

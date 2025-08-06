@@ -16,6 +16,8 @@ use crate::format::BlockHeader;
 
 use std::io::Read;
 
+use bitvec::{order::Lsb0, vec::BitVec};
+
 use dsi_bitstream::traits::BE;
 use dsi_bitstream::prelude::MemWordReader;
 use dsi_bitstream::prelude::BufBitReader;
@@ -51,18 +53,60 @@ fn minimal_binary_decode(
     Ok(decoded)
 }
 
+pub fn decode_bitvec(
+    bytes: &[u8],
+    num_u64: usize,
+    param: u64,
+) -> Result<Vec<bool>, E> {
+    let aln_u64: Vec<u64> = bytes.chunks(8).map(|chunk| {
+        let mut arr: [u8; 8] = [0; 8];
+        arr[0..chunk.len()].copy_from_slice(&chunk);
+        u64::from_ne_bytes(arr)
+    }).collect();
+
+    let aln_decoded: Vec<u64> = minimal_binary_decode(&aln_u64, num_u64, param)?;
+
+    let aln_flat = aln_decoded.iter().flat_map(|u64_rep| {
+        let bits: BitVec<_, Lsb0> = BitVec::from_vec(u64_rep.to_ne_bytes().to_vec());
+        let bits_vec: Vec<bool> = bits.iter().map(|bit| *bit).collect();
+        bits_vec
+    }).collect();
+
+    Ok(aln_flat)
+}
+
+pub fn decode_ids(
+    bytes: &[u8],
+    num_ids: usize,
+    param: u64,
+) -> Result<Vec<u64>, E> {
+    let ids_u64: Vec<u64> = bytes.chunks(8).map(|chunk| {
+        let mut arr: [u8; 8] = [0; 8];
+        arr[0..chunk.len()].copy_from_slice(&chunk);
+        u64::from_ne_bytes(arr)
+    }).collect();
+
+    let ids = minimal_binary_decode(&ids_u64, num_ids, param)?;
+
+    Ok(ids)
+}
 pub fn unpack<R: Read>(
     block_header: &BlockHeader,
+    n_targets: usize,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
+    let mut id_bytes: Vec<u8> = Vec::with_capacity(block_header.ids_u64 as usize * 8_usize);
+    conn.read_exact(&mut id_bytes)?;
+
     let mut aln_bytes: Vec<u8> = Vec::with_capacity(block_header.alignments_u64 as usize * 8_usize);
     conn.read_exact(&mut aln_bytes)?;
 
-    let mut reader = BufBitReader::<BE, _>::new(MemWordReader::new(encoded));
-    aln_bytes.chunks(8).for_each(|x| {
-        let mut arr: [u8; 8] = [0; 8];
-        arr[0..x.len()].copy_from_slice(x);
-        let encoding = reader.read_minimal_binary(block_header.alignments_param)? - 1;
-    });
-    Ok(Vec::new())
+    let aln_bits = decode_bitvec(&aln_bytes, block_header.alignments_u64 as usize, block_header.alignments_param)?;
+    let ids = decode_ids(&id_bytes, block_header.ids_u64 as usize, block_header.ids_param)?;
+
+    let alns = ids.iter().enumerate().map(|(idx, id)| {
+        PseudoAln{ read_id: *id as u32, ones: aln_bits[(idx * n_targets)..((idx + 1)*n_targets)].to_vec() }
+    }).collect();
+
+    Ok(alns)
 }

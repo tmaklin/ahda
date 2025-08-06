@@ -47,10 +47,6 @@ pub enum Commands {
         input_files: Vec<PathBuf>,
 
         // Verbosity
-        #[arg(long = "n-targets", required = true)]
-        n_targets: usize,
-
-        // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
     },
