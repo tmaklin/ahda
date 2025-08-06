@@ -62,12 +62,18 @@ fn main() {
 
         // Decode
         Some(cli::Commands::Decode {
-            input_file,
+            input_files,
             n_targets,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
-            todo!("Implement decode.")
+
+            input_files.iter().for_each(|file| {
+                let mut conn_in = File::open(file).unwrap();
+                let header = ahda::format::read_file_header(&mut conn_in).unwrap();
+                let records = ahda::decode(&header, &mut conn_in).unwrap();
+            });
+
         },
 
         // Cat

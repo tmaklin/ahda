@@ -11,6 +11,10 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use format::BlockHeader;
+use format::FileHeader;
+use format::read_block_header;
+
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
@@ -20,6 +24,7 @@ pub mod format;
 pub mod pack;
 pub mod parser;
 pub mod printer;
+pub mod unpack;
 
 type E = Box<dyn std::error::Error>;
 
@@ -61,6 +66,20 @@ pub fn encode<W: Write>(
     conn.write_all(&packed)?;
     conn.flush()?;
     Ok(())
+}
+
+pub fn decode<R: Read>(
+    _file_header: &FileHeader,
+    conn: &mut R,
+) -> Result<Vec<PseudoAln>, E> {
+    let mut res: Vec<PseudoAln> = Vec::new();
+
+    while let Ok(block_header) = read_block_header(conn) {
+        let mut records = unpack::unpack(&block_header, conn)?;
+        res.append(&mut records);
+    }
+
+    Ok(res)
 }
 
 // Tests

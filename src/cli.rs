@@ -43,8 +43,12 @@ pub enum Commands {
     // Decode .ahda format
     Decode {
         // Input file
-        #[arg(group = "input", required = true, help = "Input file")]
-        input_file: PathBuf,
+        #[arg(group = "input", required = true, help = "Input file(s)")]
+        input_files: Vec<PathBuf>,
+
+        // Verbosity
+        #[arg(long = "n-targets", required = true)]
+        n_targets: usize,
 
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]

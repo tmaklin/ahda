@@ -11,6 +11,8 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use std::io::Read;
+
 use bincode::{Encode, Decode};
 use bincode::encode_into_std_write;
 use bincode::decode_from_slice;
@@ -58,6 +60,15 @@ pub fn decode_file_header(
     Ok(decode_from_slice(header_bytes, bincode::config::standard().with_fixed_int_encoding())?.0)
 }
 
+pub fn read_file_header<R: Read>(
+    conn: &mut R,
+) -> Result<FileHeader, E> {
+    let mut header_bytes: [u8; 32] = [0_u8; 32];
+    conn.read_exact(&mut header_bytes)?;
+    let res = decode_file_header(&header_bytes)?;
+    Ok(res)
+}
+
 pub fn encode_block_header(
     header: &BlockHeader,
 ) -> Result<Vec<u8>, E> {
@@ -75,4 +86,13 @@ pub fn decode_block_header(
     header_bytes: &[u8],
 ) -> Result<BlockHeader, E> {
     Ok(decode_from_slice(header_bytes, bincode::config::standard().with_fixed_int_encoding())?.0)
+}
+
+pub fn read_block_header<R: Read>(
+    conn: &mut R,
+) -> Result<BlockHeader, E> {
+    let mut header_bytes: [u8; 32] = [0_u8; 32];
+    conn.read_exact(&mut header_bytes)?;
+    let res = decode_block_header(&header_bytes)?;
+    Ok(res)
 }
