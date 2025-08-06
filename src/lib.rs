@@ -16,6 +16,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 
+pub mod format;
 pub mod pack;
 pub mod parser;
 pub mod printer;

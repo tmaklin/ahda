@@ -12,6 +12,8 @@
 // at your option.
 //
 use crate::PseudoAln;
+use crate::format::BlockHeader;
+use crate::format::encode_block_header;
 
 use std::io::Write;
 
@@ -55,7 +57,6 @@ fn minimal_binary_encode(
 pub fn pack(
     records: &[PseudoAln],
 ) -> Result<Vec<u8>, E> {
-
     let ids = records.iter().map(|record| {
         record.read_id as u64
     }).collect::<Vec<u64>>();
@@ -70,12 +71,23 @@ pub fn pack(
 
     let encoded_2 = minimal_binary_encode(&alignments)?;
 
-    let res: Vec<u8> = encoded_1.0.iter().chain(encoded_2.0.iter()).flat_map(|record| {
+    let mut data: Vec<u8> = encoded_1.0.iter().chain(encoded_2.0.iter()).flat_map(|record| {
         let bytes: Vec<u8> = record.to_ne_bytes()[0..8].to_vec();
         let mut arr: [u8; 8] = [0; 8];
         arr[0..8].copy_from_slice(&bytes);
         arr
     }).collect();
 
-    Ok(res)
+    let header = BlockHeader{ block_size: 256 + data.len() as u32,
+                              num_records: records.len() as u32,
+                              alignments_u64: encoded_2.0.len() as u32,
+                              ids_u64: encoded_1.0.len() as u32,
+                              alignments_param: encoded_2.1,
+                              ids_param: encoded_1.1,
+    };
+
+    let mut block: Vec<u8> = encode_block_header(&header)?;
+    block.append(&mut data);
+
+    Ok(block)
 }

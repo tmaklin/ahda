@@ -13,10 +13,10 @@
 //
 use std::fs::File;
 use std::io::BufWriter;
+use std::io::Write;
 use std::path::PathBuf;
 
 use clap::Parser;
-use log::info;
 
 mod cli;
 
@@ -51,6 +51,10 @@ fn main() {
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
+
+                let file_header = ahda::format::encode_file_header(0,0,0,0).unwrap();
+                let _ = conn_out.write_all(&file_header);
+
                 ahda::encode(&records, &mut conn_out).unwrap();
             });
 
@@ -59,6 +63,7 @@ fn main() {
         // Decode
         Some(cli::Commands::Decode {
             input_file,
+            n_targets,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
