@@ -84,10 +84,10 @@ fn main() {
                 let mut conn_out = BufWriter::new(f);
 
                 let flags_bytes = ahda::headers::file::encode_file_flags(&targets, &query_name).unwrap();
-                let _ = conn_out.write_all(&flags_bytes);
-
                 let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+
                 let _ = conn_out.write_all(&file_header);
+                let _ = conn_out.write_all(&flags_bytes);
 
                 ahda::encode(&records, &mut conn_out).unwrap();
                 conn_out.flush().unwrap();
