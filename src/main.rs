@@ -56,6 +56,7 @@ fn main() {
                 let _ = conn_out.write_all(&file_header);
 
                 ahda::encode(&records, &mut conn_out).unwrap();
+                conn_out.flush().unwrap();
             });
 
         },

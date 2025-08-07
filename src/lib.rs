@@ -64,7 +64,6 @@ pub fn encode<W: Write>(
 ) -> Result<(), E> {
     let packed = pack::pack(records)?;
     conn.write_all(&packed)?;
-    conn.flush()?;
     Ok(())
 }
 
@@ -72,12 +71,9 @@ pub fn decode<R: Read>(
     file_header: &FileHeader,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
-    let mut res: Vec<PseudoAln> = Vec::new();
 
-    while let Ok(block_header) = read_block_header(conn) {
-        let mut records = unpack::unpack(&block_header, file_header.n_targets as usize, conn)?;
-        res.append(&mut records);
-    }
+    let block_header = read_block_header(conn)?;
+    let res: Vec<PseudoAln> = unpack::unpack(&block_header, file_header.n_targets as usize, conn)?;
 
     Ok(res)
 }
