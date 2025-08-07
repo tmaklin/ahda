@@ -21,12 +21,24 @@ type E = Box<dyn std::error::Error>;
 
 #[derive(Encode, Debug, Decode)]
 pub struct BlockHeader {
-    pub block_size: u32,
+    pub flags_len: u32,
     pub num_records: u32,
     pub alignments_u64: u32,
     pub ids_u64: u32,
     pub alignments_param: u64,
     pub ids_param: u64,
+}
+
+/// Data about the records in this block
+///
+/// Variable length, use [BlockHeader].flags_len to get size
+///
+/// Contents may differ between implementations.
+///
+#[derive(Encode, Decode)]
+pub struct BlockFlags {
+    /// Names of query records
+    pub queries: Vec<String>,
 }
 
 pub fn encode_block_header(
@@ -55,4 +67,18 @@ pub fn read_block_header<R: Read>(
     conn.read_exact(&mut header_bytes)?;
     let res = decode_block_header(&header_bytes)?;
     Ok(res)
+}
+
+pub fn encode_block_flags(
+    queries: &[String],
+) -> Result<Vec<u8>, E> {
+    let mut bytes: Vec<u8> = Vec::new();
+
+    let _ = encode_into_std_write(
+        queries,
+        &mut bytes,
+        bincode::config::standard(),
+    )?;
+
+    Ok(bytes)
 }

@@ -14,6 +14,7 @@
 use crate::PseudoAln;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::encode_block_header;
+use crate::headers::block::encode_block_flags;
 
 use std::io::Write;
 
@@ -78,7 +79,8 @@ pub fn pack(
         arr
     }).collect();
 
-    let header = BlockHeader{ block_size: data.len() as u32,
+    let mut block_flags: Vec<u8> = encode_block_flags(&Vec::new())?;
+    let header = BlockHeader{ flags_len: block_flags.len() as u32,
                               num_records: records.len() as u32,
                               alignments_u64: encoded_2.0.len() as u32,
                               ids_u64: encoded_1.0.len() as u32,
@@ -87,6 +89,7 @@ pub fn pack(
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
+    block.append(&mut block_flags);
     block.append(&mut data);
 
     Ok(block)
