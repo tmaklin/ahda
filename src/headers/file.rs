@@ -21,20 +21,22 @@ type E = Box<dyn std::error::Error>;
 
 #[derive(Encode, Decode)]
 pub struct FileHeader {
-    pub n_targets: u64,
+    pub n_targets: u32,
+    pub n_queries: u32,
     pub ph2: u64,
     pub ph3: u64,
     pub ph4: u64,
 }
 
 pub fn encode_file_header(
-    n_targets: u64,
+    n_targets: u32,
+    n_queries: u32,
     ph2: u64,
     ph3: u64,
     ph4: u64
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
-    let header_placeholder = FileHeader{ n_targets, ph2, ph3, ph4 };
+    let header_placeholder = FileHeader{ n_targets, n_queries, ph2, ph3, ph4 };
     let nbytes = encode_into_std_write(
         &header_placeholder,
         &mut bytes,

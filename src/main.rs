@@ -40,9 +40,21 @@ fn main() {
         Some(cli::Commands::Encode {
             input_files,
             n_targets,
+            query_file,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
+
+            let n_queries = if let Some(file) = query_file {
+                let mut reader = needletail::parse_fastx_file(file).expect("Valid fastX file");
+                let mut count = 0;
+                while let Some(record) = reader.next() {
+                    count += 1;
+                }
+                count
+            } else {
+                0
+            };
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
@@ -52,7 +64,7 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                let file_header = ahda::headers::file::encode_file_header(*n_targets as u64, 0,0,0).unwrap();
+                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, 0,0,0).unwrap();
                 let _ = conn_out.write_all(&file_header);
 
                 ahda::encode(&records, &mut conn_out).unwrap();

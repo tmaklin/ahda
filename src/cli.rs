@@ -31,9 +31,13 @@ pub enum Commands {
         #[arg(group = "input", required = true, help = "Input file(s)")]
         input_files: Vec<PathBuf>,
 
-        // Verbosity
+        // Number of target sequences
         #[arg(long = "n-targets", required = true)]
         n_targets: usize,
+
+        // FastX file used to generate the alignment
+        #[arg(short = 'q', long = "query")]
+        query_file: Option<PathBuf>,
 
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
