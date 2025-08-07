@@ -64,7 +64,7 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, 0,0,0).unwrap();
+                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, 0,1,0,0,0).unwrap();
                 let _ = conn_out.write_all(&file_header);
 
                 ahda::encode(&records, &mut conn_out).unwrap();

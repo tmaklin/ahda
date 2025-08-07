@@ -29,6 +29,12 @@ pub mod unpack;
 type E = Box<dyn std::error::Error>;
 
 /// Supported formats
+///
+/// Encoded as a 16-bit integer in [FileHeader] with the following mapping:
+///
+///   - 0: Unknown
+///   - 1: [Themisto](https://github.com/algbio/themisto)
+///
 #[non_exhaustive]
 pub enum Format {
     // Bifrost,

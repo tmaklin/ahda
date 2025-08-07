@@ -19,11 +19,23 @@ use bincode::decode_from_slice;
 
 type E = Box<dyn std::error::Error>;
 
+// File header for encoded data
+//
+// Always the first 32 bytes at the beginning of a .ahda v0.x file.
+//
+// Must always conform to this format.
+//
 #[derive(Encode, Decode)]
 pub struct FileHeader {
+    /// Number of alignment targets.
     pub n_targets: u32,
+    /// Number of query sequences (0 if unknown).
     pub n_queries: u32,
-    pub ph2: u64,
+    /// Number of bytes in [FileFlags].
+    pub flags_len: u32,
+    /// Input format, see [Format](crate::Format) for details.
+    pub format: u16,
+    pub ph2: u16,
     pub ph3: u64,
     pub ph4: u64,
 }
@@ -31,12 +43,14 @@ pub struct FileHeader {
 pub fn encode_file_header(
     n_targets: u32,
     n_queries: u32,
-    ph2: u64,
+    flags_len: u32,
+    format: u16,
+    ph2: u16,
     ph3: u64,
     ph4: u64
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
-    let header_placeholder = FileHeader{ n_targets, n_queries, ph2, ph3, ph4 };
+    let header_placeholder = FileHeader{ n_targets, n_queries, flags_len, format, ph2, ph3, ph4 };
     let nbytes = encode_into_std_write(
         &header_placeholder,
         &mut bytes,
