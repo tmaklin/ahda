@@ -12,6 +12,7 @@
 // at your option.
 //
 use headers::block::read_block_header;
+use headers::file::read_file_header;
 use headers::file::FileHeader;
 
 use std::io::BufRead;
@@ -67,9 +68,9 @@ pub fn encode<W: Write>(
 }
 
 pub fn decode<R: Read>(
-    file_header: &FileHeader,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
+    let file_header = read_file_header(conn).unwrap();
 
     let block_header = read_block_header(conn)?;
     let res: Vec<PseudoAln> = unpack::unpack(&block_header, file_header.n_targets as usize, conn)?;
