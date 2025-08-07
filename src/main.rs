@@ -52,7 +52,7 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                let file_header = ahda::format::encode_file_header(0,0,0,0).unwrap();
+                let file_header = ahda::headers::file::encode_file_header(0,0,0,0).unwrap();
                 let _ = conn_out.write_all(&file_header);
 
                 ahda::encode(&records, &mut conn_out).unwrap();
@@ -70,7 +70,7 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let header = ahda::format::read_file_header(&mut conn_in).unwrap();
+                let header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
                 let records = ahda::decode(&header, &mut conn_in).unwrap();
 
                 let out_name = file.file_stem().unwrap().to_string_lossy() + ".txt";

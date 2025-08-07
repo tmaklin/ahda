@@ -11,16 +11,15 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
-use format::BlockHeader;
-use format::FileHeader;
-use format::read_block_header;
+use headers::block::read_block_header;
+use headers::file::FileHeader;
 
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 
-pub mod format;
+pub mod headers;
 pub mod pack;
 pub mod parser;
 pub mod printer;
@@ -52,7 +51,7 @@ pub fn parse<R: Read>(
     let reader = BufReader::new(conn);
 
     let res: Vec<PseudoAln> = reader.lines().map(|line| {
-            parser::read_themisto(12, &mut line.unwrap().as_bytes()).unwrap()
+            parser::themisto::read_themisto(num_targets, &mut line.unwrap().as_bytes()).unwrap()
     }).collect();
 
     res

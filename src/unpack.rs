@@ -12,7 +12,7 @@
 // at your option.
 //
 use crate::PseudoAln;
-use crate::format::BlockHeader;
+use crate::headers::block::BlockHeader;
 
 use std::io::Read;
 

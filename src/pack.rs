@@ -12,8 +12,8 @@
 // at your option.
 //
 use crate::PseudoAln;
-use crate::format::BlockHeader;
-use crate::format::encode_block_header;
+use crate::headers::block::BlockHeader;
+use crate::headers::block::encode_block_header;
 
 use std::io::Write;
 
