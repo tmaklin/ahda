@@ -96,7 +96,7 @@ pub fn unpack<R: Read>(
 
     let alns = ids.iter().enumerate().map(|(idx, id)| {
         let start: usize = idx * n_targets;
-        let end: usize = ((idx + 1) * n_targets).min(ids.len() * n_targets);
+        let end: usize = (idx + 1) * n_targets;
         PseudoAln{ read_id: *id as u32, ones: aln_bits[start..end].to_vec() }
     }).collect();
 
