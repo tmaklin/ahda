@@ -41,7 +41,7 @@ fn minimal_binary_decode(
 
 pub fn decode_bitvec(
     bytes: &[u8],
-    num_u64: usize,
+    num_records: usize,
     param: u64,
 ) -> Result<Vec<bool>, E> {
     let aln_u64: Vec<u64> = bytes.chunks(8).map(|chunk| {
@@ -50,7 +50,7 @@ pub fn decode_bitvec(
         u64::from_ne_bytes(arr)
     }).collect();
 
-    let aln_decoded: Vec<u64> = minimal_binary_decode(&aln_u64, num_u64, param)?;
+    let aln_decoded: Vec<u64> = minimal_binary_decode(&aln_u64, num_records, param)?;
 
     let aln_flat = aln_decoded.iter().flat_map(|u64_rep| {
         let bits: BitVec<_, Lsb0> = BitVec::from_vec(u64_rep.to_ne_bytes().to_vec());
@@ -81,17 +81,23 @@ pub fn unpack<R: Read>(
     n_targets: usize,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
-    let mut id_bytes: Vec<u8> = Vec::with_capacity(block_header.ids_u64 as usize * 8_usize);
+    let mut id_bytes: Vec<u8> = vec![0; block_header.ids_u64 as usize * 8_usize];
     conn.read_exact(&mut id_bytes)?;
 
-    let mut aln_bytes: Vec<u8> = Vec::with_capacity(block_header.alignments_u64 as usize * 8_usize);
+    let mut aln_bytes: Vec<u8> = vec![0; block_header.alignments_u64 as usize * 8_usize];
     conn.read_exact(&mut aln_bytes)?;
 
-    let aln_bits = decode_bitvec(&aln_bytes, block_header.alignments_u64 as usize, block_header.alignments_param)?;
-    let ids = decode_ids(&id_bytes, block_header.ids_u64 as usize, block_header.ids_param)?;
+    let num_aln_u64 = (block_header.num_records as usize * n_targets).div_ceil(64_usize);
+    let aln_bits = decode_bitvec(&aln_bytes, num_aln_u64, block_header.alignments_param)?;
+    let ids = decode_ids(&id_bytes, block_header.num_records as usize, block_header.ids_param)?;
+
+    assert_eq!(ids.len(), block_header.num_records as usize);
+    assert_eq!(aln_bits.len() / n_targets, block_header.num_records as usize + 64 - block_header.num_records as usize % 64);
 
     let alns = ids.iter().enumerate().map(|(idx, id)| {
-        PseudoAln{ read_id: *id as u32, ones: aln_bits[(idx * n_targets)..((idx + 1)*n_targets)].to_vec() }
+        let start: usize = idx * n_targets;
+        let end: usize = ((idx + 1) * n_targets).min(ids.len() * n_targets);
+        PseudoAln{ read_id: *id as u32, ones: aln_bits[start..end].to_vec() }
     }).collect();
 
     Ok(alns)
