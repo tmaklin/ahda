@@ -21,23 +21,9 @@ use bitvec::{order::Lsb0, vec::BitVec};
 use dsi_bitstream::traits::BE;
 use dsi_bitstream::prelude::MemWordReader;
 use dsi_bitstream::prelude::BufBitReader;
-use dsi_bitstream::codes::RiceRead;
 use dsi_bitstream::codes::MinimalBinaryRead;
 
 type E = Box<dyn std::error::Error>;
-
-#[derive(Debug, Clone)]
-struct DecodeError {
-    message: String,
-}
-
-impl std::fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "ntx decoder error: {}", self.message)
-    }
-}
-
-impl std::error::Error for DecodeError {}
 
 fn minimal_binary_decode(
     encoded: &[u64],
@@ -47,8 +33,8 @@ fn minimal_binary_decode(
     let mut reader = BufBitReader::<BE, _>::new(MemWordReader::new(encoded));
 
     let mut decoded: Vec<u64> = vec![0; n_records];
-    for i in 0..n_records {
-        decoded[i] = reader.read_minimal_binary(param)? - 1;
+    for item in decoded.iter_mut().take(n_records) {
+        *item = reader.read_minimal_binary(param)? - 1;
     }
     Ok(decoded)
 }
@@ -60,7 +46,7 @@ pub fn decode_bitvec(
 ) -> Result<Vec<bool>, E> {
     let aln_u64: Vec<u64> = bytes.chunks(8).map(|chunk| {
         let mut arr: [u8; 8] = [0; 8];
-        arr[0..chunk.len()].copy_from_slice(&chunk);
+        arr[0..chunk.len()].copy_from_slice(chunk);
         u64::from_ne_bytes(arr)
     }).collect();
 
@@ -82,7 +68,7 @@ pub fn decode_ids(
 ) -> Result<Vec<u64>, E> {
     let ids_u64: Vec<u64> = bytes.chunks(8).map(|chunk| {
         let mut arr: [u8; 8] = [0; 8];
-        arr[0..chunk.len()].copy_from_slice(&chunk);
+        arr[0..chunk.len()].copy_from_slice(chunk);
         u64::from_ne_bytes(arr)
     }).collect();
 

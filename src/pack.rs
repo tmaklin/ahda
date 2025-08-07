@@ -78,7 +78,7 @@ pub fn pack(
         arr
     }).collect();
 
-    let header = BlockHeader{ block_size: 256 + data.len() as u32,
+    let header = BlockHeader{ block_size: data.len() as u32,
                               num_records: records.len() as u32,
                               alignments_u64: encoded_2.0.len() as u32,
                               ids_u64: encoded_1.0.len() as u32,
