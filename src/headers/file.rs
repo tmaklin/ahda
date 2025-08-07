@@ -48,6 +48,8 @@ pub struct FileHeader {
 ///
 #[derive(Encode, Decode)]
 pub struct FileFlags {
+    /// Query file basename
+    pub query_name: String,
     /// Name and index of target sequences
     pub target_names: Vec<String>,
 }
@@ -85,4 +87,25 @@ pub fn read_file_header<R: Read>(
     conn.read_exact(&mut header_bytes)?;
     let res = decode_file_header(&header_bytes)?;
     Ok(res)
+}
+
+pub fn encode_file_flags(
+    targets: &[String],
+    query_name: &str,
+) -> Result<Vec<u8>, E> {
+    let mut bytes: Vec<u8> = Vec::new();
+
+    let _ = encode_into_std_write(
+        query_name,
+        &mut bytes,
+        bincode::config::standard(),
+    )?;
+
+    let _ = encode_into_std_write(
+        targets,
+        &mut bytes,
+        bincode::config::standard(),
+    )?;
+
+    Ok(bytes)
 }

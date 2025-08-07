@@ -18,8 +18,6 @@ use std::io::BufWriter;
 use std::io::Write;
 use std::path::PathBuf;
 
-use bincode::encode_into_std_write;
-
 use clap::Parser;
 
 mod cli;
@@ -50,15 +48,23 @@ fn main() {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let n_queries = if let Some(file) = query_file {
+            let (query_name, n_queries) = if let Some(file) = query_file {
                 let mut reader = needletail::parse_fastx_file(file).expect("Valid fastX file");
                 let mut count = 0;
                 while reader.next().is_some() {
                     count += 1;
                 }
-                count
+                let mut file_name: PathBuf = PathBuf::from(file.file_name().unwrap());
+                while let Some(stripped) = file_name.file_stem() {
+                    let is_same = file_name == stripped;
+                    file_name = PathBuf::from(stripped);
+                    if is_same {
+                        break;
+                    }
+                };
+                (file_name.to_str().unwrap().to_owned(), count)
             } else {
-                0
+                (String::new(), 0)
             };
 
             let targets: Vec<String> = if let Some(file) = target_list {
@@ -77,14 +83,10 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                let flags_bytes = encode_into_std_write(
-                    &targets,
-                    &mut conn_out,
-                    bincode::config::standard(),
-                ).unwrap();
+                let flags_bytes = ahda::headers::file::encode_file_flags(&targets, &query_name).unwrap();
+                let _ = conn_out.write_all(&flags_bytes);
 
-
-                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes as u32, 1, 0,0,0).unwrap();
+                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
                 let _ = conn_out.write_all(&file_header);
 
                 ahda::encode(&records, &mut conn_out).unwrap();
@@ -104,7 +106,7 @@ fn main() {
                 let mut conn_in = File::open(file).unwrap();
                 let records = ahda::decode(&mut conn_in).unwrap();
 
-                let out_name = file.file_stem().unwrap().to_string_lossy() + ".txt";
+                let out_name = file.file_stem().unwrap().to_string_lossy();
                 let out_path = PathBuf::from(out_name.to_string());
                 let f = File::create(out_path).unwrap();
 
@@ -118,6 +120,7 @@ fn main() {
                             line += " ";
                         }
                     });
+                    line += "\n";
                     let _ = conn_out.write_all(line.as_bytes());
                 });
             });
