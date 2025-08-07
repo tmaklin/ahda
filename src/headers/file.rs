@@ -40,6 +40,18 @@ pub struct FileHeader {
     pub ph4: u64,
 }
 
+/// Data shared with all blocks
+///
+/// Variable length, use [FileHeader].flags_len to get size
+///
+/// Contents may differ between implementations.
+///
+#[derive(Encode, Decode)]
+pub struct FileFlags {
+    /// Name and index of target sequences
+    pub target_names: Vec<String>,
+}
+
 pub fn encode_file_header(
     n_targets: u32,
     n_queries: u32,

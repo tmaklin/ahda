@@ -78,6 +78,11 @@ pub fn decode<R: Read>(
 ) -> Result<Vec<PseudoAln>, E> {
     let file_header = read_file_header(conn).unwrap();
 
+    if file_header.flags_len > 0 {
+        let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
+        let _ = conn.read_exact(&mut dump);
+    }
+
     let block_header = read_block_header(conn)?;
     let res: Vec<PseudoAln> = unpack::unpack(&block_header, file_header.n_targets as usize, conn)?;
 

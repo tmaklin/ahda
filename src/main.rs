@@ -12,9 +12,13 @@
 // at your option.
 //
 use std::fs::File;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::io::BufWriter;
 use std::io::Write;
 use std::path::PathBuf;
+
+use bincode::encode_into_std_write;
 
 use clap::Parser;
 
@@ -41,6 +45,7 @@ fn main() {
             input_files,
             n_targets,
             query_file,
+            target_list,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -48,12 +53,20 @@ fn main() {
             let n_queries = if let Some(file) = query_file {
                 let mut reader = needletail::parse_fastx_file(file).expect("Valid fastX file");
                 let mut count = 0;
-                while let Some(record) = reader.next() {
+                while reader.next().is_some() {
                     count += 1;
                 }
                 count
             } else {
                 0
+            };
+
+            let targets: Vec<String> = if let Some(file) = target_list {
+                let f = File::open(file).unwrap();
+                let reader = BufReader::new(f);
+                reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
+            } else {
+                Vec::new()
             };
 
             input_files.iter().for_each(|file| {
@@ -64,7 +77,14 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, 0,1,0,0,0).unwrap();
+                let flags_bytes = encode_into_std_write(
+                    &targets,
+                    &mut conn_out,
+                    bincode::config::standard(),
+                ).unwrap();
+
+
+                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes as u32, 1, 0,0,0).unwrap();
                 let _ = conn_out.write_all(&file_header);
 
                 ahda::encode(&records, &mut conn_out).unwrap();

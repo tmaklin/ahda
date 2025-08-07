@@ -39,6 +39,10 @@ pub enum Commands {
         #[arg(short = 'q', long = "query")]
         query_file: Option<PathBuf>,
 
+        // File listing target sequence names in the order they appear in the index
+        #[arg(long = "targets")]
+        target_list: Option<PathBuf>,
+
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
