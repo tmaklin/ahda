@@ -52,7 +52,7 @@ pub fn read_themisto<R: Read>(
 mod tests {
 
     #[test]
-    fn read_themisto() {
+    fn read_themisto_line_multiple_aligned() {
         use std::io::Cursor;
         use crate::PseudoAln;
         use super::read_themisto;
@@ -62,6 +62,51 @@ mod tests {
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
         let got = read_themisto(12, &mut input).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_themisto_line_empty() {
+        use std::io::Cursor;
+        use crate::PseudoAln;
+        use super::read_themisto;
+
+        let data: Vec<u8> = b"185216".to_vec();
+        let expected = PseudoAln{ read_id: 185216, ones: vec![false; 2] };
+
+        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
+        let got = read_themisto(2, &mut input).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_themisto_multiple() {
+        use crate::PseudoAln;
+        use super::read_themisto;
+        use std::io::BufRead;
+        use std::io::BufReader;
+        use std::io::Cursor;
+
+        let data: Vec<u8> = b"185216\n188352\n202678 1\n202728\n651964 0 1\n651966 0 1\n1166624 0\n1166625 0\n1166626 1".to_vec();
+        let expected = vec![
+            PseudoAln{ read_id: 185216, ones: vec![false; 2] },
+            PseudoAln{ read_id: 188352, ones: vec![false; 2] },
+            PseudoAln{ read_id: 202678, ones: vec![false, true] },
+            PseudoAln{ read_id: 202728, ones: vec![false, false] },
+            PseudoAln{ read_id: 651964, ones: vec![true, true] },
+            PseudoAln{ read_id: 651966, ones: vec![true, true] },
+            PseudoAln{ read_id: 1166624, ones: vec![true, false] },
+            PseudoAln{ read_id: 1166625, ones: vec![true, false] },
+            PseudoAln{ read_id: 1166626, ones: vec![false, true] },
+        ];
+
+        let cursor = Cursor::new(data);
+        let reader = BufReader::new(cursor);
+        let got: Vec<PseudoAln> = reader.lines().map(|line| {
+            read_themisto(2, &mut line.unwrap().as_bytes()).unwrap()
+        }).collect();
 
         assert_eq!(got, expected);
     }
