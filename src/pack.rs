@@ -18,6 +18,8 @@ use crate::headers::block::encode_block_flags;
 
 use std::io::Write;
 
+use bitmagic::BVector;
+
 use dsi_bitstream::impls::MemWordWriterVec;
 use dsi_bitstream::impls::BufBitWriter;
 use dsi_bitstream::traits::BE;
@@ -55,6 +57,34 @@ fn minimal_binary_encode(
     Ok((writer.into_inner()?.into_inner(), param))
 }
 
+/// Converts [PseudoAln] records to BitMagic bitvectors
+pub fn convert_to_bitmagic(
+    records: &[PseudoAln],
+) -> Result<(BVector, usize), E> {
+    let offset = records.iter().map(|record| record.read_id).min().unwrap_or(0) as usize;
+
+    let mut bits: BVector = BVector::new();
+
+    let n_targets = records[0].ones.len();
+
+    records.iter().enumerate().for_each(|(read_idx, record)| {
+        record.ones.iter().enumerate().for_each(|(bit_idx, is_set)| {
+            let index = read_idx*n_targets + bit_idx;
+            bits.set(index, *is_set);
+        });
+    });
+
+    Ok((bits, offset))
+}
+
+pub fn serialize_bvector(
+    bits: &BVector,
+) -> Result<Vec<u8>, E> {
+    let mut bytes: Vec<u8> = Vec::new();
+    bits.serialize(&mut bytes)?;
+    Ok(bytes)
+}
+
 pub fn pack(
     records: &[PseudoAln],
 ) -> Result<Vec<u8>, E> {
@@ -63,16 +93,12 @@ pub fn pack(
     }).collect::<Vec<u64>>();
     let encoded_1 = minimal_binary_encode(&ids)?;
 
-    let alignments = records.iter().flat_map(|record| {
-        record.ones.chunks(64).map(|chunk| {
-            let val = chunk.iter().rev().enumerate().fold(0, |acc, (i, b)| acc | (*b as u64) << i);
-            val
-        }).collect::<Vec<u64>>()
-    }).collect::<Vec<u64>>();
+    let (alignments, offset) = convert_to_bitmagic(records)?;
 
-    let encoded_2 = minimal_binary_encode(&alignments)?;
+    // TODO Error if offset * n_targets exceeds 32-bit BitMagic capacity
+    let mut encoded_2 = serialize_bvector(&alignments)?;
 
-    let mut data: Vec<u8> = encoded_1.0.iter().chain(encoded_2.0.iter()).flat_map(|record| {
+    let mut data: Vec<u8> = encoded_1.0.iter().flat_map(|record| {
         let bytes: Vec<u8> = record.to_ne_bytes()[0..8].to_vec();
         let mut arr: [u8; 8] = [0; 8];
         arr[0..8].copy_from_slice(&bytes);
@@ -82,15 +108,20 @@ pub fn pack(
     let mut block_flags: Vec<u8> = encode_block_flags(&Vec::new())?;
     let header = BlockHeader{ flags_len: block_flags.len() as u32,
                               num_records: records.len() as u32,
-                              alignments_u64: encoded_2.0.len() as u32,
-                              ids_u64: encoded_1.0.len() as u32,
-                              alignments_param: encoded_2.1,
+                              alignments_u64: encoded_2.len() as u32,
+                              ids_u64: data.len() as u32,
+                              alignments_param: offset as u64,
                               ids_param: encoded_1.1,
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
+    assert_eq!(block.len(), 32);
     block.append(&mut block_flags);
+    assert_eq!(block.len(), 32 + header.flags_len as usize);
     block.append(&mut data);
+    assert_eq!(block.len(), 32 + header.flags_len as usize + header.ids_u64 as usize);
+    block.append(&mut encoded_2);
+    assert_eq!(block.len(), 32 + header.flags_len as usize + header.ids_u64 as usize + header.alignments_u64 as usize);
 
     Ok(block)
 }

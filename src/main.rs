@@ -113,11 +113,10 @@ fn main() {
                 let mut conn_out = BufWriter::new(f);
                 records.iter().for_each(|record| {
                     let mut line = record.read_id.to_string();
-                    line += " ";
                     record.ones.iter().enumerate().for_each(|(idx, is_set)| {
                         if *is_set {
-                            line += &idx.to_string();
                             line += " ";
+                            line += &idx.to_string();
                         }
                     });
                     line += "\n";
