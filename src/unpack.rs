@@ -87,11 +87,9 @@ pub fn unpack<R: Read>(
     assert_eq!(ids.len(), block_header.num_records as usize);
     assert_eq!(aln_bits.len() / n_targets, block_header.num_records as usize);
 
-    let offset = block_header.alignments_param as usize;
-
-    let alns = ids.iter().map(|id| {
-        let start: usize = (*id as usize - offset)  * n_targets;
-        let end: usize = (*id as usize + 1 - offset) * n_targets;
+    let alns = ids.iter().enumerate().map(|(idx, id)| {
+        let start: usize = idx  * n_targets;
+        let end: usize = (idx + 1) * n_targets;
         PseudoAln{ read_id: *id as u32, ones: aln_bits[start..end].to_vec() }
     }).collect();
 
