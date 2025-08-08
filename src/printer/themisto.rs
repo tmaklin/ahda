@@ -17,12 +17,12 @@ use crate::PseudoAln;
 
 type E = Box<dyn std::error::Error>;
 
-/// Format a pseudoalignment in Themisto format
+/// Format a single pseudoalignment in Themisto format
 ///
-/// Returns a string containing the formatted line containing the contents of
-/// `aln`.
+/// Writes bytes containing the formatted line containing the contents of
+/// `aln` to `conn`.
 ///
-pub fn format_themisto<W: Write>(
+pub fn format_themisto_line<W: Write>(
     aln: &PseudoAln,
     conn: &mut W,
 ) -> Result<(), E> {
@@ -36,8 +36,25 @@ pub fn format_themisto<W: Write>(
             formatted += &idx.to_string();
         }
     });
+    formatted += "\n";
 
     conn.write_all(formatted.as_bytes())?;
+    Ok(())
+}
+
+/// Format many pseudoalignments in Themisto format
+///
+/// Writes bytes containing the formatted line containing the contents of
+/// `alns` to `conn`.
+///
+pub fn format_themisto_file<W: Write>(
+    alns: &[PseudoAln],
+    conn: &mut W,
+) -> Result<(), E> {
+    for aln in alns {
+        format_themisto_line(aln, conn)?;
+    }
+    conn.flush()?;
     Ok(())
 }
 
@@ -46,7 +63,7 @@ pub fn format_themisto<W: Write>(
 mod tests {
 
     #[test]
-    fn format_themisto() {
+    fn format_themisto_line() {
         use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_themisto;

@@ -104,17 +104,7 @@ fn main() {
                 let f = File::create(out_path).unwrap();
 
                 let mut conn_out = BufWriter::new(f);
-                records.iter().for_each(|record| {
-                    let mut line = record.read_id.to_string();
-                    record.ones.iter().enumerate().for_each(|(idx, is_set)| {
-                        if *is_set {
-                            line += " ";
-                            line += &idx.to_string();
-                        }
-                    });
-                    line += "\n";
-                    let _ = conn_out.write_all(line.as_bytes());
-                });
+                ahda::printer::themisto::format_themisto_file(&records, &mut conn_out).unwrap();
             });
 
         },
