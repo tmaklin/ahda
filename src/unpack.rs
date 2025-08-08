@@ -15,10 +15,23 @@ use crate::PseudoAln;
 use crate::headers::block::BlockHeader;
 
 use std::io::Read;
+use std::io::Write;
 
 use bitmagic::BVector;
 
+use flate2::write::GzDecoder;
+
 type E = Box<dyn std::error::Error>;
+
+fn inflate_bytes(
+    deflated: &[u8],
+) -> Result<Vec<u8>, E> {
+    let mut inflated: Vec<u8> = Vec::new();
+    let mut decoder = GzDecoder::new(&mut inflated);
+    decoder.write_all(deflated)?;
+    decoder.finish()?;
+    Ok(inflated)
+}
 
 pub fn decode_bitvec(
     bytes: &[u8],
@@ -40,9 +53,10 @@ pub fn unpack<R: Read>(
     n_targets: usize,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
-    let mut aln_bytes: Vec<u8> = vec![0; block_header.alignments_u64 as usize];
-    conn.read_exact(&mut aln_bytes)?;
+    let mut deflated_bytes: Vec<u8> = vec![0; block_header.alignments_u64 as usize];
+    conn.read_exact(&mut deflated_bytes)?;
 
+    let aln_bytes = inflate_bytes(&mut deflated_bytes)?;
     let aln_bits = decode_bitvec(&aln_bytes, block_header.num_records as usize, n_targets)?;
 
     assert_eq!(aln_bits.len() / n_targets, block_header.num_records as usize);

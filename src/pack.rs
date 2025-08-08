@@ -16,7 +16,12 @@ use crate::headers::block::BlockHeader;
 use crate::headers::block::encode_block_header;
 use crate::headers::block::encode_block_flags;
 
+use std::io::Write;
+
 use bitmagic::BVector;
+
+use flate2::write::GzEncoder;
+use flate2::Compression;
 
 type E = Box<dyn std::error::Error>;
 
@@ -30,6 +35,16 @@ impl std::fmt::Display for EncodeError {
 }
 
 impl std::error::Error for EncodeError {}
+
+fn deflate_bytes(
+    bytes: &[u8],
+) -> Result<Vec<u8>, E> {
+    let mut deflated: Vec<u8> = Vec::with_capacity(bytes.len());
+    let mut encoder = GzEncoder::new(&mut deflated, Compression::default());
+    encoder.write_all(bytes)?;
+    encoder.finish()?;
+    Ok(deflated)
+}
 
 /// Converts [PseudoAln] records to BitMagic bitvectors
 pub fn convert_to_bitmagic(
@@ -62,12 +77,13 @@ pub fn pack(
 ) -> Result<Vec<u8>, E> {
     let alignments = convert_to_bitmagic(records)?;
 
-    let mut encoded_2 = serialize_bvector(&alignments)?;
+    let serialized = serialize_bvector(&alignments)?;
+    let mut deflated = deflate_bytes(&serialized)?;
 
     let mut block_flags: Vec<u8> = encode_block_flags(&Vec::new())?;
     let header = BlockHeader{ flags_len: block_flags.len() as u32,
                               num_records: records.len() as u32,
-                              alignments_u64: encoded_2.len() as u32,
+                              alignments_u64: deflated.len() as u32,
                               ids_u64: 0,
                               alignments_param: 0,
                               ids_param: 0,
@@ -77,7 +93,7 @@ pub fn pack(
     assert_eq!(block.len(), 32);
     block.append(&mut block_flags);
     assert_eq!(block.len(), 32 + header.flags_len as usize);
-    block.append(&mut encoded_2);
+    block.append(&mut deflated);
     assert_eq!(block.len(), 32 + header.flags_len as usize + header.ids_u64 as usize + header.alignments_u64 as usize);
 
     Ok(block)
