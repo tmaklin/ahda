@@ -70,7 +70,7 @@ mod tests {
         use super::format_themisto_line;
 
         let data = PseudoAln{ query_id: Some(128), ones: vec![true, false, false, true, false, false, false, true, false, false, false, true], ..Default::default()};
-        let expected: Vec<u8> = vec![49, 50, 56, 32, 48, 32, 51, 32, 55, 32, 49, 49];
+        let expected: Vec<u8> = vec![49, 50, 56, 32, 48, 32, 51, 32, 55, 32, 49, 49, 10];
 
         let mut got: Vec<u8> = Vec::new();
         format_themisto_line(&data, &mut got).unwrap();
