@@ -11,11 +11,11 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Write;
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -42,16 +42,25 @@ fn main() {
         Some(cli::Commands::Encode {
             input_files,
             n_targets,
+            format,
             query_file,
             target_list,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let (query_name, n_queries) = if let Some(file) = query_file {
+            let format = if format == "themisto" { ahda::Format::Themisto } else { ahda::Format::Fulgor };
+            let mut query_to_pos: HashMap<String, usize> = HashMap::new();
+
+            let (sample_name, n_queries) = if let Some(file) = query_file {
                 let mut reader = needletail::parse_fastx_file(file).expect("Valid fastX file");
                 let mut count = 0;
-                while reader.next().is_some() {
+                while let Some(record) = reader.next() {
+                    let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
+                    let mut infos = query_info.split(' ');
+                    let query_name = infos.next().unwrap().to_string();
+
+                    query_to_pos.insert(query_name, count);
                     count += 1;
                 }
                 let mut file_name: PathBuf = PathBuf::from(file.file_name().unwrap());
@@ -77,13 +86,19 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let records = ahda::parse(*n_targets, &mut conn_in);
+                let mut records = ahda::parse(*n_targets, &format, &mut conn_in);
 
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                ahda::encode(&records, &targets, &query_name, n_queries, &mut conn_out).unwrap();
+                if format == ahda::Format::Fulgor {
+                    records.iter_mut().for_each(|record| {
+                        record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                    })
+                }
+
+                ahda::encode(&records, &targets, &sample_name, n_queries, &mut conn_out).unwrap();
             });
 
         },

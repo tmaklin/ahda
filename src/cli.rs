@@ -35,6 +35,10 @@ pub enum Commands {
         #[arg(long = "n-targets", required = true)]
         n_targets: usize,
 
+        // Input format
+        #[arg(long = "format", required = true)]
+        format: String,
+
         // FastX file used to generate the alignment
         #[arg(short = 'q', long = "query")]
         query_file: Option<PathBuf>,

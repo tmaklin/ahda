@@ -37,9 +37,10 @@ type E = Box<dyn std::error::Error>;
 ///   - 1: [Themisto](https://github.com/algbio/themisto)
 ///
 #[non_exhaustive]
+#[derive(PartialEq, Eq)]
 pub enum Format {
     // Bifrost,
-    // Fulgor,
+    Fulgor,
     // Metagraph,
     // SAM,
     Themisto,
@@ -55,12 +56,16 @@ pub struct PseudoAln {
 
 pub fn parse<R: Read>(
     num_targets: usize,
+    format: &Format,
     conn: &mut R,
 ) -> Vec<PseudoAln> {
     let reader = BufReader::new(conn);
 
     let res: Vec<PseudoAln> = reader.lines().map(|line| {
-            parser::themisto::read_themisto(num_targets, &mut line.unwrap().as_bytes()).unwrap()
+        match format {
+            Format::Themisto => parser::themisto::read_themisto(num_targets, &mut line.unwrap().as_bytes()).unwrap(),
+            Format::Fulgor => parser::fulgor::read_fulgor(num_targets, &mut line.unwrap().as_bytes()).unwrap(),
+        }
     }).collect();
 
     res
@@ -113,6 +118,7 @@ mod tests {
 
     #[test]
     fn parse_themisto_output() {
+        use crate::Format;
         use std::io::Cursor;
 
         use super::parse;
@@ -134,7 +140,53 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(12, &mut input);
+        let got = parse(12, &Format::Themisto, &mut input);
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn parse_fulgor_output() {
+        use crate::Format;
+        use std::io::Cursor;
+
+        use super::parse;
+        use super::PseudoAln;
+
+        let mut data: Vec<u8> = b"ERR4035126.4996\t0\n".to_vec();
+        data.append(&mut b"ERR4035126.1262953\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262954\t1\t1\n".to_vec());
+        data.append(&mut b"ERR4035126.1262955\t1\t1\n".to_vec());
+        data.append(&mut b"ERR4035126.1262956\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262957\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262958\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262959\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.651965\t2\t0\t1\n".to_vec());
+        data.append(&mut b"ERR4035126.11302\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262960\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262961\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262962\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.651965\t2\t0\t1\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ query_id: None, ones: vec![false; 2], query_name: Some("ERR4035126.4996".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262953".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![false, true], query_name: Some("ERR4035126.1262954".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![false, true], query_name: Some("ERR4035126.1262955".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262956".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262957".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262958".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262959".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, true], query_name: Some("ERR4035126.651965".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![false, false], query_name: Some("ERR4035126.11302".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262960".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262961".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262962".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![true, true], query_name: Some("ERR4035126.651965".to_string()) },
+        ];
+
+        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
+        let got = parse(2, &Format::Fulgor, &mut input);
 
         assert_eq!(got, expected);
     }
