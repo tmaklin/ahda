@@ -106,6 +106,7 @@ fn main() {
         // Decode
         Some(cli::Commands::Decode {
             input_files,
+            format,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -119,7 +120,11 @@ fn main() {
                 let f = File::create(out_path).unwrap();
 
                 let mut conn_out = BufWriter::new(f);
-                ahda::printer::themisto::format_themisto_file(&records, &mut conn_out).unwrap();
+                match format.as_str() {
+                    "themisto" => ahda::printer::themisto::format_themisto_file(&records, &mut conn_out).unwrap(),
+                    "fulgor" => ahda::printer::fulgor::format_fulgor_file(&records, &mut conn_out).unwrap(),
+                    _ => panic!("Unrecognized format --format {}", format),
+                }
             });
 
         },

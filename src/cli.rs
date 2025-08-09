@@ -58,6 +58,10 @@ pub enum Commands {
         #[arg(group = "input", required = true, help = "Input file(s)")]
         input_files: Vec<PathBuf>,
 
+        // Output format, defaults to Themisto
+        #[arg(long = "format", default_value = "themisto")]
+        format: String,
+
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
