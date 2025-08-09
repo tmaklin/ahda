@@ -56,7 +56,7 @@ pub fn unpack<R: Read>(
     let mut deflated_bytes: Vec<u8> = vec![0; block_header.alignments_u64 as usize];
     conn.read_exact(&mut deflated_bytes)?;
 
-    let aln_bytes = inflate_bytes(&mut deflated_bytes)?;
+    let aln_bytes = inflate_bytes(&deflated_bytes)?;
     let aln_bits = decode_bitvec(&aln_bytes, block_header.num_records as usize, n_targets)?;
 
     assert_eq!(aln_bits.len() / n_targets, block_header.num_records as usize);
@@ -64,7 +64,7 @@ pub fn unpack<R: Read>(
     let alns = aln_bits.chunks(n_targets).enumerate().map(|(idx, _)| {
         let start: usize = idx  * n_targets;
         let end: usize = (idx + 1) * n_targets;
-        PseudoAln{ read_id: idx as u32, ones: aln_bits[start..end].to_vec() }
+        PseudoAln{ read_id: idx as u32, ones: aln_bits[start..end].to_vec(), ..Default::default()}
     }).collect();
 
     Ok(alns)

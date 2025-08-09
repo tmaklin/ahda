@@ -43,7 +43,7 @@ pub fn read_themisto<R: Read>(
         ones[id as usize] = true;
     }
 
-    let res = PseudoAln{ read_id, ones };
+    let res = PseudoAln{ read_id, ones, ..Default::default()};
     Ok(res)
 }
 
@@ -58,7 +58,7 @@ mod tests {
         use super::read_themisto;
 
         let data: Vec<u8> = b"128 0 7 11 3".to_vec();
-        let expected = PseudoAln{ read_id: 128, ones: vec![true, false, false, true, false, false, false, true, false, false, false, true] };
+        let expected = PseudoAln{ read_id: 128, ones: vec![true, false, false, true, false, false, false, true, false, false, false, true], ..Default::default()};
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
         let got = read_themisto(12, &mut input).unwrap();
@@ -73,7 +73,7 @@ mod tests {
         use super::read_themisto;
 
         let data: Vec<u8> = b"185216".to_vec();
-        let expected = PseudoAln{ read_id: 185216, ones: vec![false; 2] };
+        let expected = PseudoAln{ read_id: 185216, ones: vec![false; 2], ..Default::default()};
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
         let got = read_themisto(2, &mut input).unwrap();
@@ -91,15 +91,15 @@ mod tests {
 
         let data: Vec<u8> = b"185216\n188352\n202678 1\n202728\n651964 0 1\n651966 0 1\n1166624 0\n1166625 0\n1166626 1".to_vec();
         let expected = vec![
-            PseudoAln{ read_id: 185216, ones: vec![false; 2] },
-            PseudoAln{ read_id: 188352, ones: vec![false; 2] },
-            PseudoAln{ read_id: 202678, ones: vec![false, true] },
-            PseudoAln{ read_id: 202728, ones: vec![false, false] },
-            PseudoAln{ read_id: 651964, ones: vec![true, true] },
-            PseudoAln{ read_id: 651966, ones: vec![true, true] },
-            PseudoAln{ read_id: 1166624, ones: vec![true, false] },
-            PseudoAln{ read_id: 1166625, ones: vec![true, false] },
-            PseudoAln{ read_id: 1166626, ones: vec![false, true] },
+            PseudoAln{ read_id: 185216, ones: vec![false; 2], ..Default::default()},
+            PseudoAln{ read_id: 188352, ones: vec![false; 2], ..Default::default()},
+            PseudoAln{ read_id: 202678, ones: vec![false, true], ..Default::default()},
+            PseudoAln{ read_id: 202728, ones: vec![false, false], ..Default::default()},
+            PseudoAln{ read_id: 651964, ones: vec![true, true], ..Default::default()},
+            PseudoAln{ read_id: 651966, ones: vec![true, true], ..Default::default()},
+            PseudoAln{ read_id: 1166624, ones: vec![true, false], ..Default::default()},
+            PseudoAln{ read_id: 1166625, ones: vec![true, false], ..Default::default()},
+            PseudoAln{ read_id: 1166626, ones: vec![false, true], ..Default::default()},
         ];
 
         let cursor = Cursor::new(data);
