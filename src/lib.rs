@@ -37,13 +37,13 @@ type E = Box<dyn std::error::Error>;
 ///   - 1: [Themisto](https://github.com/algbio/themisto)
 ///
 #[non_exhaustive]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Format {
     // Bifrost,
-    Fulgor,
+    Fulgor { n_targets: usize },
     // Metagraph,
     // SAM,
-    Themisto,
+    Themisto { n_targets: usize },
 }
 
 #[non_exhaustive]
@@ -55,7 +55,6 @@ pub struct PseudoAln {
 }
 
 pub fn parse<R: Read>(
-    num_targets: usize,
     format: &Format,
     conn: &mut R,
 ) -> Vec<PseudoAln> {
@@ -63,8 +62,8 @@ pub fn parse<R: Read>(
 
     let res: Vec<PseudoAln> = reader.lines().map(|line| {
         match format {
-            Format::Themisto => parser::themisto::read_themisto(num_targets, &mut line.unwrap().as_bytes()).unwrap(),
-            Format::Fulgor => parser::fulgor::read_fulgor(num_targets, &mut line.unwrap().as_bytes()).unwrap(),
+            Format::Themisto{ n_targets: num_targets } => parser::themisto::read_themisto(*num_targets, &mut line.unwrap().as_bytes()).unwrap(),
+            Format::Fulgor{ n_targets: num_targets } => parser::fulgor::read_fulgor(*num_targets, &mut line.unwrap().as_bytes()).unwrap(),
         }
     }).collect();
 
@@ -140,7 +139,7 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(12, &Format::Themisto, &mut input);
+        let got = parse(&Format::Themisto{ n_targets: 12 }, &mut input);
 
         assert_eq!(got, expected);
     }
@@ -186,7 +185,7 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(2, &Format::Fulgor, &mut input);
+        let got = parse(&Format::Fulgor{ n_targets: 2 }, &mut input);
 
         assert_eq!(got, expected);
     }

@@ -49,7 +49,12 @@ fn main() {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let format = if format == "themisto" { ahda::Format::Themisto } else { ahda::Format::Fulgor };
+            let format = if format == "themisto" {
+                ahda::Format::Themisto{ n_targets: *n_targets }
+            } else {
+                ahda::Format::Fulgor{ n_targets: *n_targets }
+            };
+
             let mut query_to_pos: HashMap<String, usize> = HashMap::new();
 
             let (sample_name, n_queries) = if let Some(file) = query_file {
@@ -86,13 +91,13 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let mut records = ahda::parse(*n_targets, &format, &mut conn_in);
+                let mut records = ahda::parse(&format, &mut conn_in);
 
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                if format == ahda::Format::Fulgor {
+                if format == (ahda::Format::Fulgor{ n_targets: *n_targets }) {
                     records.iter_mut().for_each(|record| {
                         record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
                     })
