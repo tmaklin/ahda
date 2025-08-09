@@ -37,7 +37,7 @@ pub fn read_fulgor<R: Read>(
     let _ = records.next().unwrap(); // TODO error if none
 
     // TODO map read_name to read_id
-    let read_name = read_name_bytes.chars().collect::<String>();
+    let query_name = read_name_bytes.chars().collect::<String>();
     let read_id = 0;
 
     let mut ones: Vec<bool> = vec![false; num_targets];
@@ -47,7 +47,7 @@ pub fn read_fulgor<R: Read>(
         ones[id as usize] = true;
     }
 
-    let res = PseudoAln{ read_id, ones, ..Default::default()};
+    let res = PseudoAln{ query_id: Some(read_id), ones, ..Default::default()};
     Ok(res)
 }
 
@@ -79,20 +79,20 @@ mod tests {
         data.append(&mut b"ERR4035126.651965\t2\t0\t1\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ read_id: 4996, ones: vec![false; 2], ..Default::default()},
-            PseudoAln{ read_id: 126953, ones: vec![true, false], ..Default::default()},
-            PseudoAln{ read_id: 126954, ones: vec![false, true], ..Default::default()},
-            PseudoAln{ read_id: 126955, ones: vec![false, true], ..Default::default()},
-            PseudoAln{ read_id: 126956, ones: vec![true, false], ..Default::default()},
-            PseudoAln{ read_id: 126957, ones: vec![true, false], ..Default::default()},
-            PseudoAln{ read_id: 126958, ones: vec![true, false], ..Default::default()},
-            PseudoAln{ read_id: 126959, ones: vec![true, false], ..Default::default()},
-            PseudoAln{ read_id: 651965, ones: vec![true, true], ..Default::default()},
-            PseudoAln{ read_id: 11302, ones: vec![false, false], ..Default::default()},
-            PseudoAln{ read_id: 1262960, ones: vec![false, true], ..Default::default()},
-            PseudoAln{ read_id: 1262961, ones: vec![false, true], ..Default::default()},
-            PseudoAln{ read_id: 1262962, ones: vec![false, true], ..Default::default()},
-            PseudoAln{ read_id: 651965, ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(4996), ones: vec![false; 2], ..Default::default()},
+            PseudoAln{ query_id: Some(126953), ones: vec![true, false], ..Default::default()},
+            PseudoAln{ query_id: Some(126954), ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(126955), ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(126956), ones: vec![true, false], ..Default::default()},
+            PseudoAln{ query_id: Some(126957), ones: vec![true, false], ..Default::default()},
+            PseudoAln{ query_id: Some(126958), ones: vec![true, false], ..Default::default()},
+            PseudoAln{ query_id: Some(126959), ones: vec![true, false], ..Default::default()},
+            PseudoAln{ query_id: Some(651965), ones: vec![true, true], ..Default::default()},
+            PseudoAln{ query_id: Some(11302), ones: vec![false, false], ..Default::default()},
+            PseudoAln{ query_id: Some(1262960), ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(1262961), ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(1262962), ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(651965), ones: vec![false, true], ..Default::default()},
         ];
 
         let cursor = Cursor::new(data);

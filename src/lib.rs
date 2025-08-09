@@ -49,7 +49,7 @@ pub enum Format {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PseudoAln {
     pub ones: Vec<bool>,
-    pub read_id: u32,
+    pub query_id: Option<u32>,
     pub query_name: Option<String>,
 }
 
@@ -126,11 +126,11 @@ mod tests {
         ].concat();
 
         let expected = vec![
-            PseudoAln{ read_id: 128, ones: vec![true, false, false, true, false, false, false, true, false, false, false, true], ..Default::default()},
-            PseudoAln{ read_id: 7,   ones: vec![true, true, true, true, false, false, false, false, false, false, false, false], ..Default::default()},
-            PseudoAln{ read_id: 8,   ones: vec![false, false, false, false, false, false, false, false, false, false, false, false], ..Default::default()},
-            PseudoAln{ read_id: 0,   ones: vec![false, false, false, false, false, false, false, false, false, false, false, false], ..Default::default()},
-            PseudoAln{ read_id: 1,   ones: vec![false, false, true, false, true, false, false, true, false, true, false, false], ..Default::default()},
+            PseudoAln{ query_id: Some(128), ones: vec![true, false, false, true, false, false, false, true, false, false, false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(7),   ones: vec![true, true, true, true, false, false, false, false, false, false, false, false], ..Default::default()},
+            PseudoAln{ query_id: Some(8),   ones: vec![false, false, false, false, false, false, false, false, false, false, false, false], ..Default::default()},
+            PseudoAln{ query_id: Some(0),   ones: vec![false, false, false, false, false, false, false, false, false, false, false, false], ..Default::default()},
+            PseudoAln{ query_id: Some(1),   ones: vec![false, false, true, false, true, false, false, true, false, true, false, false], ..Default::default()},
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);

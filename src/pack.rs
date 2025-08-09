@@ -54,7 +54,8 @@ pub fn convert_to_bitmagic(
     let n_targets = records[0].ones.len();
 
     records.iter().for_each(|record| {
-        let read_idx = record.read_id as usize;
+        // TODO Error if query_id is none
+        let read_idx = record.query_id.unwrap() as usize;
         record.ones.iter().enumerate().for_each(|(bit_idx, is_set)| {
             let index = read_idx*n_targets + bit_idx;
             bits.set(index, *is_set);

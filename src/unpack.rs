@@ -64,7 +64,7 @@ pub fn unpack<R: Read>(
     let alns = aln_bits.chunks(n_targets).enumerate().map(|(idx, _)| {
         let start: usize = idx  * n_targets;
         let end: usize = (idx + 1) * n_targets;
-        PseudoAln{ read_id: idx as u32, ones: aln_bits[start..end].to_vec(), ..Default::default()}
+        PseudoAln{ query_id: Some(idx as u32), ones: aln_bits[start..end].to_vec(), ..Default::default()}
     }).collect();
 
     Ok(alns)
