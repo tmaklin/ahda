@@ -36,9 +36,8 @@ pub fn read_fulgor<R: Read>(
     let read_name_bytes = records.next().unwrap(); // TODO error if none
     let _ = records.next().unwrap(); // TODO error if none
 
-    // TODO map read_name to read_id
+    // TODO map read_name to query_id outside of this function
     let query_name = read_name_bytes.chars().collect::<String>();
-    let read_id = 0;
 
     let mut ones: Vec<bool> = vec![false; num_targets];
 
@@ -47,7 +46,7 @@ pub fn read_fulgor<R: Read>(
         ones[id as usize] = true;
     }
 
-    let res = PseudoAln{ query_id: Some(read_id), ones, ..Default::default()};
+    let res = PseudoAln{ query_id: None, ones, query_name: Some(query_name)};
     Ok(res)
 }
 
