@@ -13,3 +13,4 @@
 //
 pub mod themisto;
 pub mod fulgor;
+pub mod bifrost;
