@@ -79,7 +79,7 @@ fn main() {
                 let reader = BufReader::new(f);
                 reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
             } else {
-                Vec::new()
+                vec![String::new(); *n_targets]
             };
 
             input_files.iter().for_each(|file| {
