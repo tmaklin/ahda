@@ -16,8 +16,8 @@ use headers::file::encode_file_flags;
 use headers::file::encode_file_header;
 use headers::file::read_file_header;
 
-use std::io::BufRead;
-use std::io::BufReader;
+use parser::Parser;
+
 use std::io::Read;
 use std::io::Write;
 
@@ -59,15 +59,12 @@ pub fn parse<R: Read>(
     format: &Format,
     conn: &mut R,
 ) -> Vec<PseudoAln> {
-    let reader = BufReader::new(conn);
+    let mut reader = Parser::new_with_format(conn, format);
 
-    let res: Vec<PseudoAln> = reader.lines().map(|line| {
-        match format {
-            Format::Themisto{ n_targets: num_targets } => parser::themisto::read_themisto(*num_targets, &mut line.unwrap().as_bytes()).unwrap(),
-            Format::Fulgor{ n_targets: num_targets } => parser::fulgor::read_fulgor(*num_targets, &mut line.unwrap().as_bytes()).unwrap(),
-            Format::Bifrost => parser::bifrost::read_bifrost(&mut line.unwrap().as_bytes()).unwrap(),
-        }
-    }).collect();
+    let mut res: Vec<PseudoAln> = Vec::new();
+    while let Some(record) = reader.next() {
+        res.push(record);
+    }
 
     res
 }
