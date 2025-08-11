@@ -58,7 +58,7 @@ pub struct PseudoAln {
 pub fn parse<R: Read>(
     conn: &mut R,
 ) -> Vec<PseudoAln> {
-    let mut reader = Parser::new(conn);
+    let mut reader = Parser::new(conn).unwrap();
 
     let mut res: Vec<PseudoAln> = Vec::new();
     while let Some(record) = reader.next() {

@@ -29,6 +29,19 @@ use std::io::BufReader;
 use std::io::Cursor;
 use std::io::Read;
 
+type E = Box<dyn std::error::Error>;
+
+#[derive(Debug, Clone)]
+pub struct UnrecognizedInputFormat;
+
+impl std::fmt::Display for UnrecognizedInputFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Unrecognized input format")
+    }
+}
+
+impl std::error::Error for UnrecognizedInputFormat {}
+
 #[derive(Debug)]
 pub struct Parser<'a, R: Read> {
     // conn: R,
@@ -40,15 +53,18 @@ pub struct Parser<'a, R: Read> {
 impl<'a, R: Read> Parser<'a, R> {
     pub fn new(
         conn: &'a mut R,
-    ) -> Self {
+    ) -> Result<Self, E> {
         let mut reader = BufReader::new(conn);
         let mut buf = Cursor::new(Vec::<u8>::new());
 
-        reader.read_until(b'\n', buf.get_mut()).unwrap();
+        reader.read_until(b'\n', buf.get_mut())?;
 
-        let format = guess_format(buf.get_ref()).unwrap();
+        if let Some(format) = guess_format(buf.get_ref()) {
+            Ok(Self { reader, buf, format })
+        } else {
+            Err(Box::new(UnrecognizedInputFormat{}))
+        }
 
-        Self { reader, buf, format }
     }
 
     pub fn new_with_format(
