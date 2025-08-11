@@ -118,12 +118,19 @@ impl<R: Read> Parser<'_, R> {
 pub fn guess_format(
     bytes: &[u8],
 ) -> Option<Format> {
-    let not_themisto: bool = bytes.contains(&b'\t');
+    let first_line: Vec<u8> = if bytes.contains(&b'\n') {
+        let linebreak = bytes.iter().position(|x| *x == b'\n').unwrap();
+        bytes[0..linebreak].to_vec()
+    } else {
+        bytes.to_vec()
+    };
+
+    let not_themisto: bool = first_line.contains(&b'\t');
     if !not_themisto {
         return Some(Format::Themisto)
     }
 
-    let line = bytes.iter().map(|x| *x as char).collect::<String>();
+    let line = first_line.iter().map(|x| *x as char).collect::<String>();
     let mut records = line.split('\t');
 
     let bifrost: bool = records.next()? == "query_name";
@@ -131,10 +138,7 @@ pub fn guess_format(
         return Some(Format::Bifrost)
     }
 
-    let mut next = records.next()?;
-    if records.next().is_none() {
-        next = &next[0..(next.len() - 1)];
-    }
+    let next = records.next()?;
 
     let fulgor: bool = next.parse::<u32>().is_ok();
     if fulgor {
