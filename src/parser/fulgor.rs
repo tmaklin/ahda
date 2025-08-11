@@ -24,7 +24,6 @@ type E = Box<dyn std::error::Error>;
 /// Returns the [pseudoalignment](PseudoAln) on the line.
 ///
 pub fn read_fulgor<R: Read>(
-    num_targets: usize,
     conn: &mut R,
 ) -> Result<PseudoAln, E> {
     let separator: char = '\t';
@@ -37,11 +36,11 @@ pub fn read_fulgor<R: Read>(
     let _ = records.next().unwrap(); // TODO error if none
 
     let query_name = read_name_bytes.chars().collect::<String>();
-    let mut ones: Vec<bool> = vec![false; num_targets];
+    let mut ones: Vec<u32> = Vec::new();
 
     for record in records {
         let id = record.parse::<u32>()?;
-        ones[id as usize] = true;
+        ones.push(id);
     }
 
     let res = PseudoAln{ query_id: None, ones, query_name: Some(query_name)};
@@ -76,26 +75,26 @@ mod tests {
         data.append(&mut b"ERR4035126.651965\t2\t0\t1\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ query_id: None, ones: vec![false; 2], query_name: Some("ERR4035126.4996".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262953".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, true], query_name: Some("ERR4035126.1262954".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, true], query_name: Some("ERR4035126.1262955".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262956".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262957".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262958".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262959".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, true], query_name: Some("ERR4035126.651965".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, false], query_name: Some("ERR4035126.11302".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262960".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262961".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262962".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, true], query_name: Some("ERR4035126.651965".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![], query_name: Some("ERR4035126.4996".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262953".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![1], query_name: Some("ERR4035126.1262954".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![1], query_name: Some("ERR4035126.1262955".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262956".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262957".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262958".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262959".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0, 1], query_name: Some("ERR4035126.651965".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![], query_name: Some("ERR4035126.11302".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262960".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262961".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262962".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0, 1], query_name: Some("ERR4035126.651965".to_string()) },
         ];
 
         let cursor = Cursor::new(data);
         let reader = BufReader::new(cursor);
         let got: Vec<PseudoAln> = reader.lines().map(|line| {
-            read_fulgor(2, &mut line.unwrap().as_bytes()).unwrap()
+            read_fulgor(&mut line.unwrap().as_bytes()).unwrap()
         }).collect();
 
         assert_eq!(got, expected);

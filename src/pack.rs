@@ -49,16 +49,16 @@ fn deflate_bytes(
 /// Converts [PseudoAln] records to BitMagic bitvectors
 pub fn convert_to_bitmagic(
     records: &[PseudoAln],
+    n_targets: usize,
 ) -> Result<BVector, E> {
     let mut bits: BVector = BVector::new();
-    let n_targets = records[0].ones.len();
 
     records.iter().for_each(|record| {
         // TODO Error if query_id is none
         let read_idx = record.query_id.unwrap() as usize;
-        record.ones.iter().enumerate().for_each(|(bit_idx, is_set)| {
-            let index = read_idx*n_targets + bit_idx;
-            bits.set(index, *is_set);
+        record.ones.iter().for_each(|bit_idx| {
+            let index = read_idx*n_targets + *bit_idx as usize;
+            bits.set(index, true);
         });
     });
 
@@ -75,8 +75,9 @@ pub fn serialize_bvector(
 
 pub fn pack(
     records: &[PseudoAln],
+    n_targets: usize,
 ) -> Result<Vec<u8>, E> {
-    let alignments = convert_to_bitmagic(records)?;
+    let alignments = convert_to_bitmagic(records, n_targets)?;
 
     let serialized = serialize_bvector(&alignments)?;
     let mut deflated = deflate_bytes(&serialized)?;

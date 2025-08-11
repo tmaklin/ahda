@@ -36,11 +36,9 @@ pub fn format_fulgor_line<W: Write>(
     formatted += &0.to_string();
     formatted += &separator.to_string();
 
-    aln.ones.iter().enumerate().for_each(|(idx, aligned)| {
-        if *aligned {
-            formatted += &separator.to_string();
-            formatted += &idx.to_string();
-        }
+    aln.ones.iter().for_each(|idx| {
+        formatted += &separator.to_string();
+        formatted += &idx.to_string();
     });
     formatted += "\n";
 

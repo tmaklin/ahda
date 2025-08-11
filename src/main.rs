@@ -50,9 +50,9 @@ fn main() {
             init_log(if *verbose { 2 } else { 1 });
 
             let format = if format == "themisto" {
-                ahda::Format::Themisto{ n_targets: *n_targets }
+                ahda::Format::Themisto
             } else {
-                ahda::Format::Fulgor{ n_targets: *n_targets }
+                ahda::Format::Fulgor
             };
 
             let mut query_to_pos: HashMap<String, usize> = HashMap::new();
@@ -97,7 +97,7 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                if format == (ahda::Format::Fulgor{ n_targets: *n_targets }) {
+                if format == (ahda::Format::Fulgor) {
                     records.iter_mut().for_each(|record| {
                         record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
                     })

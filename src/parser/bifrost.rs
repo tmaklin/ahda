@@ -58,9 +58,11 @@ pub fn read_bifrost<R: Read>(
 
     let query_name = read_name_bytes.chars().collect::<String>();
 
-    let mut ones: Vec<bool> = Vec::new();
-    for record in records {
-        ones.push(record.parse::<u32>().unwrap() > 0)
+    let mut ones: Vec<u32> = Vec::new();
+    for (idx, record) in records.enumerate() {
+        if record.parse::<u32>().unwrap() > 0 {
+            ones.push(idx as u32);
+        }
     };
 
     let res = PseudoAln{ query_id: None, ones, query_name: Some(query_name)};
@@ -92,16 +94,16 @@ mod tests {
         data.append(&mut b"ERR4035126.1262970\t0\t0\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.20".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.16".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, true], query_name: Some("ERR4035126.1262938".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, false], query_name: Some("ERR4035126.1262940".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, true], query_name: Some("ERR4035126.1262954".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, false], query_name: Some("ERR4035126.1262955".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, true], query_name: Some("ERR4035126.651994".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![true, true], query_name: Some("ERR4035126.651993".to_string()) },
-            PseudoAln{ query_id: None, ones: vec![false, false], query_name: Some("ERR4035126.1262970".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0,], query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.20".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![1], query_name: Some("ERR4035126.1262938".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1262940".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![1], query_name: Some("ERR4035126.1262954".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![], query_name: Some("ERR4035126.1262955".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0, 1], query_name: Some("ERR4035126.651994".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![0, 1], query_name: Some("ERR4035126.651993".to_string()) },
+            PseudoAln{ query_id: None, ones: vec![], query_name: Some("ERR4035126.1262970".to_string()) },
         ];
 
         let cursor = Cursor::new(data);

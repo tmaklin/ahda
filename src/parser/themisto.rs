@@ -24,7 +24,6 @@ type E = Box<dyn std::error::Error>;
 /// Returns the number of pseudoalignments on the line.
 ///
 pub fn read_themisto<R: Read>(
-    num_targets: usize,
     conn: &mut R,
 ) -> Result<PseudoAln, E> {
     let separator: char = ' ';
@@ -36,11 +35,11 @@ pub fn read_themisto<R: Read>(
     let id_bytes = records.next().unwrap(); // TODO handle empty input
     let read_id = id_bytes.parse::<u32>()?;
 
-    let mut ones: Vec<bool> = vec![false; num_targets];
+    let mut ones: Vec<u32> = Vec::new();
 
     for record in records {
         let id = record.parse::<u32>()?;
-        ones[id as usize] = true;
+        ones.push(id);
     }
 
     let res = PseudoAln{ query_id: Some(read_id), ones, ..Default::default()};
@@ -58,10 +57,10 @@ mod tests {
         use super::read_themisto;
 
         let data: Vec<u8> = b"128 0 7 11 3".to_vec();
-        let expected = PseudoAln{ query_id: Some(128), ones: vec![true, false, false, true, false, false, false, true, false, false, false, true], ..Default::default()};
+        let expected = PseudoAln{ query_id: Some(128), ones: vec![0, 7, 11, 3], ..Default::default()};
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = read_themisto(12, &mut input).unwrap();
+        let got = read_themisto(&mut input).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -73,10 +72,10 @@ mod tests {
         use super::read_themisto;
 
         let data: Vec<u8> = b"185216".to_vec();
-        let expected = PseudoAln{ query_id: Some(185216), ones: vec![false; 2], ..Default::default()};
+        let expected = PseudoAln{ query_id: Some(185216), ones: Vec::new(), ..Default::default()};
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = read_themisto(2, &mut input).unwrap();
+        let got = read_themisto(&mut input).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -91,21 +90,21 @@ mod tests {
 
         let data: Vec<u8> = b"185216\n188352\n202678 1\n202728\n651964 0 1\n651966 0 1\n1166624 0\n1166625 0\n1166626 1".to_vec();
         let expected = vec![
-            PseudoAln{ query_id: Some(185216), ones: vec![false; 2], ..Default::default()},
-            PseudoAln{ query_id: Some(188352), ones: vec![false; 2], ..Default::default()},
-            PseudoAln{ query_id: Some(202678), ones: vec![false, true], ..Default::default()},
-            PseudoAln{ query_id: Some(202728), ones: vec![false, false], ..Default::default()},
-            PseudoAln{ query_id: Some(651964), ones: vec![true, true], ..Default::default()},
-            PseudoAln{ query_id: Some(651966), ones: vec![true, true], ..Default::default()},
-            PseudoAln{ query_id: Some(1166624), ones: vec![true, false], ..Default::default()},
-            PseudoAln{ query_id: Some(1166625), ones: vec![true, false], ..Default::default()},
-            PseudoAln{ query_id: Some(1166626), ones: vec![false, true], ..Default::default()},
+            PseudoAln{ query_id: Some(185216), ones: vec![], ..Default::default()},
+            PseudoAln{ query_id: Some(188352), ones: vec![], ..Default::default()},
+            PseudoAln{ query_id: Some(202678), ones: vec![1], ..Default::default()},
+            PseudoAln{ query_id: Some(202728), ones: vec![], ..Default::default()},
+            PseudoAln{ query_id: Some(651964), ones: vec![0, 1], ..Default::default()},
+            PseudoAln{ query_id: Some(651966), ones: vec![0, 1], ..Default::default()},
+            PseudoAln{ query_id: Some(1166624), ones: vec![0], ..Default::default()},
+            PseudoAln{ query_id: Some(1166625), ones: vec![0], ..Default::default()},
+            PseudoAln{ query_id: Some(1166626), ones: vec![1], ..Default::default()},
         ];
 
         let cursor = Cursor::new(data);
         let reader = BufReader::new(cursor);
         let got: Vec<PseudoAln> = reader.lines().map(|line| {
-            read_themisto(2, &mut line.unwrap().as_bytes()).unwrap()
+            read_themisto(&mut line.unwrap().as_bytes()).unwrap()
         }).collect();
 
         assert_eq!(got, expected);

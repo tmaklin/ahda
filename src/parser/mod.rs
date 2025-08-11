@@ -73,8 +73,8 @@ impl<R: Read> Parser<'_, R> {
                 line.get_mut().pop();
             }
             let res = match self.format {
-                Format::Themisto{ n_targets: num_targets } => read_themisto(num_targets, &mut line).unwrap(),
-                Format::Fulgor{ n_targets: num_targets } => read_fulgor(num_targets, &mut line).unwrap(),
+                Format::Themisto => read_themisto(&mut line).unwrap(),
+                Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
             };
             self.buf.get_mut().clear();
@@ -87,8 +87,8 @@ impl<R: Read> Parser<'_, R> {
             }
             line.get_mut().pop();
             let res = match self.format {
-                Format::Themisto{ n_targets: num_targets } => read_themisto(num_targets, &mut line).unwrap(),
-                Format::Fulgor{ n_targets: num_targets } => read_fulgor(num_targets, &mut line).unwrap(),
+                Format::Themisto => read_themisto(&mut line).unwrap(),
+                Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
             };
             Some(res)
@@ -110,7 +110,7 @@ pub fn guess_format(
 ) -> Option<Format> {
     let not_themisto: bool = bytes.contains(&b'\t');
     if !not_themisto {
-        return Some(Format::Themisto{ n_targets: 0 })
+        return Some(Format::Themisto)
     }
 
     let line = bytes.iter().map(|x| *x as char).collect::<String>();
@@ -128,7 +128,7 @@ pub fn guess_format(
 
     let fulgor: bool = next.parse::<u32>().is_ok();
     if fulgor {
-        return Some(Format::Fulgor{ n_targets: 0 })
+        return Some(Format::Fulgor)
     }
 
     None
