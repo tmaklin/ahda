@@ -37,9 +37,10 @@ type E = Box<dyn std::error::Error>;
 ///   - 1: [Themisto](https://github.com/algbio/themisto)
 ///
 #[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Format {
-    // Bifrost,
+    #[default] // TODO more sensible default
+    Bifrost,
     Fulgor { n_targets: usize },
     // Metagraph,
     // SAM,
@@ -64,6 +65,7 @@ pub fn parse<R: Read>(
         match format {
             Format::Themisto{ n_targets: num_targets } => parser::themisto::read_themisto(*num_targets, &mut line.unwrap().as_bytes()).unwrap(),
             Format::Fulgor{ n_targets: num_targets } => parser::fulgor::read_fulgor(*num_targets, &mut line.unwrap().as_bytes()).unwrap(),
+            Format::Bifrost => parser::bifrost::read_bifrost(&mut line.unwrap().as_bytes()).unwrap(),
         }
     }).collect();
 
