@@ -56,11 +56,9 @@ pub struct PseudoAln {
 }
 
 pub fn parse<R: Read>(
-    format: &Format,
     conn: &mut R,
 ) -> Vec<PseudoAln> {
     let mut reader = Parser::new(conn);
-    reader.set_format(format);
 
     let mut res: Vec<PseudoAln> = Vec::new();
     while let Some(record) = reader.next() {
@@ -139,7 +137,7 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(&Format::Themisto, &mut input);
+        let got = parse(&mut input);
 
         assert_eq!(got, expected);
     }
@@ -185,7 +183,7 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(&Format::Fulgor, &mut input);
+        let got = parse(&mut input);
 
         assert_eq!(got, expected);
     }

@@ -42,18 +42,11 @@ fn main() {
         Some(cli::Commands::Encode {
             input_files,
             n_targets,
-            format,
             query_file,
             target_list,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
-
-            let format = if format == "themisto" {
-                ahda::Format::Themisto
-            } else {
-                ahda::Format::Fulgor
-            };
 
             let mut query_to_pos: HashMap<String, usize> = HashMap::new();
 
@@ -91,13 +84,13 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let mut records = ahda::parse(&format, &mut conn_in);
+                let mut records = ahda::parse(&mut conn_in);
 
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                if format == (ahda::Format::Fulgor) {
+                if !records.is_empty() && records[0].query_id.is_none() {
                     records.iter_mut().for_each(|record| {
                         record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
                     })

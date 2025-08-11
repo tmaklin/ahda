@@ -97,12 +97,6 @@ impl<R: Read> Parser<'_, R> {
         }
     }
 
-    pub fn set_format(
-        &mut self,
-        format: &Format,
-    ) {
-        self.format = format.clone();
-    }
 }
 
 pub fn guess_format(
