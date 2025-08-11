@@ -11,10 +11,13 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use ahda::printer::Printer;
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Write;
 use std::io::BufWriter;
 use std::path::PathBuf;
 
@@ -118,11 +121,17 @@ fn main() {
                 let f = File::create(out_path).unwrap();
 
                 let mut conn_out = BufWriter::new(f);
-                match format.as_str() {
-                    "themisto" => ahda::printer::themisto::format_themisto_file(&records, &mut conn_out).unwrap(),
-                    "fulgor" => ahda::printer::fulgor::format_fulgor_file(&records, &mut conn_out).unwrap(),
+
+                let mut printer = match format.as_str() {
+                    "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
+                    "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
                     _ => panic!("Unrecognized format --format {}", format),
+                };
+
+                while let Some(line) = printer.next() {
+                    conn_out.write_all(&line).unwrap();
                 }
+                conn_out.flush().unwrap();
             });
 
         },

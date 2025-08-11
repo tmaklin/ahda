@@ -41,22 +41,6 @@ pub fn format_themisto_line<W: Write>(
     Ok(())
 }
 
-/// Format many pseudoalignments in Themisto format
-///
-/// Writes bytes containing the formatted line containing the contents of
-/// `alns` to `conn`.
-///
-pub fn format_themisto_file<W: Write>(
-    alns: &[PseudoAln],
-    conn: &mut W,
-) -> Result<(), E> {
-    for aln in alns {
-        format_themisto_line(aln, conn)?;
-    }
-    conn.flush()?;
-    Ok(())
-}
-
 // Tests
 #[cfg(test)]
 mod tests {
