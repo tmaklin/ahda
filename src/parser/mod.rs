@@ -167,3 +167,50 @@ pub fn guess_format(
 //     }
 
 // }
+
+// Tests
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn guess_format_themisto() {
+        use crate::Format;
+        use super::guess_format;
+
+        let data: Vec<u8> = b"202678 1\n202728\n651964 0 1\n651966 0 1\n1166624 0\n1166625 0\n1166626 1".to_vec();
+        let got = guess_format(&data).unwrap();
+        let expected = Format::Themisto;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn guess_format_fulgor() {
+        use crate::Format;
+        use super::guess_format;
+
+        let mut data: Vec<u8> = b"ERR4035126.4996\t0\n".to_vec();
+        data.append(&mut b"ERR4035126.1262953\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262954\t1\t1\n".to_vec());
+
+        let got = guess_format(&data).unwrap();
+        let expected = Format::Fulgor;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn guess_format_bifrost() {
+        use crate::Format;
+        use super::guess_format;
+
+        let mut data: Vec<u8> = b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.1262953\t1\t0\t15\n".to_vec());
+        data.append(&mut b"ERR4035126.1262954\t1\t1\t0\n".to_vec());
+
+        let got = guess_format(&data).unwrap();
+        let expected = Format::Bifrost;
+
+        assert_eq!(got, expected);
+    }
+}
