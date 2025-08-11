@@ -57,15 +57,15 @@ pub struct PseudoAln {
 
 pub fn parse<R: Read>(
     conn: &mut R,
-) -> Vec<PseudoAln> {
-    let mut reader = Parser::new(conn).unwrap();
+) -> Result<Vec<PseudoAln>, E> {
+    let mut reader = Parser::new(conn)?;
 
     let mut res: Vec<PseudoAln> = Vec::new();
     while let Some(record) = reader.next() {
         res.push(record);
     }
 
-    res
+    Ok(res)
 }
 
 /// Write pseudoalignments in .ahda format
@@ -137,7 +137,7 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(&mut input);
+        let got = parse(&mut input).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -183,7 +183,7 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(&mut input);
+        let got = parse(&mut input).unwrap();
 
         assert_eq!(got, expected);
     }

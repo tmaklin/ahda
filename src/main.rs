@@ -84,7 +84,7 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let mut records = ahda::parse(&mut conn_in);
+                let mut records = ahda::parse(&mut conn_in).unwrap();
 
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
