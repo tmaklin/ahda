@@ -94,7 +94,15 @@ impl<R: Read> Parser<'_, R> {
                     line.get_mut().pop();
                     read_bifrost(&mut line).unwrap()
                 },
-                Format::SAM => todo!("Implement SAM parsing"),
+                Format::SAM => {
+                    // Consume header lines
+                    while line.get_ref()[0] == b'@' {
+                        line.get_mut().clear();
+                        self.reader.read_until(b'\n', line.get_mut()).unwrap();
+                    }
+                    line.get_mut().pop();
+                    read_sam(&mut line).unwrap()
+                },
             };
             self.buf.get_mut().clear();
             return Some(res)
@@ -293,6 +301,7 @@ mod tests {
         data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
         data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
         data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
 
         let expected: Vec<String> = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
 
@@ -303,5 +312,54 @@ mod tests {
         let got: Vec<String> = reader.read_header().unwrap();
 
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn consume_sam_header_with_next() {
+        use super::Parser;
+        use crate::PseudoAln;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+
+        let expected = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.1".to_string()) };
+
+        let mut cursor = Cursor::new(data);
+
+        let mut reader = Parser::new(&mut cursor).unwrap();
+
+        let got: PseudoAln = reader.next().unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_sam_header_and_first_line() {
+        use super::Parser;
+        use crate::PseudoAln;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+
+        let expected_header: Vec<String> = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
+        let expected_aln = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.1".to_string()) };
+
+        let mut cursor = Cursor::new(data);
+
+        let mut reader = Parser::new(&mut cursor).unwrap();
+
+        let got_header: Vec<String> = reader.read_header().unwrap();
+        assert_eq!(got_header, expected_header);
+
+        let got_aln: PseudoAln = reader.next().unwrap();
+        assert_eq!(got_aln, expected_aln);
     }
 }
