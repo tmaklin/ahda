@@ -16,6 +16,7 @@
 pub mod themisto;
 pub mod fulgor;
 pub mod bifrost;
+pub mod sam;
 
 use crate::Format;
 use crate::PseudoAln;
@@ -23,6 +24,7 @@ use crate::PseudoAln;
 use crate::parser::themisto::read_themisto;
 use crate::parser::fulgor::read_fulgor;
 use crate::parser::bifrost::read_bifrost;
+use crate::parser::sam::read_sam;
 
 use std::io::BufRead;
 use std::io::BufReader;

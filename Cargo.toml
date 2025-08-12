@@ -22,6 +22,7 @@ bitmagic = { path = "vendor/bitmagic-rs" }
 clap = { version = "4", features = ["derive"]}
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 needletail = { version = "0.6", default-features = false, features = ["flate2"] }
+noodles-sam = "0.78"
 stderrlog = "0.6"
 
 [profile.release]
