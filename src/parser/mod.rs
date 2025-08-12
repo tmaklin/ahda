@@ -235,7 +235,7 @@ mod tests {
 
         let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
         data.append(&mut b"ERR4035126.1\t121\t0\n".to_vec());
-        let expected: PseudoAln = PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1".to_string()) };
+        let expected: PseudoAln = PseudoAln{ones_names: None,  query_id: None, ones: vec![0], query_name: Some("ERR4035126.1".to_string()) };
 
         let mut cursor = Cursor::new(data);
 

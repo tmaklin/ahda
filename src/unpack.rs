@@ -65,7 +65,7 @@ pub fn unpack<R: Read>(
         let start: usize = idx  * n_targets;
         let end: usize = (idx + 1) * n_targets;
         let ones: Vec<u32> = aln_bits[start..end].iter().enumerate().filter_map(|(idx, is_set)| if *is_set { Some(idx as u32) } else { None }).collect();
-        PseudoAln{ query_id: Some(idx as u32), ones, ..Default::default()}
+        PseudoAln{ones_names: None,  query_id: Some(idx as u32), ones, ..Default::default()}
     }).collect();
 
     Ok(alns)
