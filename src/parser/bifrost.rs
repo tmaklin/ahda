@@ -74,6 +74,26 @@ pub fn read_bifrost<R: Read>(
 mod tests {
 
     #[test]
+    fn read_bifrost_error_if_header_not_consumed() {
+        use crate::PseudoAln;
+        use super::read_bifrost;
+        use std::io::BufRead;
+        use std::io::BufReader;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.1\t121\t0\n".to_vec());
+
+        let cursor = Cursor::new(data);
+        let mut reader = BufReader::new(cursor);
+        let mut line = String::new();
+        reader.read_line(&mut line).unwrap();
+        let got = read_bifrost(&mut line.as_bytes());
+
+        assert!(!got.is_ok());
+    }
+
+    #[test]
     fn read_bifrost_multiple() {
         use crate::PseudoAln;
         use super::read_bifrost;

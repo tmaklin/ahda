@@ -67,19 +67,12 @@ impl<'a, R: Read> Parser<'a, R> {
 
     }
 
-    pub fn new_with_format(
-        conn: &'a mut R,
-        format: &Format,
-    ) -> Self {
-        Self { reader: BufReader::new(conn), format: format.clone(), buf: Cursor::new(Vec::new()) }
-    }
 }
 
 impl<R: Read> Parser<'_, R> {
     pub fn next(
         &mut self,
     ) -> Option<PseudoAln> {
-
         // TODO this is a dumb implementation, fix
 
         let mut line = Cursor::new(Vec::<u8>::new());
@@ -91,7 +84,14 @@ impl<R: Read> Parser<'_, R> {
             let res = match self.format {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
-                Format::Bifrost => read_bifrost(&mut line).unwrap(),
+                Format::Bifrost => {
+                    let _ = self.read_header();
+
+                    line.get_mut().clear();
+                    self.reader.read_until(b'\n', line.get_mut()).unwrap();
+                    line.get_mut().pop();
+                    read_bifrost(&mut line).unwrap()
+                },
             };
             self.buf.get_mut().clear();
             return Some(res)
@@ -113,6 +113,39 @@ impl<R: Read> Parser<'_, R> {
         }
     }
 
+    /// Consumes the header line and returns the target sequence names.
+    ///
+    /// The header line is only present in Bifrost and Metagraph output. For
+    /// Themisto and Fulgor, this will return None.
+    ///
+    /// Returns None if the header has already been consumed by calling [next].
+    pub fn read_header(
+        &mut self,
+    ) -> Option<Vec<String>> {
+        if self.buf.get_ref().is_empty() {
+            return None
+        }
+        match self.format {
+            Format::Themisto => None,
+            Format::Fulgor => None,
+            Format::Bifrost => {
+                let separator: char = '\t';
+                let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
+                let mut records = contents.split(separator);
+                // Consume `query_name`
+                records.next().unwrap();
+                let mut target_names: Vec<String> = Vec::new();
+                for record in records {
+                    target_names.push(record.to_string());
+                }
+                let n_targets = target_names.len();
+                target_names[n_targets - 1].pop();
+                self.buf.get_mut().clear();
+
+                Some(target_names)
+            }
+        }
+    }
 }
 
 pub fn guess_format(
@@ -147,26 +180,6 @@ pub fn guess_format(
 
     None
 }
-// impl<'a, R: Read> Iterator for &'a Parser<'a, R> {
-//     type Item = PseudoAln;
-
-//     fn next(
-//         &mut self,
-//     ) -> Option<PseudoAln> {
-//         let mut line = Cursor::new(Vec::<u8>::new());
-//         if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
-//             let res = match self.format {
-//                 Format::Themisto{ n_targets: num_targets } => read_themisto(num_targets, &mut line).unwrap(),
-//                 Format::Fulgor{ n_targets: num_targets } => read_fulgor(num_targets, &mut line).unwrap(),
-//                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
-//             };
-//             Some(res)
-//         } else {
-//             None
-//         }
-//     }
-
-// }
 
 // Tests
 #[cfg(test)]
@@ -210,6 +223,44 @@ mod tests {
 
         let got = guess_format(&data).unwrap();
         let expected = Format::Bifrost;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn consume_bifrost_header_with_next() {
+        use super::Parser;
+        use crate::PseudoAln;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.1\t121\t0\n".to_vec());
+        let expected: PseudoAln = PseudoAln{ query_id: None, ones: vec![0], query_name: Some("ERR4035126.1".to_string()) };
+
+        let mut cursor = Cursor::new(data);
+
+        let mut reader = Parser::new(&mut cursor).unwrap();
+
+        let got: PseudoAln = reader.next().unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_bifrost_header() {
+        use super::Parser;
+        use crate::PseudoAln;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.1\t121\t0\n".to_vec());
+        let expected: Vec<String> = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+
+        let mut cursor = Cursor::new(data);
+
+        let mut reader = Parser::new(&mut cursor).unwrap();
+
+        let got: Vec<String> = reader.read_header().unwrap();
 
         assert_eq!(got, expected);
     }
