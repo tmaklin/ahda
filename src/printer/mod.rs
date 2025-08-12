@@ -56,6 +56,7 @@ impl Printer<'_> {
             match self.format {
                 Format::Themisto => format_themisto_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Fulgor => format_fulgor_line(&self.records[self.index], &mut out).unwrap(),
+                Format::Metagraph => todo!("Implement metagraph printing"),
                 Format::Bifrost => todo!("Bifrost printing is not implemented."),
                 Format::SAM => todo!("SAM printing is not implemented."),
             }

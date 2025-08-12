@@ -42,7 +42,7 @@ pub enum Format {
     #[default] // TODO more sensible default
     Bifrost,
     Fulgor,
-    // Metagraph,
+    Metagraph,
     SAM,
     Themisto,
 }

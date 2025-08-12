@@ -24,6 +24,7 @@ use crate::PseudoAln;
 
 use crate::parser::bifrost::read_bifrost;
 use crate::parser::fulgor::read_fulgor;
+use crate::parser::metagraph::read_metagraph;
 use crate::parser::sam::read_sam;
 use crate::parser::themisto::read_themisto;
 
@@ -87,6 +88,7 @@ impl<R: Read> Parser<'_, R> {
             let res = match self.format {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
+                Format::Metagraph => read_metagraph(&mut line).unwrap(),
                 Format::Bifrost => {
                     let _ = self.read_header();
 
@@ -113,6 +115,7 @@ impl<R: Read> Parser<'_, R> {
             let res = match self.format {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
+                Format::Metagraph => read_metagraph(&mut line).unwrap(),
                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
                 Format::SAM => read_sam(&mut line).unwrap(),
             };
@@ -137,6 +140,7 @@ impl<R: Read> Parser<'_, R> {
         match self.format {
             Format::Themisto => None,
             Format::Fulgor => None,
+            Format::Metagraph => None,
             Format::Bifrost => {
                 let separator: char = '\t';
                 let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
@@ -200,19 +204,31 @@ pub fn guess_format(
         return Some(Format::Themisto)
     }
 
-    let line = first_line.iter().map(|x| *x as char).collect::<String>();
+    let line = first_line.clone().iter().map(|x| *x as char).collect::<String>();
     let mut records = line.split('\t');
 
-    let bifrost: bool = records.next()? == "query_name";
+    let first_record = records.next()?;
+    let bifrost: bool = first_record == "query_name";
     if bifrost {
         return Some(Format::Bifrost)
     }
 
+    let maybe_metagraph: bool = first_record.parse::<u32>().is_ok();
+
     let next = records.next()?;
 
     let fulgor: bool = next.parse::<u32>().is_ok();
+
+    if fulgor && maybe_metagraph {
+        return None
+    }
+
     if fulgor {
         return Some(Format::Fulgor)
+    }
+
+    if maybe_metagraph {
+        return Some(Format::Metagraph)
     }
 
     None
@@ -260,6 +276,38 @@ mod tests {
 
         let got = guess_format(&data).unwrap();
         let expected = Format::Bifrost;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn guess_format_metagraph() {
+        use crate::Format;
+        use super::guess_format;
+
+        let mut data: Vec<u8> = b"30\tERR4035126.16\t\n".to_vec();
+        data.append(&mut b"15084\tERR4035126.7543\tplasmid.fasta\n".to_vec());
+
+        let got = guess_format(&data).unwrap();
+        let expected = Format::Metagraph;
+
+        assert_eq!(got, expected);
+    }
+
+
+    #[test]
+    fn guess_format_sam() {
+        use crate::Format;
+        use super::guess_format;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+
+        let got = guess_format(&data).unwrap();
+        let expected = Format::SAM;
 
         assert_eq!(got, expected);
     }
