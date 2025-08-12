@@ -95,13 +95,9 @@ impl<R: Read> Parser<'_, R> {
                     read_bifrost(&mut line).unwrap()
                 },
                 Format::SAM => {
-                    // Consume header lines
-                    while line.get_ref()[0] == b'@' {
-                        line.get_mut().clear();
-                        self.reader.read_until(b'\n', line.get_mut()).unwrap();
-                    }
-                    line.get_mut().pop();
-                    read_sam(&mut line).unwrap()
+                    let _ = self.read_header();
+                    self.buf.get_mut().pop(); // first line after header is now here
+                    read_sam(&mut self.buf).unwrap()
                 },
             };
             self.buf.get_mut().clear();
@@ -117,7 +113,7 @@ impl<R: Read> Parser<'_, R> {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
-                Format::SAM => todo!("Implement SAM parsing"),
+                Format::SAM => read_sam(&mut line).unwrap(),
             };
             Some(res)
         } else {
@@ -158,7 +154,21 @@ impl<R: Read> Parser<'_, R> {
             }
             Format::SAM => {
                 // TODO Error if the header is misformatted
-                let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut self.reader).unwrap();
+                let mut header_contents = Cursor::new(self.buf.get_mut().clone());
+                let mut next_line: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+                loop {
+                    self.reader.read_until(b'\n', next_line.get_mut()).unwrap();
+                    if next_line.get_ref().is_empty() {
+                        break;
+                    }
+                    if next_line.get_ref()[0] == b'@' {
+                        header_contents.get_mut().append(next_line.get_mut());
+                    } else {
+                        self.buf = next_line.clone();
+                        break;
+                    }
+                }
+                let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut header_contents).unwrap();
                 let header = reader.read_header().unwrap();
                 let target_names: Vec<String> = header.reference_sequences().iter().map(|x| x.0.to_string()).collect();
                 Some(target_names)
@@ -361,5 +371,37 @@ mod tests {
 
         let got_aln: PseudoAln = reader.next().unwrap();
         assert_eq!(got_aln, expected_aln);
+    }
+
+    #[test]
+    fn read_sam_multiple() {
+        use super::Parser;
+        use crate::PseudoAln;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.2\t16\tOZ038621.1\t4541557\t60\t151M\t*\t0\t0\tAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGCGTTTTTTATTTGGTGATATTTTTTTCAATATCATGCAGCAAACGGTGCA JAFJFJJJFFJFAJJJJJJJJJJFFA<JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJFF-FFFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.3\t16\tOZ038622.1\t4541521\t60\t151M\t*\t0\t0\tCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGCGTTTTTTATTTGG JJJJJJJFJFFFJJJJJJAJJJF7JJJJJ<JJFFJJJJJJJFJJJJJJJJJFFFJJJFJJJJJJJJJJJJJJJJAJFJJJJFJJJJJJJJJJJJJJJJJJJJJJAJJJJJJJJJJJJJJJJJAJFJFJJJJJJJJJJJJJJJJJFJFAFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["OZ038622.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.3".to_string()) },
+        ];
+
+        let mut cursor = Cursor::new(data);
+
+        let mut reader = Parser::new(&mut cursor).unwrap();
+
+        let mut got: Vec<PseudoAln> = Vec::new();
+        while let Some(record) = reader.next() {
+            got.push(record);
+        }
+
+        assert_eq!(got, expected);
     }
 }
