@@ -94,6 +94,7 @@ impl<R: Read> Parser<'_, R> {
                     line.get_mut().pop();
                     read_bifrost(&mut line).unwrap()
                 },
+                Format::SAM => todo!("Implement SAM parsing"),
             };
             self.buf.get_mut().clear();
             return Some(res)
@@ -108,6 +109,7 @@ impl<R: Read> Parser<'_, R> {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
+                Format::SAM => todo!("Implement SAM parsing"),
             };
             Some(res)
         } else {
@@ -146,6 +148,13 @@ impl<R: Read> Parser<'_, R> {
 
                 Some(target_names)
             }
+            Format::SAM => {
+                // TODO Error if the header is misformatted
+                let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut self.reader).unwrap();
+                let header = reader.read_header().unwrap();
+                let target_names: Vec<String> = header.reference_sequences().iter().map(|x| x.0.to_string()).collect();
+                Some(target_names)
+            },
         }
     }
 }
@@ -159,6 +168,13 @@ pub fn guess_format(
     } else {
         bytes.to_vec()
     };
+
+    if bytes.len() > 2 {
+        let sam: bool = bytes[0] == b'@' && bytes[1] == b'H' && bytes[2] == b'D';
+        if sam {
+            return Some(Format::SAM)
+        }
+    }
 
     let not_themisto: bool = first_line.contains(&b'\t');
     if !not_themisto {
@@ -257,6 +273,28 @@ mod tests {
         let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
         data.append(&mut b"ERR4035126.1\t121\t0\n".to_vec());
         let expected: Vec<String> = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+
+        let mut cursor = Cursor::new(data);
+
+        let mut reader = Parser::new(&mut cursor).unwrap();
+
+        let got: Vec<String> = reader.read_header().unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_sam_header() {
+        use super::Parser;
+        use crate::PseudoAln;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+
+        let expected: Vec<String> = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
 
         let mut cursor = Cursor::new(data);
 

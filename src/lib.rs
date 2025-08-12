@@ -43,7 +43,7 @@ pub enum Format {
     Bifrost,
     Fulgor,
     // Metagraph,
-    // SAM,
+    SAM,
     Themisto,
 }
 

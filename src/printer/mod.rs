@@ -57,6 +57,7 @@ impl Printer<'_> {
                 Format::Themisto => format_themisto_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Fulgor => format_fulgor_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Bifrost => todo!("Bifrost printing is not implemented."),
+                Format::SAM => todo!("SAM printing is not implemented."),
             }
             self.index += 1;
             Some(out)
