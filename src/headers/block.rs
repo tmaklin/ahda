@@ -23,10 +23,10 @@ type E = Box<dyn std::error::Error>;
 pub struct BlockHeader {
     pub flags_len: u32,
     pub num_records: u32,
-    pub alignments_u64: u32,
-    pub ids_u64: u32,
-    pub alignments_param: u64,
-    pub ids_param: u64,
+    pub block_len: u32,
+    pub placeholder1: u32,
+    pub placeholder2: u64,
+    pub placeholder3: u64,
 }
 
 /// Data about the records in this block

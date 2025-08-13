@@ -53,7 +53,7 @@ pub fn unpack<R: Read>(
     n_targets: usize,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
-    let mut deflated_bytes: Vec<u8> = vec![0; block_header.alignments_u64 as usize];
+    let mut deflated_bytes: Vec<u8> = vec![0; block_header.block_len as usize];
     conn.read_exact(&mut deflated_bytes)?;
 
     let aln_bytes = inflate_bytes(&deflated_bytes)?;

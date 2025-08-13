@@ -86,12 +86,13 @@ pub fn pack(
     let mut deflated = deflate_bytes(&serialized)?;
 
     let mut block_flags: Vec<u8> = encode_block_flags(&Vec::new())?;
-    let header = BlockHeader{ flags_len: block_flags.len() as u32,
-                              num_records: records.len() as u32,
-                              alignments_u64: deflated.len() as u32,
-                              ids_u64: 0,
-                              alignments_param: 0,
-                              ids_param: 0,
+    let header = BlockHeader{
+        flags_len: block_flags.len() as u32,
+        num_records: records.len() as u32,
+        block_len: deflated.len() as u32,
+        placeholder1: 0,
+        placeholder2: 0,
+        placeholder3: 0,
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
@@ -99,7 +100,7 @@ pub fn pack(
     block.append(&mut block_flags);
     assert_eq!(block.len(), 32 + header.flags_len as usize);
     block.append(&mut deflated);
-    assert_eq!(block.len(), 32 + header.flags_len as usize + header.ids_u64 as usize + header.alignments_u64 as usize);
+    assert_eq!(block.len(), 32 + header.flags_len as usize + header.block_len as usize);
 
     Ok(block)
 }
