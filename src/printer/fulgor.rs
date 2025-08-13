@@ -66,7 +66,6 @@ mod tests {
 
     #[test]
     fn format_fulgor_line_1st_aligned() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
@@ -82,7 +81,6 @@ mod tests {
 
     #[test]
     fn format_fulgor_line_2nd_aligned() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
@@ -98,7 +96,6 @@ mod tests {
 
     #[test]
     fn format_fulgor_line_two_alignments() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
@@ -114,7 +111,6 @@ mod tests {
 
     #[test]
     fn format_fulgor_line_no_alignments() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
@@ -130,7 +126,6 @@ mod tests {
 
     #[test]
     fn error_if_no_query_name() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
@@ -143,7 +138,6 @@ mod tests {
 
     #[test]
     fn error_if_no_ones() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 

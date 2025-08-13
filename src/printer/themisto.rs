@@ -65,7 +65,6 @@ mod tests {
 
     #[test]
     fn format_themisto_line_single_alignment() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_themisto_line;
 
@@ -80,7 +79,6 @@ mod tests {
 
     #[test]
     fn format_themisto_line_many_alignments() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_themisto_line;
 
@@ -93,8 +91,8 @@ mod tests {
         assert_eq!(got, expected);
     }
 
+    #[test]
     fn format_themisto_line_no_alignments() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_themisto_line;
 
@@ -109,7 +107,6 @@ mod tests {
 
     #[test]
     fn error_if_no_query_id() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_themisto_line;
 
@@ -122,7 +119,6 @@ mod tests {
 
     #[test]
     fn error_if_no_ones() {
-        use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_themisto_line;
 
