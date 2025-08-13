@@ -11,6 +11,28 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! ahda is a library and a command-line client for converting between
+//! pseudoalignment formats output by different tools and for compressing the
+//! data by up to 1000x compared to plaintext and 100x compared to gzip.
+//!
+//! ahda supports the following three operations:
+//!   - `ahda cat` print input file(s) in another format.
+//!   - `ahda decode` decompress pseudoalignment data to a supported format.
+//!   - `ahda encode` compress pseudoalignment data from a supported format.
+//!
+//! ahda can read input data from the following formats:
+//!   - [Bifrost](https://github.com/pmelsted/bifrost)
+//!   - [Fulgor](https://github.com/jermp/fulgor)
+//!   - [Metagraph](https://github.com/ratschlab/metagraph)
+//!   - [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf)
+//!   - [Themisto](https://github.com/algbio/themisto)
+//!
+//! For details on each input format, see [Format]. We welcome contributions
+//! implementing support for new tools but recommend first investigating whether
+//! one of the existing formats fits your needs.
+//!
+
 use headers::block::read_block_header;
 use headers::file::encode_file_flags;
 use headers::file::encode_file_header;
