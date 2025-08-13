@@ -31,7 +31,9 @@ pub fn format_themisto_line<W: Write>(
 
     // TODO error if query_id is None
     formatted += &aln.query_id.unwrap().to_string();
-    aln.ones.iter().for_each(|idx| {
+
+    // TODO error if ones is None
+    aln.ones.as_ref().unwrap().iter().for_each(|idx| {
         formatted += &separator.to_string();
         formatted += &idx.to_string();
     });
@@ -51,7 +53,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_themisto_line;
 
-        let data = PseudoAln{ones_names: None,  query_id: Some(128), ones: vec![0, 3, 7, 11], ..Default::default()};
+        let data = PseudoAln{ones_names: None,  query_id: Some(128), ones: Some(vec![0, 3, 7, 11]), ..Default::default()};
         let expected: Vec<u8> = vec![49, 50, 56, 32, 48, 32, 51, 32, 55, 32, 49, 49, 10];
 
         let mut got: Vec<u8> = Vec::new();

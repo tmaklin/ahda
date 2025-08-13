@@ -320,7 +320,7 @@ mod tests {
 
         let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
         data.append(&mut b"ERR4035126.1\t121\t0\n".to_vec());
-        let expected: PseudoAln = PseudoAln{ones_names: None,  query_id: None, ones: vec![0], query_name: Some("ERR4035126.1".to_string()) };
+        let expected: PseudoAln = PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) };
 
         let mut cursor = Cursor::new(data);
 
@@ -385,7 +385,7 @@ mod tests {
         data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
         data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
 
-        let expected = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.1".to_string()) };
+        let expected = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1".to_string()) };
 
         let mut cursor = Cursor::new(data);
 
@@ -409,7 +409,7 @@ mod tests {
         data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
 
         let expected_header: Vec<String> = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
-        let expected_aln = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.1".to_string()) };
+        let expected_aln = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1".to_string()) };
 
         let mut cursor = Cursor::new(data);
 
@@ -437,9 +437,9 @@ mod tests {
         data.append(&mut b"ERR4035126.3\t16\tOZ038622.1\t4541521\t60\t151M\t*\t0\t0\tCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGCGTTTTTTATTTGG JJJJJJJFJFFFJJJJJJAJJJF7JJJJJ<JJFFJJJJJJJFJJJJJJJJJFFFJJJFJJJJJJJJJJJJJJJJAJFJJJJFJJJJJJJJJJJJJJJJJJJJJJAJJJJJJJJJJJJJJJJJAJFJFJJJJJJJJJJJJJJJJJFJFAFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.1".to_string()) },
-            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.2".to_string()) },
-            PseudoAln{ones_names: Some(vec!["OZ038622.1".to_string()]), query_id: None, ones: vec![], query_name: Some("ERR4035126.3".to_string()) },
+            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["OZ038622.1".to_string()]), query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.3".to_string()) },
         ];
 
         let mut cursor = Cursor::new(data);

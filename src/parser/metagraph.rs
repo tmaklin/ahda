@@ -45,7 +45,7 @@ pub fn read_metagraph<R: Read>(
         }
     };
 
-    let res = PseudoAln{ ones_names: Some(ones_names),  query_id: Some(query_id), ones: vec![], query_name: Some(query_name)};
+    let res = PseudoAln{ ones_names: Some(ones_names),  query_id: Some(query_id), ones: Some(vec![]), query_name: Some(query_name)};
     Ok(res)
 }
 
@@ -68,11 +68,11 @@ mod tests {
         data.append(&mut b"15084\tERR4035126.7543\tplasmid.fasta\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(3), ones: vec![], query_name: Some("ERR4035126.2".to_string()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(2), ones: vec![], query_name: Some("ERR4035126.1".to_string()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(1303804), ones: vec![], query_name: Some("ERR4035126.651903".to_string()) },
-            PseudoAln{ones_names: Some(vec![]),  query_id: Some(30), ones: vec![], query_name: Some("ERR4035126.16".to_string()) },
-            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: vec![], query_name: Some("ERR4035126.7543".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(1303804), ones: Some(vec![]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(30), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: Some(vec![]), query_name: Some("ERR4035126.7543".to_string()) },
         ];
 
         let cursor = Cursor::new(data);

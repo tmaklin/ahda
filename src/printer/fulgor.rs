@@ -32,11 +32,12 @@ pub fn format_fulgor_line<W: Write>(
     // TODO error if query_name is None
     formatted += &aln.query_name.clone().unwrap().to_string();
     formatted += &separator.to_string();
-    let aln_count_pos = formatted.len();
+    let aln_count_pos = formatted.len(); // TODO update count
     formatted += &0.to_string();
     formatted += &separator.to_string();
 
-    aln.ones.iter().for_each(|idx| {
+    // TODO error if ones is None
+    aln.ones.as_ref().unwrap().iter().for_each(|idx| {
         formatted += &separator.to_string();
         formatted += &idx.to_string();
     });

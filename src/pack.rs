@@ -53,14 +53,17 @@ pub fn convert_to_bitmagic(
 ) -> Result<BVector, E> {
     let mut bits: BVector = BVector::new();
 
-    records.iter().for_each(|record| {
-        // TODO Error if query_id is none
+    for record in records {
+        if record.ones.is_none() || record.query_id.is_none() {
+            return Err(Box::new(EncodeError{}))
+        }
         let read_idx = record.query_id.unwrap() as usize;
-        record.ones.iter().for_each(|bit_idx| {
+        let ones = record.ones.as_ref().unwrap();
+        ones.iter().for_each(|bit_idx| {
             let index = read_idx*n_targets + *bit_idx as usize;
             bits.set(index, true);
         });
-    });
+    }
 
     Ok(bits)
 }
