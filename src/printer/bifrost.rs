@@ -65,6 +65,34 @@ pub fn format_bifrost_line<W: Write>(
     Ok(())
 }
 
+/// Format a Bifrost header line
+///
+/// Writes bytes containing the string `query_name` and a tab separated list of
+/// all target sequence names.
+///
+pub fn format_bifrost_header<W: Write>(
+    targets: &[String],
+    conn: &mut W,
+) -> Result<(), E> {
+    let separator: char = '\t';
+    let mut formatted: String = String::new();
+
+    if targets.is_empty() {
+        return Err(Box::new(BifrostPrinterError{}))
+    }
+
+    formatted += "query_name";
+
+    targets.iter().for_each(|target| {
+        formatted += &separator.to_string();
+        formatted += target;
+    });
+    formatted += "\n";
+
+    conn.write_all(formatted.as_bytes())?;
+    Ok(())
+}
+
 // Tests
 #[cfg(test)]
 mod tests {
@@ -130,8 +158,32 @@ mod tests {
     }
 
     #[test]
-    fn error_if_no_query_name() {
-        use std::io::Cursor;
+    fn format_bifrost_header() {
+        use super::format_bifrost_header;
+
+        let data = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+
+        let expected: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_bifrost_header(&data, &mut got).unwrap();
+
+        assert_eq!(got, expected)
+    }
+
+        #[test]
+    fn header_error_if_no_targets() {
+        use super::format_bifrost_header;
+
+        let data: Vec<String> = Vec::new();
+
+        let got = format_bifrost_header(&data, &mut Vec::new());
+
+        assert!(!got.is_ok());
+    }
+
+    #[test]
+    fn line_error_if_no_query_name() {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
@@ -143,8 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn error_if_no_ones() {
-        use std::io::Cursor;
+    fn line_error_if_no_ones() {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
