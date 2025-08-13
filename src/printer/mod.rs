@@ -20,6 +20,7 @@ use fulgor::format_fulgor_line;
 // Format specific implementations
 pub mod bifrost;
 pub mod fulgor;
+pub mod metagraph;
 pub mod themisto;
 
 // TODO need to handle target and query names for Bifrost and Metagraph
