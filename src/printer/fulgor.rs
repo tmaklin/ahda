@@ -42,7 +42,7 @@ pub fn format_fulgor_line<W: Write>(
     let separator: char = '\t';
     let mut formatted: String = String::new();
 
-    if aln.ones.is_none() || aln.query_id.is_none() {
+    if aln.ones.is_none() || aln.query_name.is_none() {
         return Err(Box::new(FulgorPrinterError{}))
     }
 
@@ -129,12 +129,12 @@ mod tests {
     }
 
     #[test]
-    fn error_if_no_query_id() {
+    fn error_if_no_query_name() {
         use std::io::Cursor;
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
-        let data = PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 3, 7, 11]), ..Default::default()};
+        let data = PseudoAln{ones_names: None, query_name: None, ones: Some(vec![0, 3, 7, 11]), query_id: None};
 
         let got = format_fulgor_line(&data, &mut Vec::new());
 
@@ -147,7 +147,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_fulgor_line;
 
-        let data = PseudoAln{ones_names: None,  query_id: Some(128), ones: None, ..Default::default()};
+        let data = PseudoAln{ones_names: None, query_name: Some("ERR4035126.1262954".to_string()), query_id: Some(128), ones: None};
 
         let got = format_fulgor_line(&data, &mut Vec::new());
 
