@@ -18,8 +18,9 @@ use themisto::format_themisto_line;
 use fulgor::format_fulgor_line;
 
 // Format specific implementations
-pub mod themisto;
+pub mod bifrost;
 pub mod fulgor;
+pub mod themisto;
 
 // TODO need to handle target and query names for Bifrost and Metagraph
 
