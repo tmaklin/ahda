@@ -85,7 +85,17 @@ pub fn pack(
     let serialized = serialize_bvector(&alignments)?;
     let mut deflated = deflate_bytes(&serialized)?;
 
-    let mut block_flags: Vec<u8> = encode_block_flags(&Vec::new())?;
+    let query_names: Vec<Vec<String>> = records.iter().filter_map(|record| {
+        record.ones_names.clone()
+    }).collect();
+
+    let mut block_flags: Vec<u8> = if !query_names.is_empty() {
+        let flat_names: Vec<String> = query_names.into_iter().flatten().collect();
+        encode_block_flags(&flat_names)?
+    } else {
+        encode_block_flags(&Vec::new())?
+    };
+
     let header = BlockHeader{
         flags_len: block_flags.len() as u32,
         num_records: records.len() as u32,
