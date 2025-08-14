@@ -80,7 +80,7 @@ pub struct PseudoAln{
 
 pub fn parse<R: Read>(
     conn: &mut R,
-) -> Result<Vec<PseudoAln>, E> {
+) -> Result<(Vec<PseudoAln>, Format), E> {
     let mut reader = Parser::new(conn)?;
 
     let mut res: Vec<PseudoAln> = Vec::new();
@@ -88,7 +88,7 @@ pub fn parse<R: Read>(
         res.push(record);
     }
 
-    Ok(res)
+    Ok((res, reader.format))
 }
 
 /// Write pseudoalignments in .ahda format

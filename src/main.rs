@@ -90,26 +90,26 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let mut records = ahda::parse(&mut conn_in).unwrap();
+                let (mut records, format) = ahda::parse(&mut conn_in).unwrap();
 
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
                 if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
-                    // match format {
-                    //     Format::Fulgor => {
-                    //         records.iter_mut().for_each(|record| {
-                    //             record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                    //         });
-                    //     },
-                    //     Format::Themisto => {
-                    records.iter_mut().for_each(|record| {
-                        record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
-                    });
-                    //     },
-                    //     _ => todo!("Implement remaining formats"),
-                    // }
+                    match format {
+                        Format::Fulgor => {
+                            records.iter_mut().for_each(|record| {
+                                record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                            });
+                        },
+                        Format::Themisto => {
+                            records.iter_mut().for_each(|record| {
+                                record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                            });
+                        },
+                        _ => todo!("Implement remaining formats"),
+                    }
                 }
 
                 records.sort_by_key(|x| x.query_id.unwrap());
