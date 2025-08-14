@@ -13,6 +13,7 @@
 //
 use crate::PseudoAln;
 use crate::headers::block::BlockHeader;
+use crate::headers::block::decode_block_flags;
 
 use std::io::Read;
 use std::io::Write;
@@ -53,19 +54,29 @@ pub fn unpack<R: Read>(
     n_targets: usize,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
-    let mut deflated_bytes: Vec<u8> = vec![0; block_header.block_len as usize];
+    eprintln!("{}", block_header.deflated_len);
+    let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+    eprintln!("{}", deflated_bytes.len());;
     conn.read_exact(&mut deflated_bytes)?;
+    eprintln!("{}", deflated_bytes.len());
 
-    let aln_bytes = inflate_bytes(&deflated_bytes)?;
+    let inflated_bytes = inflate_bytes(&deflated_bytes)?;
+    let inflated_bytes = inflate_bytes(&inflated_bytes)?;
+
+    let aln_bytes = inflated_bytes[0..(block_header.block_len as usize)].to_vec();
+    let flags_bytes = inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()].to_vec();
+
     let aln_bits = decode_bitvec(&aln_bytes, block_header.num_records as usize, n_targets)?;
+    let block_flags = decode_block_flags(&flags_bytes)?;
 
     assert_eq!(aln_bits.len() / n_targets, block_header.num_records as usize);
+    assert_eq!(aln_bits.len() / n_targets, block_flags.len());
 
-    let alns = aln_bits.chunks(n_targets).enumerate().map(|(idx, _)| {
+    let alns = aln_bits.chunks(n_targets).zip(block_flags.iter()).enumerate().map(|(idx, (_, query_name))| {
         let start: usize = idx  * n_targets;
         let end: usize = (idx + 1) * n_targets;
         let ones: Vec<u32> = aln_bits[start..end].iter().enumerate().filter_map(|(idx, is_set)| if *is_set { Some(idx as u32) } else { None }).collect();
-        PseudoAln{ones_names: None,  query_id: Some(idx as u32), ones: Some(ones), ..Default::default()}
+        PseudoAln{ones_names: None,  query_id: Some(idx as u32), ones: Some(ones), query_name: Some(query_name.clone()) }
     }).collect();
 
     Ok(alns)

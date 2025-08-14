@@ -83,34 +83,44 @@ pub fn pack(
     let alignments = convert_to_bitmagic(records, n_targets)?;
 
     let serialized = serialize_bvector(&alignments)?;
-    let mut deflated = deflate_bytes(&serialized)?;
 
-    let query_names: Vec<Vec<String>> = records.iter().filter_map(|record| {
-        record.ones_names.clone()
+    let query_names: Vec<String> = records.iter().filter_map(|record| {
+        record.query_name.clone()
     }).collect();
 
     let mut block_flags: Vec<u8> = if !query_names.is_empty() {
-        let flat_names: Vec<String> = query_names.into_iter().flatten().collect();
-        encode_block_flags(&flat_names)?
+        encode_block_flags(&query_names)?
     } else {
         encode_block_flags(&Vec::new())?
     };
 
+    let flags_len = block_flags.len() as u32;
+    let block_len = serialized.len() as u32;
+
+    let mut flags_and_block: Vec<u8> = serialized;
+    flags_and_block.append(&mut block_flags);
+
+    // For some reason running twice is needed here?
+    // Maybe related to window size somehow?
+    //
+    let deflated_1st = deflate_bytes(&flags_and_block)?;
+    let mut deflated = deflate_bytes(&deflated_1st)?;
+
+    let deflated_len = deflated.len() as u32;
+
     let header = BlockHeader{
-        flags_len: block_flags.len() as u32,
         num_records: records.len() as u32,
-        block_len: deflated.len() as u32,
+        deflated_len,
+        block_len,
+        flags_len,
         placeholder1: 0,
         placeholder2: 0,
         placeholder3: 0,
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
-    assert_eq!(block.len(), 32);
-    block.append(&mut block_flags);
-    assert_eq!(block.len(), 32 + header.flags_len as usize);
+    eprintln!("{:?}", header);
     block.append(&mut deflated);
-    assert_eq!(block.len(), 32 + header.flags_len as usize + header.block_len as usize);
 
     Ok(block)
 }

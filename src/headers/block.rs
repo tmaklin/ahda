@@ -21,11 +21,12 @@ type E = Box<dyn std::error::Error>;
 
 #[derive(Encode, Debug, Decode)]
 pub struct BlockHeader {
-    pub flags_len: u32,
     pub num_records: u32,
+    pub deflated_len: u32,
     pub block_len: u32,
+    pub flags_len: u32,
     pub placeholder1: u32,
-    pub placeholder2: u64,
+    pub placeholder2: u32,
     pub placeholder3: u64,
 }
 
@@ -81,4 +82,15 @@ pub fn encode_block_flags(
     )?;
 
     Ok(bytes)
+}
+
+pub fn decode_block_flags(
+    bytes: &[u8],
+) -> Result<Vec<String>, E> {
+    let queries: Vec<String> = decode_from_slice(
+        bytes,
+        bincode::config::standard(),
+    )?.0;
+
+    Ok(queries)
 }

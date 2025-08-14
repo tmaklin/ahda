@@ -11,6 +11,7 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use ahda::Format;
 use ahda::printer::Printer;
 
 use std::collections::HashMap;
@@ -52,6 +53,7 @@ fn main() {
             init_log(if *verbose { 2 } else { 1 });
 
             let mut query_to_pos: HashMap<String, usize> = HashMap::new();
+            let mut pos_to_query: HashMap<usize, String> = HashMap::new();
 
             let (sample_name, n_queries) = if let Some(file) = query_file {
                 let mut reader = needletail::parse_fastx_file(file).expect("Valid fastX file");
@@ -61,7 +63,8 @@ fn main() {
                     let mut infos = query_info.split(' ');
                     let query_name = infos.next().unwrap().to_string();
 
-                    query_to_pos.insert(query_name, count);
+                    query_to_pos.insert(query_name.clone(), count);
+                    pos_to_query.insert(count, query_name);
                     count += 1;
                 }
                 let mut file_name: PathBuf = PathBuf::from(file.file_name().unwrap());
@@ -93,11 +96,23 @@ fn main() {
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                if !records.is_empty() && records[0].query_id.is_none() {
+                if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
+                    // match format {
+                    //     Format::Fulgor => {
+                    //         records.iter_mut().for_each(|record| {
+                    //             record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                    //         });
+                    //     },
+                    //     Format::Themisto => {
                     records.iter_mut().for_each(|record| {
-                        record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                    })
+                        record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                    });
+                    //     },
+                    //     _ => todo!("Implement remaining formats"),
+                    // }
                 }
+
+                records.sort_by_key(|x| x.query_id.unwrap());
 
                 ahda::encode(&records, &targets, &sample_name, n_queries, &mut conn_out).unwrap();
             });

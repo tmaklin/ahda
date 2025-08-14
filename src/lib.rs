@@ -124,8 +124,6 @@ pub fn decode<R: Read>(
     let _ = conn.read_exact(&mut dump);
 
     let block_header = read_block_header(conn)?;
-    dump = vec![0; block_header.flags_len as usize];
-    let _ = conn.read_exact(&mut dump);
 
     let res: Vec<PseudoAln> = unpack::unpack(&block_header, file_header.n_targets as usize, conn)?;
 
