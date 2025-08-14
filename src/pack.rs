@@ -119,7 +119,6 @@ pub fn pack(
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
-    eprintln!("{:?}", header);
     block.append(&mut deflated);
 
     Ok(block)
