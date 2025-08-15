@@ -92,21 +92,12 @@ pub fn parse<R: Read>(
 }
 
 /// Write pseudoalignments in .ahda format
-pub fn encode<W: Write>(
+pub fn encode_block<W: Write>(
     records: &[PseudoAln],
-    targets: &[String],
-    query_name: &str,
-    n_queries: usize,
+    n_targets: usize,
     conn: &mut W,
 ) -> Result<(), E> {
     assert!(!records.is_empty());
-    let n_targets = targets.len();
-
-    let flags_bytes = encode_file_flags(targets, query_name)?;
-    let file_header = encode_file_header(n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0)?;
-
-    conn.write_all(&file_header)?;
-    conn.write_all(&flags_bytes)?;
 
     let packed = pack::pack(records, n_targets)?;
     conn.write_all(&packed)?;

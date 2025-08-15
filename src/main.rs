@@ -12,6 +12,7 @@
 // at your option.
 //
 use ahda::Format;
+use ahda::PseudoAln;
 use ahda::printer::Printer;
 
 use std::collections::HashMap;
@@ -88,33 +89,52 @@ fn main() {
                 vec![String::new(); *n_targets]
             };
 
+            let block_size = 65536;
+
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let (mut records, format) = ahda::parse(&mut conn_in).unwrap();
+                let mut reader = if let Ok(parser) = ahda::parser::Parser::new(&mut conn_in) {
+                    parser
+                } else {
+                    panic!("Unknown input format.");
+                };
 
                 let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                 let f = File::create(out_path).unwrap();
                 let mut conn_out = BufWriter::new(f);
 
-                if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
-                    match format {
-                        Format::Fulgor => {
-                            records.iter_mut().for_each(|record| {
-                                record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                            });
-                        },
-                        Format::Themisto => {
-                            records.iter_mut().for_each(|record| {
-                                record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
-                            });
-                        },
-                        _ => todo!("Implement remaining formats"),
+                let flags_bytes = ahda::headers::file::encode_file_flags(&targets, &query_file.as_ref().unwrap().to_string_lossy()).unwrap();
+                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+
+                conn_out.write_all(&file_header).unwrap();
+                conn_out.write_all(&flags_bytes).unwrap();
+
+                let mut records: Vec<PseudoAln> = Vec::new();
+                while let Some(record) = reader.next() {
+                    records.push(record);
+                    if records.len() > block_size {
+                        if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
+                            match reader.format {
+                                Format::Fulgor => {
+                                    records.iter_mut().for_each(|record| {
+                                        record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                                    });
+                                },
+                                Format::Themisto => {
+                                    records.iter_mut().for_each(|record| {
+                                        record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                                    });
+                                },
+                                _ => todo!("Implement remaining formats"),
+                            }
+                        }
+
+                        records.sort_by_key(|x| x.query_id.unwrap());
+
+                        ahda::encode_block(&records, *n_targets, &mut conn_out).unwrap();
+                        records.clear();
                     }
                 }
-
-                records.sort_by_key(|x| x.query_id.unwrap());
-
-                ahda::encode(&records, &targets, &sample_name, n_queries, &mut conn_out).unwrap();
             });
 
         },
