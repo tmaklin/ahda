@@ -27,7 +27,7 @@ use flate2::write::GzDecoder;
 
 type E = Box<dyn std::error::Error>;
 
-fn inflate_bytes(
+pub fn inflate_bytes(
     deflated: &[u8],
 ) -> Result<Vec<u8>, E> {
     let mut inflated: Vec<u8> = Vec::new();
@@ -77,16 +77,18 @@ pub fn decode_from_bitmagic(
             ones.push(target_idx as u32);
         }
     });
-    let name = id_to_name.get(&query_idx).unwrap();
-    alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
-    seen.insert(prev_query_idx.unwrap());
+    if prev_query_idx.is_some() {
+        let name = id_to_name.get(&query_idx).unwrap();
+        alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
+        seen.insert(prev_query_idx.unwrap());
 
-    // Push results with no alignments
-    flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {
-        if !seen.contains(&(*idx as usize)) {
-            alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
-        }
-    });
+        // Push results with no alignments
+        flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {
+            if !seen.contains(&(*idx as usize)) {
+                alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+            }
+        });
+    }
 
     Ok(alns)
 }
