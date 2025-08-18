@@ -59,27 +59,34 @@ pub fn unpack<R: Read>(
     let block_flags = decode_block_flags(&flags_bytes)?;
 
     let mut alns: Vec<PseudoAln> = Vec::with_capacity(block_header.num_records as usize);
-    let mut prev_query_idx = 0;
+
+    let mut prev_query_idx = block_header.start_idx as usize; // TODO this needs to start from w/e is the first idx in block flags
+
     let mut ones: Vec<u32> = Vec::with_capacity(n_targets);
+    let mut flags_idx: usize = 0;
+    let mut query_idx: usize = 0;
     aln_bits.ones().for_each(|set_idx| {
-        let query_idx = set_idx / n_targets;
+        query_idx = set_idx / n_targets;
         let target_idx = set_idx % n_targets;
 
         if prev_query_idx != query_idx {
-            alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(block_flags.queries[prev_query_idx].clone()) });
+            alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(block_flags.queries[flags_idx].clone()) });
             ones.clear();
 
             // Push results with no alignments
             for idx in (prev_query_idx + 1)..query_idx {
-                alns.push(PseudoAln{ ones_names: None, query_id: Some(idx as u32), ones: Some(vec![]), query_name: Some(block_flags.queries[idx].clone()) });
+                flags_idx += 1;
+                alns.push(PseudoAln{ ones_names: None, query_id: Some(idx as u32), ones: Some(vec![]), query_name: Some(block_flags.queries[flags_idx].clone()) });
             }
 
             ones.push(target_idx as u32);
+            flags_idx += 1;
             prev_query_idx = query_idx;
         } else {
             ones.push(target_idx as u32);
         }
     });
+    alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(block_flags.queries[flags_idx].clone()) });
 
     Ok(alns)
 }

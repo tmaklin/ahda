@@ -91,22 +91,24 @@ pub fn parse<R: Read>(
     Ok((res, reader.format))
 }
 
-/// Write pseudoalignments in .ahda format
+/// Write pseudoalignments in .ahda format to a writer that implements `std::io::Write`
 pub fn encode_block<W: Write>(
     records: &[PseudoAln],
+    start_idx: usize,
     n_targets: usize,
     conn: &mut W,
 ) -> Result<(), E> {
     assert!(!records.is_empty());
 
-    let packed = pack::pack(records, n_targets)?;
+    let packed = pack::pack(records, start_idx, n_targets)?;
     conn.write_all(&packed)?;
     conn.flush()?;
 
     Ok(())
 }
 
-pub fn decode<R: Read>(
+/// Decodes a complete .ahda file from a reader that implements `std::io::Read`
+pub fn decode_file_from_std_read<R: Read>(
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
     let file_header = read_file_header(conn).unwrap();
@@ -114,9 +116,10 @@ pub fn decode<R: Read>(
     let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
     let _ = conn.read_exact(&mut dump);
 
-    let block_header = read_block_header(conn)?;
-
-    let res: Vec<PseudoAln> = unpack::unpack(&block_header, file_header.n_targets as usize, conn)?;
+    let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
+    while let Ok(block_header) = read_block_header(conn) {
+        res.append(&mut unpack::unpack(&block_header, file_header.n_targets as usize, conn)?);
+    }
 
     Ok(res)
 }

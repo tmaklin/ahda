@@ -79,6 +79,7 @@ pub fn serialize_bvector(
 
 pub fn pack(
     records: &[PseudoAln],
+    start_idx: usize,
     n_targets: usize,
 ) -> Result<Vec<u8>, E> {
     let alignments = convert_to_bitmagic(records, n_targets)?;
@@ -111,7 +112,7 @@ pub fn pack(
         deflated_len,
         block_len,
         flags_len,
-        placeholder1: 0,
+        start_idx: start_idx as u32,
         placeholder2: 0,
         placeholder3: 0,
     };

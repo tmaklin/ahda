@@ -110,6 +110,7 @@ fn main() {
                 conn_out.write_all(&flags_bytes).unwrap();
 
                 let mut records: Vec<PseudoAln> = Vec::new();
+                let mut n_written: usize = 0;
                 while let Some(record) = reader.next() {
                     records.push(record);
                     if records.len() > block_size {
@@ -131,9 +132,28 @@ fn main() {
 
                         records.sort_by_key(|x| x.query_id.unwrap());
 
-                        ahda::encode_block(&records, *n_targets, &mut conn_out).unwrap();
+                        ahda::encode_block(&records, n_written, *n_targets, &mut conn_out).unwrap();
+                        n_written += records.len();
                         records.clear();
                     }
+                }
+                if !records.is_empty() {
+                    if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
+                        match reader.format {
+                            Format::Fulgor => {
+                                records.iter_mut().for_each(|record| {
+                                    record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                                });
+                            },
+                            Format::Themisto => {
+                                records.iter_mut().for_each(|record| {
+                                    record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                                });
+                            },
+                            _ => todo!("Implement remaining formats"),
+                        }
+                    }
+                    ahda::encode_block(&records, n_written, *n_targets, &mut conn_out).unwrap();
                 }
             });
 
@@ -149,7 +169,7 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let records = ahda::decode(&mut conn_in).unwrap();
+                let records = ahda::decode_file_from_std_read(&mut conn_in).unwrap();
 
                 let out_name = file.file_stem().unwrap().to_string_lossy();
                 let out_path = PathBuf::from(out_name.to_string());

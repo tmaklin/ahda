@@ -25,7 +25,7 @@ pub struct BlockHeader {
     pub deflated_len: u32,
     pub block_len: u32,
     pub flags_len: u32,
-    pub placeholder1: u32,
+    pub start_idx: u32,
     pub placeholder2: u32,
     pub placeholder3: u64,
 }
