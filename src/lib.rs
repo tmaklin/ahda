@@ -92,14 +92,13 @@ pub fn parse<R: Read>(
 
 /// Write pseudoalignments in .ahda format to a writer that implements `std::io::Write`
 pub fn encode_block<W: Write>(
+    file_header: &FileHeader,
     records: &[PseudoAln],
-    start_idx: usize,
-    n_targets: usize,
     conn: &mut W,
 ) -> Result<(), E> {
     assert!(!records.is_empty());
 
-    let packed = pack::pack(records, start_idx, n_targets)?;
+    let packed = pack::pack(file_header, records)?;
     conn.write_all(&packed)?;
     conn.flush()?;
 

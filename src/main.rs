@@ -13,6 +13,7 @@
 //
 use ahda::Format;
 use ahda::PseudoAln;
+use ahda::headers::file::FileHeader;
 use ahda::printer::Printer;
 
 use std::collections::HashMap;
@@ -105,9 +106,12 @@ fn main() {
                 let mut conn_out = BufWriter::new(f);
 
                 let flags_bytes = ahda::headers::file::encode_file_flags(&targets, &query_file.as_ref().unwrap().to_string_lossy()).unwrap();
-                let file_header = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
 
-                conn_out.write_all(&file_header).unwrap();
+                // TODO fix
+                let file_header = FileHeader{ n_targets: *n_targets as u32, n_queries: n_queries as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
+                let file_header_bytes = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+
+                conn_out.write_all(&file_header_bytes).unwrap();
                 conn_out.write_all(&flags_bytes).unwrap();
 
                 let mut records: Vec<PseudoAln> = Vec::new();
@@ -133,7 +137,7 @@ fn main() {
 
                         records.sort_by_key(|x| x.query_id.unwrap());
 
-                        ahda::encode_block(&records, n_written, *n_targets, &mut conn_out).unwrap();
+                        ahda::encode_block(&file_header, &records, &mut conn_out).unwrap();
                         n_written += records.len();
                         records.clear();
                     }
@@ -154,7 +158,7 @@ fn main() {
                             _ => todo!("Implement remaining formats"),
                         }
                     }
-                    ahda::encode_block(&records, n_written, *n_targets, &mut conn_out).unwrap();
+                    ahda::encode_block(&file_header, &records, &mut conn_out).unwrap();
                 }
             });
 

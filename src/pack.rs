@@ -14,6 +14,7 @@
 use crate::PseudoAln;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
+use crate::headers::file::FileHeader;
 use crate::headers::block::encode_block_header;
 use crate::headers::block::encode_block_flags;
 
@@ -49,9 +50,10 @@ fn deflate_bytes(
 
 /// Converts [PseudoAln] records to BitMagic bitvectors
 pub fn convert_to_bitmagic(
+    file_header: &FileHeader,
     records: &[PseudoAln],
-    n_targets: usize,
 ) -> Result<BVector, E> {
+    let n_targets: usize = file_header.n_targets as usize;
     let mut bits: BVector = BVector::new();
 
     for record in records {
@@ -78,11 +80,10 @@ pub fn serialize_bvector(
 }
 
 pub fn pack(
+    file_header: &FileHeader,
     records: &[PseudoAln],
-    start_idx: usize,
-    n_targets: usize,
 ) -> Result<Vec<u8>, E> {
-    let alignments = convert_to_bitmagic(records, n_targets)?;
+    let alignments = convert_to_bitmagic(file_header, records)?;
 
     let serialized = serialize_bvector(&alignments)?;
 
@@ -112,7 +113,7 @@ pub fn pack(
         deflated_len,
         block_len,
         flags_len,
-        start_idx: start_idx as u32,
+        start_idx: records.iter().filter_map(|x| x.query_id).min().unwrap(),
         placeholder2: 0,
         placeholder3: 0,
     };
