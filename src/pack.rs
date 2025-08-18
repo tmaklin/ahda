@@ -56,14 +56,16 @@ pub fn convert_to_bitmagic(
     let n_targets: usize = file_header.n_targets as usize;
     let mut bits: BVector = BVector::new();
 
-    for record in records {
+    let max_index: u64 = 2_u64.pow(31_u32) - 1_u64;
+
+    for (idx, record) in records.iter().enumerate() {
         if record.ones.is_none() || record.query_id.is_none() {
             return Err(Box::new(EncodeError{}))
         }
-        let read_idx = record.query_id.unwrap() as usize;
         let ones = record.ones.as_ref().unwrap();
         ones.iter().for_each(|bit_idx| {
-            let index = read_idx*n_targets + *bit_idx as usize;
+            let index = idx*n_targets + *bit_idx as usize;
+            assert!((index as u64) < max_index);
             bits.set(index, true);
         });
     }

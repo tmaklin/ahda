@@ -17,7 +17,6 @@ use crate::headers::block::BlockHeader;
 use crate::headers::block::decode_block_flags;
 
 use std::collections::HashSet;
-use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 
@@ -53,10 +52,6 @@ pub fn decode_from_bitmagic(
     let mut query_idx: usize = 0;
 
     let mut seen: HashSet<usize> = HashSet::with_capacity(header.num_records as usize);
-    let mut id_to_name: HashMap<usize, String> = HashMap::with_capacity(header.num_records as usize);
-    flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {
-        id_to_name.insert(*idx as usize, name.clone());
-    });
 
     aln_bits.ones().for_each(|set_idx| {
         query_idx = set_idx / n_targets;
@@ -66,9 +61,10 @@ pub fn decode_from_bitmagic(
         let target_idx = set_idx % n_targets;
 
         if prev_query_idx.unwrap() != query_idx {
-            let name = id_to_name.get(prev_query_idx.as_ref().unwrap()).unwrap();
-            alns.push(PseudoAln{ ones_names: None, query_id: Some(prev_query_idx.unwrap() as u32), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
-            seen.insert(prev_query_idx.unwrap());
+            let name = flags.queries[*prev_query_idx.as_ref().unwrap()].to_string();
+            let id = flags.query_ids[*prev_query_idx.as_ref().unwrap()];
+            alns.push(PseudoAln{ ones_names: None, query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name) });
+            seen.insert(id as usize);
             ones.clear();
 
             ones.push(target_idx as u32);
@@ -78,9 +74,10 @@ pub fn decode_from_bitmagic(
         }
     });
     if prev_query_idx.is_some() {
-        let name = id_to_name.get(&query_idx).unwrap();
-        alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
-        seen.insert(prev_query_idx.unwrap());
+        let name = flags.queries[query_idx].to_string();
+        let id = flags.query_ids[query_idx];
+        alns.push(PseudoAln{ ones_names: None, query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
+        seen.insert(id as usize);
 
         // Push results with no alignments
         flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {

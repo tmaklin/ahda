@@ -92,8 +92,9 @@ fn main() {
             };
 
             // BitMagic only supports 2^31 - 1 address space in the rust implementation
-            assert!((*n_targets as u64 * n_queries as u64) < (2_u64.pow(31_u32) - 1_u64));
-            let block_size = 65536;
+            let block_size = ((2_u64.pow(31_u32) - 1_u64) / *n_targets as u64).min(65537_u64) as usize;
+            assert!(block_size > 1);
+            let block_size = block_size - 1;
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
