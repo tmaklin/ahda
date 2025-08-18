@@ -33,9 +33,8 @@
 //! one of the existing formats fits your needs.
 //!
 
+use headers::file::FileHeader;
 use headers::block::read_block_header;
-use headers::file::encode_file_flags;
-use headers::file::encode_file_header;
 use headers::file::read_file_header;
 
 use parser::Parser;
@@ -105,6 +104,15 @@ pub fn encode_block<W: Write>(
     conn.flush()?;
 
     Ok(())
+}
+
+/// Decodes a single .ahda block from a reader that implements `std::io::Read`
+pub fn decode_block_from_std_read<R: Read>(
+    file_header: &FileHeader,
+    conn: &mut R,
+) -> Result<Vec<PseudoAln>, E> {
+    let block_header = read_block_header(conn)?;
+    unpack::unpack(&block_header, file_header.n_targets as usize, conn)
 }
 
 /// Decodes a complete .ahda file from a reader that implements `std::io::Read`

@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Read;
 use std::io::Write;
 use std::io::BufWriter;
 use std::path::PathBuf;
@@ -169,7 +170,11 @@ fn main() {
 
             input_files.iter().for_each(|file| {
                 let mut conn_in = File::open(file).unwrap();
-                let records = ahda::decode_file_from_std_read(&mut conn_in).unwrap();
+
+                let file_header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
+
+                let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
+                let _ = conn_in.read_exact(&mut dump);
 
                 let out_name = file.file_stem().unwrap().to_string_lossy();
                 let out_path = PathBuf::from(out_name.to_string());
@@ -177,16 +182,17 @@ fn main() {
 
                 let mut conn_out = BufWriter::new(f);
 
-                let mut printer = match format.as_str() {
-                    "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
-                    "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
-                    _ => panic!("Unrecognized format --format {}", format),
-                };
-
-                while let Some(line) = printer.next() {
-                    conn_out.write_all(&line).unwrap();
+                while let Ok(records) = ahda::decode_block_from_std_read(&file_header, &mut conn_in) {
+                    let mut printer = match format.as_str() {
+                        "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
+                        "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
+                        _ => panic!("Unrecognized format --format {}", format),
+                    };
+                    while let Some(line) = printer.next() {
+                        conn_out.write_all(&line).unwrap();
+                    }
+                    conn_out.flush().unwrap();
                 }
-                conn_out.flush().unwrap();
             });
 
         },
