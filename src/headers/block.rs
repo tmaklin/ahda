@@ -40,6 +40,7 @@ pub struct BlockHeader {
 pub struct BlockFlags {
     /// Names of query records
     pub queries: Vec<String>,
+    pub query_ids: Vec<u32>,
 }
 
 pub fn encode_block_header(

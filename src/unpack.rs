@@ -16,6 +16,8 @@ use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::decode_block_flags;
 
+use std::collections::HashSet;
+use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 
@@ -48,8 +50,14 @@ pub fn decode_from_bitmagic(
     let mut prev_query_idx: Option<usize> = None;
 
     let mut ones: Vec<u32> = Vec::with_capacity(n_targets);
-    let mut flags_idx: usize = 0;
     let mut query_idx: usize = 0;
+
+    let mut seen: HashSet<usize> = HashSet::with_capacity(header.num_records as usize);
+    let mut id_to_name: HashMap<usize, String> = HashMap::with_capacity(header.num_records as usize);
+    flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {
+        id_to_name.insert(*idx as usize, name.clone());
+    });
+
     aln_bits.ones().for_each(|set_idx| {
         query_idx = set_idx / n_targets;
         if prev_query_idx.is_none() {
@@ -58,23 +66,27 @@ pub fn decode_from_bitmagic(
         let target_idx = set_idx % n_targets;
 
         if prev_query_idx.unwrap() != query_idx {
-            alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(flags.queries[flags_idx].clone()) });
+            let name = id_to_name.get(prev_query_idx.as_ref().unwrap()).unwrap();
+            alns.push(PseudoAln{ ones_names: None, query_id: Some(prev_query_idx.unwrap() as u32), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
+            seen.insert(prev_query_idx.unwrap());
             ones.clear();
 
-            // Push results with no alignments
-            for idx in (prev_query_idx.unwrap() + 1)..query_idx {
-                flags_idx += 1;
-                alns.push(PseudoAln{ ones_names: None, query_id: Some(idx as u32), ones: Some(vec![]), query_name: Some(flags.queries[flags_idx].clone()) });
-            }
-
             ones.push(target_idx as u32);
-            flags_idx += 1;
             prev_query_idx = Some(query_idx);
         } else {
             ones.push(target_idx as u32);
         }
     });
-    alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(flags.queries[flags_idx].clone()) });
+    let name = id_to_name.get(&query_idx).unwrap();
+    alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
+    seen.insert(prev_query_idx.unwrap());
+
+    // Push results with no alignments
+    flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {
+        if !seen.contains(&(*idx as usize)) {
+            alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+        }
+    });
 
     Ok(alns)
 }

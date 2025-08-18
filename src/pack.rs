@@ -88,10 +88,16 @@ pub fn pack(
     let serialized = serialize_bvector(&alignments)?;
 
     let queries: Vec<String> = records.iter().filter_map(|record| {
+        assert!(record.query_name.is_some());
         record.query_name.clone()
     }).collect();
 
-    let flags: BlockFlags = BlockFlags{ queries };
+    let query_ids: Vec<u32> = records.iter().filter_map(|record| {
+        assert!(record.query_id.is_some());
+        record.query_id
+    }).collect();
+
+    let flags: BlockFlags = BlockFlags{ queries, query_ids };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
     let flags_len = block_flags.len() as u32;
