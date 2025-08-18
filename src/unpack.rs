@@ -60,7 +60,7 @@ pub fn unpack<R: Read>(
 
     let mut alns: Vec<PseudoAln> = Vec::with_capacity(block_header.num_records as usize);
 
-    let mut prev_query_idx = block_header.start_idx as usize; // TODO this needs to start from w/e is the first idx in block flags
+    let mut prev_query_idx = block_header.start_idx as usize;
 
     let mut ones: Vec<u32> = Vec::with_capacity(n_targets);
     let mut flags_idx: usize = 0;
