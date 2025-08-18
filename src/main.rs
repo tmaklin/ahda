@@ -115,7 +115,6 @@ fn main() {
                 conn_out.write_all(&flags_bytes).unwrap();
 
                 let mut records: Vec<PseudoAln> = Vec::new();
-                let mut n_written: usize = 0;
                 while let Some(record) = reader.next() {
                     records.push(record);
                     if records.len() > block_size {
@@ -138,7 +137,6 @@ fn main() {
                         records.sort_by_key(|x| x.query_id.unwrap());
 
                         ahda::encode_block(&file_header, &records, &mut conn_out).unwrap();
-                        n_written += records.len();
                         records.clear();
                     }
                 }
