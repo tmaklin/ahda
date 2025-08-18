@@ -36,17 +36,9 @@ fn inflate_bytes(
 
 pub fn decode_bitvec(
     bytes: &[u8],
-    num_records: usize,
-    n_targets: usize,
-) -> Result<Vec<bool>, E> {
+) -> Result<BVector, E> {
     let bits: BVector = bitmagic::BVector::deserialize(bytes)?;
-
-    assert!(num_records * n_targets > num_records.max(n_targets)); // check for overflow
-
-    let mut res: Vec<bool> = vec![false; num_records * n_targets];
-    bits.ones().for_each(|idx| res[idx] = true);
-
-    Ok(res)
+    Ok(bits)
 }
 
 pub fn unpack<R: Read>(
@@ -63,18 +55,31 @@ pub fn unpack<R: Read>(
     let aln_bytes = inflated_bytes[0..(block_header.block_len as usize)].to_vec();
     let flags_bytes = inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()].to_vec();
 
-    let aln_bits = decode_bitvec(&aln_bytes, block_header.num_records as usize, n_targets)?;
+    let aln_bits = decode_bitvec(&aln_bytes)?;
     let block_flags = decode_block_flags(&flags_bytes)?;
 
-    assert_eq!(aln_bits.len() / n_targets, block_header.num_records as usize);
-    assert_eq!(aln_bits.len() / n_targets, block_flags.len());
+    let mut alns: Vec<PseudoAln> = Vec::with_capacity(block_header.num_records as usize);
+    let mut prev_query_idx = 0;
+    let mut ones: Vec<u32> = Vec::with_capacity(n_targets);
+    aln_bits.ones().for_each(|set_idx| {
+        let query_idx = set_idx / n_targets;
+        let target_idx = set_idx % n_targets;
 
-    let alns = aln_bits.chunks(n_targets).zip(block_flags.iter()).enumerate().map(|(idx, (_, query_name))| {
-        let start: usize = idx  * n_targets;
-        let end: usize = (idx + 1) * n_targets;
-        let ones: Vec<u32> = aln_bits[start..end].iter().enumerate().filter_map(|(idx, is_set)| if *is_set { Some(idx as u32) } else { None }).collect();
-        PseudoAln{ones_names: None,  query_id: Some(idx as u32), ones: Some(ones), query_name: Some(query_name.clone()) }
-    }).collect();
+        if prev_query_idx != query_idx {
+            alns.push(PseudoAln{ ones_names: None, query_id: Some(query_idx as u32), ones: Some(ones.clone()), query_name: Some(block_flags.queries[prev_query_idx].clone()) });
+            ones.clear();
+
+            // Push results with no alignments
+            for idx in (prev_query_idx + 1)..query_idx {
+                alns.push(PseudoAln{ ones_names: None, query_id: Some(idx as u32), ones: Some(vec![]), query_name: Some(block_flags.queries[idx].clone()) });
+            }
+
+            ones.push(target_idx as u32);
+            prev_query_idx = query_idx;
+        } else {
+            ones.push(target_idx as u32);
+        }
+    });
 
     Ok(alns)
 }

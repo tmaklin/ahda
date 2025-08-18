@@ -12,6 +12,7 @@
 // at your option.
 //
 use crate::PseudoAln;
+use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::encode_block_header;
 use crate::headers::block::encode_block_flags;
@@ -84,15 +85,12 @@ pub fn pack(
 
     let serialized = serialize_bvector(&alignments)?;
 
-    let query_names: Vec<String> = records.iter().filter_map(|record| {
+    let queries: Vec<String> = records.iter().filter_map(|record| {
         record.query_name.clone()
     }).collect();
 
-    let mut block_flags: Vec<u8> = if !query_names.is_empty() {
-        encode_block_flags(&query_names)?
-    } else {
-        encode_block_flags(&Vec::new())?
-    };
+    let flags: BlockFlags = BlockFlags{ queries };
+    let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
     let flags_len = block_flags.len() as u32;
     let block_len = serialized.len() as u32;

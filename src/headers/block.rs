@@ -71,12 +71,12 @@ pub fn read_block_header<R: Read>(
 }
 
 pub fn encode_block_flags(
-    queries: &[String],
+    flags: &BlockFlags,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
 
     let _ = encode_into_std_write(
-        queries,
+        flags,
         &mut bytes,
         bincode::config::standard(),
     )?;
@@ -86,11 +86,8 @@ pub fn encode_block_flags(
 
 pub fn decode_block_flags(
     bytes: &[u8],
-) -> Result<Vec<String>, E> {
-    let queries: Vec<String> = decode_from_slice(
-        bytes,
-        bincode::config::standard(),
-    )?.0;
+) -> Result<BlockFlags, E> {
+    let flags: BlockFlags = decode_from_slice(bytes, bincode::config::standard())?.0;
 
-    Ok(queries)
+    Ok(flags)
 }
