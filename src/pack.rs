@@ -20,7 +20,7 @@ use crate::headers::block::encode_block_flags;
 
 use std::io::Write;
 
-use bitmagic::BVector;
+use roaring::bitmap::RoaringBitmap;
 
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -48,15 +48,13 @@ fn deflate_bytes(
     Ok(deflated)
 }
 
-/// Converts [PseudoAln] records to BitMagic bitvectors
-pub fn convert_to_bitmagic(
+/// Converts [PseudoAln] records to Roaring bitmaps
+pub fn convert_to_roaring(
     file_header: &FileHeader,
     records: &[PseudoAln],
-) -> Result<BVector, E> {
+) -> Result<RoaringBitmap, E> {
     let n_targets: usize = file_header.n_targets as usize;
-    let mut bits: BVector = BVector::new();
-
-    let max_index: u64 = 2_u64.pow(31_u32) - 1_u64;
+    let mut bits: RoaringBitmap = RoaringBitmap::new();
 
     for (idx, record) in records.iter().enumerate() {
         if record.ones.is_none() || record.query_id.is_none() {
@@ -64,20 +62,20 @@ pub fn convert_to_bitmagic(
         }
         let ones = record.ones.as_ref().unwrap();
         ones.iter().for_each(|bit_idx| {
-            let index = idx*n_targets + *bit_idx as usize;
-            assert!((index as u64) < max_index);
-            bits.set(index, true);
+            let index = idx as u32 *n_targets as u32 + *bit_idx;
+            bits.insert(index);
         });
     }
 
+    bits.optimize();
     Ok(bits)
 }
 
-pub fn serialize_bvector(
-    bits: &BVector,
+pub fn serialize_roaring(
+    bits: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
-    bits.serialize(&mut bytes)?;
+    bits.serialize_into(&mut bytes)?;
     Ok(bytes)
 }
 
@@ -85,9 +83,9 @@ pub fn pack(
     file_header: &FileHeader,
     records: &[PseudoAln],
 ) -> Result<Vec<u8>, E> {
-    let alignments = convert_to_bitmagic(file_header, records)?;
+    let alignments = convert_to_roaring(file_header, records)?;
 
-    let serialized = serialize_bvector(&alignments)?;
+    let serialized = serialize_roaring(&alignments)?;
 
     let queries: Vec<String> = records.iter().filter_map(|record| {
         assert!(record.query_name.is_some());

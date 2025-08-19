@@ -20,7 +20,7 @@ use std::collections::HashSet;
 use std::io::Read;
 use std::io::Write;
 
-use bitmagic::BVector;
+use roaring::bitmap::RoaringBitmap;
 
 use flate2::write::GzDecoder;
 
@@ -36,24 +36,24 @@ pub fn inflate_bytes(
     Ok(inflated)
 }
 
-pub fn decode_from_bitmagic(
+pub fn decode_from_roaring(
     header: &BlockHeader,
     flags: &BlockFlags,
-    n_targets: usize,
-    bitmagic_bytes: &[u8],
+    n_targets: u32,
+    bytes: &[u8],
 ) -> Result<Vec<PseudoAln>, E> {
-    let aln_bits: BVector = bitmagic::BVector::deserialize(bitmagic_bytes)?;
+    let aln_bits: RoaringBitmap = RoaringBitmap::deserialize_from(bytes)?;
 
     let mut alns: Vec<PseudoAln> = Vec::with_capacity(header.num_records as usize);
 
-    let mut prev_query_idx: Option<usize> = None;
+    let mut prev_query_idx: Option<u32> = None;
 
-    let mut ones: Vec<u32> = Vec::with_capacity(n_targets);
-    let mut query_idx: usize = 0;
+    let mut ones: Vec<u32> = Vec::with_capacity(n_targets as usize);
+    let mut query_idx: u32 = 0;
 
     let mut seen: HashSet<usize> = HashSet::with_capacity(header.num_records as usize);
 
-    aln_bits.ones().for_each(|set_idx| {
+    aln_bits.iter().for_each(|set_idx| {
         query_idx = set_idx / n_targets;
         if prev_query_idx.is_none() {
             prev_query_idx = Some(query_idx);
@@ -61,8 +61,8 @@ pub fn decode_from_bitmagic(
         let target_idx = set_idx % n_targets;
 
         if prev_query_idx.unwrap() != query_idx {
-            let name = flags.queries[*prev_query_idx.as_ref().unwrap()].to_string();
-            let id = flags.query_ids[*prev_query_idx.as_ref().unwrap()];
+            let name = flags.queries[*prev_query_idx.as_ref().unwrap() as usize].to_string();
+            let id = flags.query_ids[*prev_query_idx.as_ref().unwrap() as usize];
             alns.push(PseudoAln{ ones_names: None, query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name) });
             seen.insert(id as usize);
             ones.clear();
@@ -74,8 +74,8 @@ pub fn decode_from_bitmagic(
         }
     });
     if prev_query_idx.is_some() {
-        let name = flags.queries[query_idx].to_string();
-        let id = flags.query_ids[query_idx];
+        let name = flags.queries[query_idx as usize].to_string();
+        let id = flags.query_ids[query_idx as usize];
         alns.push(PseudoAln{ ones_names: None, query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
         seen.insert(id as usize);
 
@@ -103,7 +103,7 @@ pub fn unpack<R: Read>(
 
     let block_flags = decode_block_flags(&inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()])?;
 
-    let alns = decode_from_bitmagic(block_header, &block_flags, n_targets, &inflated_bytes[0..(block_header.block_len as usize)])?;
+    let alns = decode_from_roaring(block_header, &block_flags, n_targets as u32, &inflated_bytes[0..(block_header.block_len as usize)])?;
 
     Ok(alns)
 }
