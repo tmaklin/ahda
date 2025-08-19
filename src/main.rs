@@ -178,6 +178,7 @@ fn main() {
         Some(cli::Commands::Decode {
             input_files,
             format,
+            write_to_stdout,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -203,7 +204,11 @@ fn main() {
                         _ => panic!("Unrecognized format --format {}", format),
                     };
                     while let Some(line) = printer.next() {
-                        conn_out.write_all(&line).unwrap();
+                        if *write_to_stdout {
+                            std::io::stdout().write_all(&line).unwrap();
+                        } else {
+                            conn_out.write_all(&line).unwrap();
+                        }
                     }
                     conn_out.flush().unwrap();
                 }

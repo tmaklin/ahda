@@ -59,6 +59,10 @@ pub enum Commands {
         format: String,
 
         // Verbosity
+        #[arg(short = 'c', long = "stdout", default_value_t = false)]
+        write_to_stdout: bool,
+
+        // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
     },
