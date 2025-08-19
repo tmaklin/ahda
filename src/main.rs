@@ -14,6 +14,7 @@
 use ahda::Format;
 use ahda::PseudoAln;
 use ahda::headers::file::FileHeader;
+use ahda::headers::file::FileFlags;
 use ahda::printer::Printer;
 
 use std::collections::HashMap;
@@ -58,7 +59,8 @@ fn encode_file<R: Read, W: Write>(
     assert!(block_size > 1);
     let block_size = block_size - 1;
 
-    let flags_bytes = ahda::headers::file::encode_file_flags(targets, query_name)?;
+    let file_flags = FileFlags{ target_names: targets.to_vec(), query_name: query_name.to_string() };
+    let flags_bytes = ahda::headers::file::encode_file_flags(&file_flags)?;
 
     let mut reader = ahda::parser::Parser::new(conn_in)?;
 
@@ -77,6 +79,9 @@ fn encode_file<R: Read, W: Write>(
                 Format::Fulgor => {
                     records.iter_mut().for_each(|record| {
                         record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                        record.ones_names = Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                            targets[*target_idx as usize].clone()
+                        }).collect::<Vec<String>>());
                     });
                 },
                 Format::Themisto => {
@@ -188,8 +193,9 @@ fn main() {
 
                 let file_header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
 
-                let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
-                let _ = conn_in.read_exact(&mut dump);
+                let mut flags_bytes: Vec<u8> = vec![0; file_header.flags_len as usize];
+                conn_in.read_exact(&mut flags_bytes).unwrap();
+                let file_flags = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
 
                 let out_name = file.file_stem().unwrap().to_string_lossy();
                 let out_path = PathBuf::from(out_name.to_string());
@@ -197,10 +203,11 @@ fn main() {
 
                 let mut conn_out = BufWriter::new(f);
 
-                while let Ok(records) = ahda::decode_block_from_std_read(&file_header, &mut conn_in) {
+                while let Ok(records) = ahda::decode_block_from_std_read(&file_flags, &mut conn_in) {
                     let mut printer = match format.as_str() {
-                        "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
                         "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
+                        "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
+                        "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
                         _ => panic!("Unrecognized format --format {}", format),
                     };
                     while let Some(line) = printer.next() {

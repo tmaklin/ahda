@@ -34,6 +34,7 @@
 //!
 
 use headers::file::FileHeader;
+use headers::file::FileFlags;
 use headers::block::read_block_header;
 use headers::file::read_file_header;
 
@@ -107,15 +108,16 @@ pub fn encode_block<W: Write>(
 
 /// Decodes a single .ahda block from a reader that implements `std::io::Read`
 pub fn decode_block_from_std_read<R: Read>(
-    file_header: &FileHeader,
+    file_flags: &FileFlags,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
     let block_header = read_block_header(conn)?;
-    unpack::unpack(&block_header, file_header.n_targets as usize, conn)
+    unpack::unpack(&block_header, &file_flags, conn)
 }
 
 /// Decodes a complete .ahda file from a reader that implements `std::io::Read`
 pub fn decode_file_from_std_read<R: Read>(
+    file_flags: &FileFlags,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
     let file_header = read_file_header(conn).unwrap();
@@ -125,7 +127,7 @@ pub fn decode_file_from_std_read<R: Read>(
 
     let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
     while let Ok(block_header) = read_block_header(conn) {
-        res.append(&mut unpack::unpack(&block_header, file_header.n_targets as usize, conn)?);
+        res.append(&mut unpack::unpack(&block_header, &file_flags, conn)?);
     }
 
     Ok(res)

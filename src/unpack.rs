@@ -15,6 +15,7 @@ use crate::PseudoAln;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::decode_block_flags;
+use crate::headers::file::FileFlags;
 
 use std::collections::HashSet;
 use std::io::Read;
@@ -37,8 +38,9 @@ pub fn inflate_bytes(
 }
 
 pub fn decode_from_roaring(
+    file_flags: &FileFlags,
     header: &BlockHeader,
-    flags: &BlockFlags,
+    block_flags: &BlockFlags,
     n_targets: u32,
     bytes: &[u8],
 ) -> Result<Vec<PseudoAln>, E> {
@@ -61,9 +63,10 @@ pub fn decode_from_roaring(
         let target_idx = set_idx % n_targets;
 
         if prev_query_idx.unwrap() != query_idx {
-            let name = flags.queries[*prev_query_idx.as_ref().unwrap() as usize].to_string();
-            let id = flags.query_ids[*prev_query_idx.as_ref().unwrap() as usize];
-            alns.push(PseudoAln{ ones_names: None, query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name) });
+            let name = block_flags.queries[*prev_query_idx.as_ref().unwrap() as usize].to_string();
+            let id = block_flags.query_ids[*prev_query_idx.as_ref().unwrap() as usize];
+            let ones_names: Vec<String> = ones.iter().map(|idx| file_flags.target_names[*idx as usize].clone()).collect();
+            alns.push(PseudoAln{ ones_names: Some(ones_names), query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name) });
             seen.insert(id as usize);
             ones.clear();
 
@@ -74,15 +77,16 @@ pub fn decode_from_roaring(
         }
     });
     if prev_query_idx.is_some() {
-        let name = flags.queries[query_idx as usize].to_string();
-        let id = flags.query_ids[query_idx as usize];
-        alns.push(PseudoAln{ ones_names: None, query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
+        let name = block_flags.queries[query_idx as usize].to_string();
+        let id = block_flags.query_ids[query_idx as usize];
+        let ones_names: Vec<String> = ones.iter().map(|idx| file_flags.target_names[*idx as usize].clone()).collect();
+        alns.push(PseudoAln{ ones_names: Some(ones_names), query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
         seen.insert(id as usize);
 
         // Push results with no alignments
-        flags.query_ids.iter().zip(flags.queries.iter()).for_each(|(idx, name)| {
+        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
             if !seen.contains(&(*idx as usize)) {
-                alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+                alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
             }
         });
     }
@@ -92,9 +96,10 @@ pub fn decode_from_roaring(
 
 pub fn unpack<R: Read>(
     block_header: &BlockHeader,
-    n_targets: usize,
+    file_flags: &FileFlags,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
+    let n_targets = file_flags.target_names.len();
     let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
     conn.read_exact(&mut deflated_bytes)?;
 
@@ -103,7 +108,7 @@ pub fn unpack<R: Read>(
 
     let block_flags = decode_block_flags(&inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()])?;
 
-    let alns = decode_from_roaring(block_header, &block_flags, n_targets as u32, &inflated_bytes[0..(block_header.block_len as usize)])?;
+    let alns = decode_from_roaring(file_flags, block_header, &block_flags, n_targets as u32, &inflated_bytes[0..(block_header.block_len as usize)])?;
 
     Ok(alns)
 }

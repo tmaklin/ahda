@@ -47,6 +47,9 @@ pub fn format_metagraph_line<W: Write>(
         return Err(Box::new(MetagraphPrinterError{}))
     }
 
+    formatted += &aln.query_id.as_ref().unwrap().to_string();
+    formatted += &separator.to_string();
+
     formatted += &aln.query_name.clone().unwrap().to_string();
     formatted += &separator.to_string();
 

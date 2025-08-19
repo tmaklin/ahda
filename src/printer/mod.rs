@@ -14,8 +14,9 @@
 use crate::Format;
 use crate::PseudoAln;
 
-use themisto::format_themisto_line;
+use metagraph::format_metagraph_line;
 use fulgor::format_fulgor_line;
+use themisto::format_themisto_line;
 
 // Format specific implementations
 pub mod bifrost;
@@ -59,7 +60,7 @@ impl Printer<'_> {
             match self.format {
                 Format::Themisto => format_themisto_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Fulgor => format_fulgor_line(&self.records[self.index], &mut out).unwrap(),
-                Format::Metagraph => todo!("Implement metagraph printing"),
+                Format::Metagraph => format_metagraph_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Bifrost => todo!("Bifrost printing is not implemented."),
                 Format::SAM => todo!("SAM printing is not implemented."),
             }
