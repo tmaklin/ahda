@@ -28,20 +28,20 @@ pub enum Commands {
     // Encode pseudoalignment data in .ahda format
     Encode {
         // Input fasta or fastq sequence file(s)
-        #[arg(group = "input", required = true, help = "Input file(s)")]
+        #[arg(group = "input", required = false, help = "Input file(s)")]
         input_files: Vec<PathBuf>,
 
-        // Number of target sequences
-        #[arg(long = "n-targets", required = true)]
-        n_targets: usize,
+        // Output file path
+        #[arg(short = 'o', long = "output", required = false)]
+        out_file: Option<PathBuf>,
 
         // FastX file used to generate the alignment
-        #[arg(short = 'q', long = "query")]
-        query_file: Option<PathBuf>,
+        #[arg(short = 'q', long = "query", required = true)]
+        query_file: PathBuf,
 
         // File listing target sequence names in the order they appear in the index
-        #[arg(long = "targets")]
-        target_list: Option<PathBuf>,
+        #[arg(long = "targets", required = true)]
+        target_list: PathBuf,
 
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]

@@ -29,6 +29,8 @@ use clap::Parser;
 
 mod cli;
 
+type E = Box<dyn std::error::Error>;
+
 /// Initializes the logger with verbosity given in `log_max_level`.
 fn init_log(log_max_level: usize) {
     stderrlog::new()
@@ -40,6 +42,76 @@ fn init_log(log_max_level: usize) {
     .unwrap();
 }
 
+fn encode_file<R: Read, W: Write>(
+    targets: &[String],
+    query_name: &str,
+    query_to_pos: &HashMap<String, usize>,
+    pos_to_query: &HashMap<usize, String>,
+    conn_in: &mut R,
+    conn_out: &mut W,
+) -> Result<(), E> {
+    let n_targets = targets.len();
+    let n_queries = query_to_pos.len();
+
+    // Adjust block size to fit within 32-bit address space
+    let block_size = ((u32::MAX as u64) / n_targets as u64).min(65537_u64) as usize;
+    assert!(block_size > 1);
+    let block_size = block_size - 1;
+
+    let flags_bytes = ahda::headers::file::encode_file_flags(targets, query_name)?;
+
+    let mut reader = ahda::parser::Parser::new(conn_in)?;
+
+    // TODO fix
+    let file_header = FileHeader{ n_targets: n_targets as u32, n_queries: n_queries as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
+    let file_header_bytes = ahda::headers::file::encode_file_header(n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0)?;
+
+    conn_out.write_all(&file_header_bytes)?;
+    conn_out.write_all(&flags_bytes)?;
+
+    let mut records: Vec<PseudoAln> = Vec::new();
+    while let Some(record) = reader.next() {
+        records.push(record);
+        if records.len() > block_size {
+            match reader.format {
+                Format::Fulgor => {
+                    records.iter_mut().for_each(|record| {
+                        record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                    });
+                },
+                Format::Themisto => {
+                    records.iter_mut().for_each(|record| {
+                        record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                    });
+                },
+                _ => todo!("Implement remaining formats"),
+            }
+
+            records.sort_by_key(|x| x.query_id.unwrap());
+
+            ahda::encode_block(&file_header, &records, conn_out)?;
+            records.clear();
+        }
+    }
+    if !records.is_empty() {
+        match reader.format {
+            Format::Fulgor => {
+                records.iter_mut().for_each(|record| {
+                    record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                });
+            },
+            Format::Themisto => {
+                records.iter_mut().for_each(|record| {
+                    record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                });
+            },
+            _ => todo!("Implement remaining formats"),
+        }
+        ahda::encode_block(&file_header, &records, conn_out)?;
+    }
+    Ok(())
+}
+
 fn main() {
     let cli = cli::Cli::parse();
 
@@ -48,7 +120,7 @@ fn main() {
         // Encode
         Some(cli::Commands::Encode {
             input_files,
-            n_targets,
+            out_file,
             query_file,
             target_list,
             verbose,
@@ -58,111 +130,48 @@ fn main() {
             let mut query_to_pos: HashMap<String, usize> = HashMap::new();
             let mut pos_to_query: HashMap<usize, String> = HashMap::new();
 
-            let (sample_name, n_queries) = if let Some(file) = query_file {
-                let mut reader = needletail::parse_fastx_file(file).expect("Valid fastX file");
-                let mut count = 0;
-                while let Some(record) = reader.next() {
-                    let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
-                    let mut infos = query_info.split(' ');
-                    let query_name = infos.next().unwrap().to_string();
+            let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
+            let mut count = 0;
+            while let Some(record) = reader.next() {
+                let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
+                let mut infos = query_info.split(' ');
+                let query_name = infos.next().unwrap().to_string();
 
-                    query_to_pos.insert(query_name.clone(), count);
-                    pos_to_query.insert(count, query_name);
-                    count += 1;
-                }
-                let mut file_name: PathBuf = PathBuf::from(file.file_name().unwrap());
-                while let Some(stripped) = file_name.file_stem() {
-                    let is_same = file_name == stripped;
-                    file_name = PathBuf::from(stripped);
-                    if is_same {
-                        break;
-                    }
-                };
-                (file_name.to_str().unwrap().to_owned(), count)
-            } else {
-                (String::new(), 0)
-            };
+                query_to_pos.insert(query_name.clone(), count);
+                pos_to_query.insert(count, query_name);
+                count += 1;
+            }
 
-            let targets: Vec<String> = if let Some(file) = target_list {
-                let f = File::open(file).unwrap();
+            let targets: Vec<String> = {
+                let f = File::open(target_list).unwrap();
                 let reader = BufReader::new(f);
                 reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
-            } else {
-                vec![String::new(); *n_targets]
             };
 
-            // Adjust block size to fit within 32-bit address space
-            let block_size = ((u32::MAX as u64) / *n_targets as u64).min(65537_u64) as usize;
-            assert!(block_size > 1);
-            let block_size = block_size - 1;
+            if input_files.len() > 1 && out_file.is_some() {
+                panic!("-o/--output can only be used with a single input file");
+            }
 
-            input_files.iter().for_each(|file| {
-                let mut conn_in = File::open(file).unwrap();
-                let mut reader = if let Ok(parser) = ahda::parser::Parser::new(&mut conn_in) {
-                    parser
+            if !input_files.is_empty() {
+                for file in input_files {
+                    let mut conn_in = File::open(file).unwrap();
+
+                    let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
+                    let f = File::create(out_path).unwrap();
+                    let mut conn_out = BufWriter::new(f);
+
+                    encode_file(&targets, &query_file.to_string_lossy(), &query_to_pos, &pos_to_query, &mut conn_in, &mut conn_out).unwrap();
+                }
+            } else {
+                let mut conn_in = std::io::stdin();
+                if out_file.is_some() {
+                    let f = File::create(out_file.as_ref().unwrap()).unwrap();
+                    let mut conn_out = BufWriter::new(f);
+                    encode_file(&targets, &query_file.to_string_lossy(), &query_to_pos, &pos_to_query, &mut conn_in, &mut conn_out).unwrap();
                 } else {
-                    panic!("Unknown input format.");
-                };
-
-                let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
-                let f = File::create(out_path).unwrap();
-                let mut conn_out = BufWriter::new(f);
-
-                let flags_bytes = ahda::headers::file::encode_file_flags(&targets, &query_file.as_ref().unwrap().to_string_lossy()).unwrap();
-
-                // TODO fix
-                let file_header = FileHeader{ n_targets: *n_targets as u32, n_queries: n_queries as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
-                let file_header_bytes = ahda::headers::file::encode_file_header(*n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
-
-                conn_out.write_all(&file_header_bytes).unwrap();
-                conn_out.write_all(&flags_bytes).unwrap();
-
-                let mut records: Vec<PseudoAln> = Vec::new();
-                while let Some(record) = reader.next() {
-                    records.push(record);
-                    if records.len() > block_size {
-                        if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
-                            match reader.format {
-                                Format::Fulgor => {
-                                    records.iter_mut().for_each(|record| {
-                                        record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                                    });
-                                },
-                                Format::Themisto => {
-                                    records.iter_mut().for_each(|record| {
-                                        record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
-                                    });
-                                },
-                                _ => todo!("Implement remaining formats"),
-                            }
-                        }
-
-                        records.sort_by_key(|x| x.query_id.unwrap());
-
-                        ahda::encode_block(&file_header, &records, &mut conn_out).unwrap();
-                        records.clear();
-                    }
+                    encode_file(&targets, &query_file.to_string_lossy(), &query_to_pos, &pos_to_query, &mut conn_in, &mut std::io::stdout()).unwrap();
                 }
-                if !records.is_empty() {
-                    if query_file.is_some() || (!records.is_empty() && records[0].query_id.is_none()) {
-                        match reader.format {
-                            Format::Fulgor => {
-                                records.iter_mut().for_each(|record| {
-                                    record.query_id = Some(*query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                                });
-                            },
-                            Format::Themisto => {
-                                records.iter_mut().for_each(|record| {
-                                    record.query_name = Some(pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
-                                });
-                            },
-                            _ => todo!("Implement remaining formats"),
-                        }
-                    }
-                    ahda::encode_block(&file_header, &records, &mut conn_out).unwrap();
-                }
-            });
-
+            }
         },
 
         // Decode
