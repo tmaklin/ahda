@@ -90,22 +90,26 @@ pub fn read_file_header<R: Read>(
 }
 
 pub fn encode_file_flags(
-    targets: &[String],
-    query_name: &str,
+    flags: &FileFlags,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
 
     let _ = encode_into_std_write(
-        query_name,
-        &mut bytes,
-        bincode::config::standard(),
-    )?;
-
-    let _ = encode_into_std_write(
-        targets,
+        flags,
         &mut bytes,
         bincode::config::standard(),
     )?;
 
     Ok(bytes)
+}
+
+pub fn decode_file_flags(
+    bytes: &[u8],
+) -> Result<FileFlags, E> {
+    let flags = decode_from_slice(
+        bytes,
+        bincode::config::standard(),
+    )?.0;
+
+    Ok(flags)
 }
