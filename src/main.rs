@@ -205,6 +205,7 @@ fn main() {
 
                 while let Ok(records) = ahda::decode_block_from_std_read(&file_flags, &mut conn_in) {
                     let mut printer = match format.as_str() {
+                        "bifrost" => Printer::new_from_flags(&records, &file_flags, &ahda::Format::Bifrost),
                         "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
                         "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
                         "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
