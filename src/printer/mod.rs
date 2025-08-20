@@ -70,7 +70,9 @@ impl Printer<'_> {
     ) -> Option<Vec<u8>> {
         let mut out: Vec<u8> = Vec::new();
         if self.index == 0 {
-            out.append(&mut self.print_header().unwrap());
+            if let Some(mut header) = self.print_header() {
+                out.append(&mut header);
+            }
         }
 
         if self.index < self.records.len() {
