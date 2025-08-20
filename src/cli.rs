@@ -77,4 +77,37 @@ pub enum Commands {
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
     },
+
+    // Set operations on .ahda files
+    Set {
+        // Input file
+        #[arg(group = "input", required = true, help = "Input files")]
+        input_files: Vec<PathBuf>,
+
+        // Output file path
+        #[arg(short = 'o', long = "output", required = true, group = "output")]
+        out_file: Option<PathBuf>,
+
+        // Force stdout for encoded data
+        #[arg(short = 'c', long = "stdout", required = true, group = "output", help = "Write to stdout")]
+        write_to_stdout: bool,
+
+        // Operations
+        // // Union
+        #[arg(short = 'u', long = "union", group = "op", required = true, help = "Union (A or B)")]
+        union: bool,
+        // // Intersection
+        #[arg(short = 'i', long = "intersection", group = "op", required = true, help = "Intersection (A and B)")]
+        intersection: bool,
+        // // Diff
+        #[arg(short = 'd', long = "diff", group = "op", required = true, help = r"Difference (A \ B)")]
+        diff: bool,
+        // // Symmetric difference (XOR)
+        #[arg(short = 'x', long = "xor", group = "op", required = true, help = "Symmetric difference (A xor B)")]
+        xor: bool,
+
+        // Verbosity
+        #[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+    },
 }

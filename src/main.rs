@@ -232,6 +232,59 @@ fn main() {
             init_log(if *verbose { 2 } else { 1 });
             todo!("Implement cat.")
         },
+
+        // Set operations
+        Some(cli::Commands::Set {
+            input_files,
+            out_file,
+            write_to_stdout,
+            union,
+            intersection,
+            diff,
+            xor,
+            verbose,
+        }) => {
+            init_log(if *verbose { 2 } else { 1 });
+            assert!(input_files.len() > 1);
+
+            // Read bitmap A from the first file
+            let (header_a, flags_a, mut bitmap_a) = {
+                let mut conn_in = File::open(&input_files[0]).unwrap();
+                let header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
+                let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
+                conn_in.read_exact(&mut flags_bytes).unwrap();
+                let flags = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
+                (header, flags, ahda::read_bitmap(&mut conn_in).unwrap())
+            };
+
+            // Read the remainning bitmaps and perform requested operation
+            for file in input_files.iter().skip(1) {
+                let mut conn_in = File::open(file).unwrap();
+                let header_b = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
+                let mut flags_bytes: Vec<u8> = vec![0; header_b.flags_len as usize];
+                conn_in.read_exact(&mut flags_bytes).unwrap();
+                let flags_b = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
+                let bitmap_b = ahda::read_bitmap(&mut conn_in).unwrap();
+
+                // Files must have same dimension and same targets
+                assert_eq!(header_a.n_targets, header_b.n_targets);
+                assert_eq!(header_a.n_queries, header_b.n_queries);
+                assert_eq!(flags_a.target_names, flags_b.target_names);
+
+                // Opcodes are mutually exclusive so this works
+                if *union {
+                    bitmap_a |= bitmap_b;
+                } else if *intersection {
+                    bitmap_a &= bitmap_b;
+                } else if *diff {
+                    bitmap_a -= bitmap_b;
+                } else if *xor {
+                    bitmap_a ^= bitmap_b;
+                }
+            }
+
+            todo!("Implement printing results from Set");
+        },
         None => { todo!("Print help message.")},
     }
 }

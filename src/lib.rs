@@ -43,6 +43,8 @@ use parser::Parser;
 use std::io::Read;
 use std::io::Write;
 
+use roaring::bitmap::RoaringBitmap;
+
 pub mod headers;
 pub mod pack;
 pub mod parser;
@@ -120,6 +122,8 @@ pub fn decode_file_from_std_read<R: Read>(
     file_flags: &FileFlags,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
+    todo!("Implemnenet decode_file_from_std_read"); // This function is broken
+
     let file_header = read_file_header(conn).unwrap();
 
     let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
@@ -131,6 +135,25 @@ pub fn decode_file_from_std_read<R: Read>(
     }
 
     Ok(res)
+}
+
+pub fn read_bitmap<R: Read>(
+    conn: &mut R,
+) -> Result<RoaringBitmap, E> {
+    let mut bitmap = RoaringBitmap::new();
+
+    while let Ok(block_header) = read_block_header(conn) {
+        let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        conn.read_exact(&mut deflated_bytes)?;
+
+        let inflated_bytes = unpack::inflate_bytes(&deflated_bytes)?;
+        let bitmap_bytes = &unpack::inflate_bytes(&inflated_bytes)?[(block_header.block_len as usize)..inflated_bytes.len()];
+
+        let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
+        bitmap |= bitmap_deser?;
+    }
+
+    Ok(bitmap)
 }
 
 // Tests
