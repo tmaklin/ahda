@@ -35,7 +35,10 @@
 
 use headers::file::FileHeader;
 use headers::file::FileFlags;
+use headers::block::BlockHeader;
+use headers::block::BlockFlags;
 use headers::block::read_block_header;
+use headers::block::decode_block_flags;
 use headers::file::read_file_header;
 
 use parser::Parser;
@@ -137,23 +140,39 @@ pub fn decode_file_from_std_read<R: Read>(
     Ok(res)
 }
 
+/// Reads the full bitmap and combined block flags from a file
 pub fn read_bitmap<R: Read>(
     conn: &mut R,
-) -> Result<RoaringBitmap, E> {
+) -> Result<(RoaringBitmap, BlockFlags), E> {
     let mut bitmap = RoaringBitmap::new();
+
+    let mut queries: Vec<String> = Vec::new();
+    let mut query_ids: Vec<u32> = Vec::new();
 
     while let Ok(block_header) = read_block_header(conn) {
         let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
         conn.read_exact(&mut deflated_bytes)?;
 
         let inflated_bytes = unpack::inflate_bytes(&deflated_bytes)?;
-        let bitmap_bytes = &unpack::inflate_bytes(&inflated_bytes)?[(block_header.block_len as usize)..inflated_bytes.len()];
+        let inflated_bytes = unpack::inflate_bytes(&inflated_bytes)?;
+
+        let flags_bytes = &inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()];
+        let bitmap_bytes = &inflated_bytes[0..(block_header.block_len as usize)];
+
+        let mut block_flags = decode_block_flags(&flags_bytes)?;
+        queries.append(&mut block_flags.queries);
+        query_ids.append(&mut block_flags.query_ids);
 
         let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
         bitmap |= bitmap_deser?;
     }
 
-    Ok(bitmap)
+    let mut both: Vec<(u32, String)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name.to_string())).collect();
+    both.sort_by_key(|x| x.0);
+    let queries: Vec<String> = both.iter().map(|x| x.1.to_string()).collect();
+    let query_ids: Vec<u32> = both.iter().map(|x| x.0).collect();
+
+    Ok((bitmap, BlockFlags{ queries, query_ids }))
 }
 
 // Tests

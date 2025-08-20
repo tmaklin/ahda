@@ -84,13 +84,9 @@ pub enum Commands {
         #[arg(group = "input", required = true, help = "Input files")]
         input_files: Vec<PathBuf>,
 
-        // Output file path
-        #[arg(short = 'o', long = "output", required = true, group = "output")]
-        out_file: Option<PathBuf>,
-
-        // Force stdout for encoded data
-        #[arg(short = 'c', long = "stdout", required = true, group = "output", help = "Write to stdout")]
-        write_to_stdout: bool,
+        // Output format, defaults to Themisto
+        #[arg(long = "format", default_value = "themisto")]
+        format: String,
 
         // Operations
         // // Union

@@ -15,6 +15,8 @@ use ahda::Format;
 use ahda::PseudoAln;
 use ahda::headers::file::FileHeader;
 use ahda::headers::file::FileFlags;
+use ahda::headers::block::BlockHeader;
+use ahda::headers::block::BlockFlags;
 use ahda::printer::Printer;
 
 use std::collections::HashMap;
@@ -236,8 +238,7 @@ fn main() {
         // Set operations
         Some(cli::Commands::Set {
             input_files,
-            out_file,
-            write_to_stdout,
+            format,
             union,
             intersection,
             diff,
@@ -248,7 +249,7 @@ fn main() {
             assert!(input_files.len() > 1);
 
             // Read bitmap A from the first file
-            let (header_a, flags_a, mut bitmap_a) = {
+            let (header_a, flags_a, (mut bitmap_a, block_flags_a)) = {
                 let mut conn_in = File::open(&input_files[0]).unwrap();
                 let header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
                 let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
@@ -264,7 +265,7 @@ fn main() {
                 let mut flags_bytes: Vec<u8> = vec![0; header_b.flags_len as usize];
                 conn_in.read_exact(&mut flags_bytes).unwrap();
                 let flags_b = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
-                let bitmap_b = ahda::read_bitmap(&mut conn_in).unwrap();
+                let (bitmap_b, _) = ahda::read_bitmap(&mut conn_in).unwrap();
 
                 // Files must have same dimension and same targets
                 assert_eq!(header_a.n_targets, header_b.n_targets);
@@ -283,7 +284,23 @@ fn main() {
                 }
             }
 
-            todo!("Implement printing results from Set");
+            // TODO fix spaghetti
+            let roaring_bytes: Vec<u8> = ahda::pack::serialize_roaring(&bitmap_a).unwrap();
+            let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+            let records = ahda::unpack::decode_from_roaring(&flags_a, &block_header, &block_flags_a, flags_a.target_names.len() as u32, &roaring_bytes).unwrap();
+
+            let mut printer = match format.as_str() {
+                "bifrost" => Printer::new_from_flags(&records, &flags_a, &ahda::Format::Bifrost),
+                "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
+                "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
+                "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
+                _ => panic!("Unrecognized format --format {}", format),
+            };
+            while let Some(line) = printer.next() {
+                std::io::stdout().write_all(&line).unwrap();
+            }
+            std::io::stdout().flush().unwrap();
+
         },
         None => { todo!("Print help message.")},
     }
