@@ -25,7 +25,7 @@ type E = Box<dyn std::error::Error>;
 //
 // Must always conform to this format.
 //
-#[derive(Encode, Decode)]
+#[derive(Encode, Decode, Default)]
 pub struct FileHeader {
     /// Number of alignment targets.
     pub n_targets: u32,
