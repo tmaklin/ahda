@@ -43,7 +43,7 @@ pub fn format_metagraph_line<W: Write>(
     let separator: char = '\t';
     let mut formatted: String = String::new();
 
-    if aln.ones_names.is_none() || aln.query_name.is_none() {
+    if aln.ones_names.is_none() || aln.query_name.is_none() || aln.query_id.is_none() {
         return Err(Box::new(MetagraphPrinterError{}))
     }
 
@@ -134,6 +134,18 @@ mod tests {
         use super::format_metagraph_line;
 
         let data = PseudoAln{ones_names: None, query_name: Some("ERR4035126.1262954".to_string()), query_id: Some(128), ones: None};
+
+        let got = format_metagraph_line(&data, &mut Vec::new());
+
+        assert!(!got.is_ok());
+    }
+
+    #[test]
+    fn line_error_if_no_query_id() {
+        use crate::PseudoAln;
+        use super::format_metagraph_line;
+
+        let data = PseudoAln{ones_names:  Some(vec!["chr.fasta".to_string()]), query_name: Some("ERR4035126.1262954".to_string()), query_id: None, ones: None};
 
         let got = format_metagraph_line(&data, &mut Vec::new());
 
