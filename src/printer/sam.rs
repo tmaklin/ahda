@@ -54,8 +54,6 @@ pub fn format_sam_line<W: std::io::Write>(
 
     let mut writer = noodles_sam::io::Writer::new(Vec::new());
 
-    // TODO Error if query_name or ones is None
-
     for target_id in aln.ones.as_ref().unwrap() {
         let record = sam::alignment::RecordBuf::builder()
             .set_name(aln.query_name.clone().unwrap())
