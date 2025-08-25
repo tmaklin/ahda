@@ -35,7 +35,6 @@
 
 use headers::file::FileHeader;
 use headers::file::FileFlags;
-use headers::block::BlockHeader;
 use headers::block::BlockFlags;
 use headers::block::read_block_header;
 use headers::block::decode_block_flags;
@@ -125,7 +124,6 @@ pub fn decode_file_from_std_read<R: Read>(
     file_flags: &FileFlags,
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
-    todo!("Implemnenet decode_file_from_std_read"); // This function is broken
 
     let file_header = read_file_header(conn).unwrap();
 
@@ -137,7 +135,7 @@ pub fn decode_file_from_std_read<R: Read>(
         res.append(&mut unpack::unpack(&block_header, &file_flags, conn)?);
     }
 
-    Ok(res)
+    todo!("Implement decode_file_from_std_read"); // This function is broken
 }
 
 /// Reads the full bitmap and combined block flags from a file
@@ -181,7 +179,6 @@ mod tests {
 
     #[test]
     fn parse_themisto_output() {
-        use crate::Format;
         use std::io::Cursor;
 
         use super::parse;
@@ -210,7 +207,6 @@ mod tests {
 
     #[test]
     fn parse_fulgor_output() {
-        use crate::Format;
         use std::io::Cursor;
 
         use super::parse;

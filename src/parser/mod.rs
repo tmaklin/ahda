@@ -334,7 +334,6 @@ mod tests {
     #[test]
     fn read_bifrost_header() {
         use super::Parser;
-        use crate::PseudoAln;
         use std::io::Cursor;
 
         let mut data: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
@@ -353,7 +352,6 @@ mod tests {
     #[test]
     fn read_sam_header() {
         use super::Parser;
-        use crate::PseudoAln;
         use std::io::Cursor;
 
         let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();

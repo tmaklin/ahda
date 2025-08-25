@@ -16,7 +16,6 @@ use ahda::PseudoAln;
 use ahda::headers::file::FileHeader;
 use ahda::headers::file::FileFlags;
 use ahda::headers::block::BlockHeader;
-use ahda::headers::block::BlockFlags;
 use ahda::printer::Printer;
 
 use std::collections::HashMap;

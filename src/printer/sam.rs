@@ -109,15 +109,14 @@ mod tests {
 
     #[test]
     fn format_sam_line_aligned() {
-        use crate::headers::file::FileHeader;
+        // use crate::headers::file::FileHeader;
         use crate::headers::file::FileFlags;
         use super::build_sam_header;
-        use super::format_sam_header;
         use super::format_sam_line;
         use crate::PseudoAln;
 
         // Build header
-        let fheader = FileHeader { n_targets: 2, ..Default::default() };
+        // let fheader = FileHeader { n_targets: 2, ..Default::default() };
         let fflags = FileFlags { target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()], query_name: "test.fastq".to_string() };
         let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();
         expected.append(&mut b"@SQ\tSN:chr.fasta\tLN:1\n".to_vec());
@@ -138,12 +137,12 @@ mod tests {
 
     #[test]
     fn build_sam_header() {
-        use crate::headers::file::FileHeader;
+        // use crate::headers::file::FileHeader;
         use crate::headers::file::FileFlags;
         use super::build_sam_header;
         use super::format_sam_header;
 
-        let fheader = FileHeader { n_targets: 2, ..Default::default() };
+        // let fheader = FileHeader { n_targets: 2, ..Default::default() };
         let fflags = FileFlags { target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()], query_name: "test.fastq".to_string() };
 
         let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();

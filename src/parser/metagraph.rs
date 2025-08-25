@@ -76,7 +76,7 @@ mod tests {
         ];
 
         let cursor = Cursor::new(data);
-        let mut reader = BufReader::new(cursor);
+        let reader = BufReader::new(cursor);
         let got: Vec<PseudoAln> = reader.lines().map(|line| {
             read_metagraph(&mut line.unwrap().as_bytes()).unwrap()
         }).collect();

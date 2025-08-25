@@ -75,7 +75,6 @@ mod tests {
 
     #[test]
     fn read_bifrost_error_if_header_not_consumed() {
-        use crate::PseudoAln;
         use super::read_bifrost;
         use std::io::BufRead;
         use std::io::BufReader;
