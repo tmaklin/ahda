@@ -76,9 +76,9 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]), query_id: None, ones: None, query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".to_string()) };
 
-        let expected: Vec<u8> = b"ERR4035126.1262940\tchr.fasta\n".to_vec();
+        let expected: Vec<u8> = b"0\tERR4035126.1262940\tchr.fasta\n".to_vec();
 
         let mut got: Vec<u8> = Vec::new();
         format_metagraph_line(&data, &mut got).unwrap();
@@ -91,9 +91,9 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]), query_id: None, ones: None, query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".to_string()) };
 
-        let expected: Vec<u8> = b"ERR4035126.1262940\tchr.fasta:plasmid.fasta\n".to_vec();
+        let expected: Vec<u8> = b"0\tERR4035126.1262940\tchr.fasta:plasmid.fasta\n".to_vec();
 
         let mut got: Vec<u8> = Vec::new();
         format_metagraph_line(&data, &mut got).unwrap();
@@ -106,9 +106,9 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names: Some(vec![]), query_id: None, ones: None, query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: Some(vec![]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".to_string()) };
 
-        let expected: Vec<u8> = b"ERR4035126.1262940\t\n".to_vec();
+        let expected: Vec<u8> = b"0\tERR4035126.1262940\t\n".to_vec();
 
         let mut got: Vec<u8> = Vec::new();
         format_metagraph_line(&data, &mut got).unwrap();
