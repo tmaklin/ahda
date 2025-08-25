@@ -210,6 +210,7 @@ fn main() {
                         "bifrost" => Printer::new_from_flags(&records, &file_flags, &ahda::Format::Bifrost),
                         "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
                         "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
+                        "sam" => Printer::new_with_format(&records, &ahda::Format::SAM),
                         "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
                         _ => panic!("Unrecognized format --format {}", format),
                     };
@@ -293,6 +294,7 @@ fn main() {
                 "bifrost" => Printer::new_from_flags(&records, &flags_a, &ahda::Format::Bifrost),
                 "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
                 "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
+                "sam" => Printer::new_with_format(&records, &ahda::Format::SAM),
                 "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
                 _ => panic!("Unrecognized format --format {}", format),
             };

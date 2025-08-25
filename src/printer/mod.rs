@@ -20,6 +20,9 @@ use bifrost::format_bifrost_header;
 use bifrost::format_bifrost_line;
 use fulgor::format_fulgor_line;
 use metagraph::format_metagraph_line;
+use sam::build_sam_header;
+use sam::format_sam_line;
+use sam::format_sam_header;
 use themisto::format_themisto_line;
 
 // Format specific implementations
@@ -29,12 +32,12 @@ pub mod metagraph;
 pub mod sam;
 pub mod themisto;
 
-// TODO need to handle target and query names for Bifrost and Metagraph
-
+// TODO this should just store FileFlags/FileHeader
 #[derive(Debug)]
 pub struct Printer<'a> {
     records: &'a Vec<PseudoAln>,
     targets: Option<Vec<String>>,
+    sam_header: Option<noodles_sam::Header>,
     index: usize,
     pub format: Format,
 }
@@ -43,7 +46,7 @@ impl<'a> Printer<'a> {
     pub fn new(
         records: &'a Vec<PseudoAln>,
     ) -> Self {
-        Printer{ records, targets: None, index: 0, format: Format::default() }
+        Printer{ sam_header: None, records, targets: None, index: 0, format: Format::default() }
     }
 
     pub fn new_from_flags(
@@ -51,14 +54,14 @@ impl<'a> Printer<'a> {
         flags: &FileFlags,
         format: &Format,
     ) -> Self {
-        Printer{ records, targets: Some(flags.target_names.clone()), format: format.clone(), index: 0 }
+        Printer{ sam_header: None, records, targets: Some(flags.target_names.clone()), format: format.clone(), index: 0 }
     }
 
     pub fn new_with_format(
         records: &'a Vec<PseudoAln>,
         format: &Format,
     ) -> Self {
-        Printer{ records, format: format.clone(), targets: None, index: 0 }
+        Printer{ sam_header: None, records, format: format.clone(), targets: None, index: 0 }
     }
 }
 
@@ -81,7 +84,7 @@ impl Printer<'_> {
                 Format::Fulgor => format_fulgor_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Metagraph => format_metagraph_line(&self.records[self.index], &mut out).unwrap(),
                 Format::Bifrost => format_bifrost_line(&self.records[self.index], self.targets.as_ref().unwrap().len(), &mut out).unwrap(),
-                Format::SAM => todo!("SAM printing is not implemented."),
+                Format::SAM => format_sam_line(&self.records[self.index], self.sam_header.as_ref().unwrap(), &mut out).unwrap(),
             }
             self.index += 1;
             Some(out)
@@ -102,7 +105,11 @@ impl Printer<'_> {
                 format_bifrost_header(self.targets.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
-            Format::SAM => todo!("SAM header is not implemented."),
+            Format::SAM => {
+                self.sam_header = Some(build_sam_header(self.targets.as_ref().unwrap()).unwrap());
+                format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
+                Some(out)
+            },
         }
     }
 }

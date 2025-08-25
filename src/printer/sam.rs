@@ -17,12 +17,10 @@ use indexmap::map::IndexMap;
 use noodles_sam::{
     self as sam,
     alignment::io::Write,
-    header::record::value::{map::ReadGroup, map::ReferenceSequence, Map},
+    header::record::value::{map::ReferenceSequence, Map},
 };
 
 use crate::PseudoAln;
-use crate::headers::file::FileFlags;
-use crate::headers::file::FileHeader;
 
 type E = Box<dyn std::error::Error>;
 
@@ -70,12 +68,13 @@ pub fn format_sam_line<W: std::io::Write>(
     Ok(())
 }
 
-/// Formats FileHeader + FileFlags as a SAM header
-pub fn format_sam_header(
-    file_header: &FileHeader,
-    file_flags: &FileFlags
+/// Builds a noodles_sam header
+pub fn build_sam_header(
+    targets: &[String],
+    // file_header: &FileHeader,
+    // file_flags: &FileFlags
 ) -> Result<sam::Header, E> {
-    let refs = file_flags.target_names.iter().map(|target_name| {
+    let refs = targets.iter().map(|target_name| {
         (
             BString::from(target_name.clone()),
             Map::<ReferenceSequence>::new(std::num::NonZeroUsize::try_from(1).unwrap()),
@@ -88,11 +87,21 @@ pub fn format_sam_header(
         sam::Header::builder()
             .set_header(Default::default())
             .set_reference_sequences(refs)
-            .add_read_group(file_flags.query_name.clone(), Map::<ReadGroup>::default())
+            // .add_read_group(file_flags.query_name.clone(), Map::<ReadGroup>::default())
             .build()
     )
 }
 
+/// Formats a noodles_sam header
+pub fn format_sam_header<W: std::io::Write>(
+    header: &sam::Header,
+    conn: &mut W,
+) -> Result<(), E> {
+    let mut writer = noodles_sam::io::Writer::new(Vec::new());
+    writer.write_header(&header)?;
+    conn.write_all(writer.get_ref())?;
+    Ok(())
+}
 
 // Tests
 #[cfg(test)]
@@ -102,6 +111,7 @@ mod tests {
     fn format_sam_line_aligned() {
         use crate::headers::file::FileHeader;
         use crate::headers::file::FileFlags;
+        use super::build_sam_header;
         use super::format_sam_header;
         use super::format_sam_line;
         use crate::PseudoAln;
@@ -113,7 +123,8 @@ mod tests {
         expected.append(&mut b"@SQ\tSN:chr.fasta\tLN:1\n".to_vec());
         expected.append(&mut b"@SQ\tSN:plasmid.fasta\tLN:1\n".to_vec());
         expected.append(&mut b"@RG\tID:test.fastq\n".to_vec());
-        let header = format_sam_header(&fheader, &fflags).unwrap();
+        // let header = build_sam_header(&fheader, &fflags).unwrap();
+        let header = build_sam_header(&fflags.target_names).unwrap();
 
         let data = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1".to_string()) };
 
@@ -126,9 +137,10 @@ mod tests {
     }
 
     #[test]
-    fn format_sam_header() {
+    fn build_sam_header() {
         use crate::headers::file::FileHeader;
         use crate::headers::file::FileFlags;
+        use super::build_sam_header;
         use super::format_sam_header;
 
         let fheader = FileHeader { n_targets: 2, ..Default::default() };
@@ -137,14 +149,14 @@ mod tests {
         let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();
         expected.append(&mut b"@SQ\tSN:chr.fasta\tLN:1\n".to_vec());
         expected.append(&mut b"@SQ\tSN:plasmid.fasta\tLN:1\n".to_vec());
-        expected.append(&mut b"@RG\tID:test.fastq\n".to_vec());
+        // expected.append(&mut b"@RG\tID:test.fastq\n".to_vec());
 
-        let mut writer = noodles_sam::io::Writer::new(Vec::new());
+        // let header = build_sam_header(&fheader, &fflags).unwrap();
+        let header = build_sam_header(&fflags.target_names).unwrap();
 
-        let header = format_sam_header(&fheader, &fflags).unwrap();
-        writer.write_header(&header).unwrap();
-        let got = writer.get_ref();
+        let mut got: Vec<u8> = Vec::new();
+        format_sam_header(&header, &mut got).unwrap();
 
-        assert_eq!(got, &expected)
+        assert_eq!(got, expected)
     }
 }
