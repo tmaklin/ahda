@@ -21,9 +21,13 @@ bincode = "2"
 clap = { version = "4", features = ["derive"]}
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 needletail = { version = "0.6", default-features = false, features = ["flate2"] }
-noodles-sam = "0.78"
 roaring = "0.11"
 stderrlog = "0.6"
+
+# .sam formatting
+bstr = "1.12"
+indexmap = "2.11"
+noodles-sam = "0.78"
 
 [profile.release]
 debug = true

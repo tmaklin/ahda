@@ -13,9 +13,16 @@
 //
 use std::io::Write;
 
-use noodles_sam as sam;
+use bstr::BString;
+use indexmap::map::IndexMap;
+use noodles_sam::{
+    self as sam,
+    header::record::value::{map::ReadGroup, map::ReferenceSequence, Map},
+};
 
 use crate::PseudoAln;
+use crate::headers::file::FileFlags;
+use crate::headers::file::FileHeader;
 
 type E = Box<dyn std::error::Error>;
 
@@ -56,6 +63,30 @@ pub fn format_sam_line<W: Write>(
     // for more details on how to continue from here
     Ok(())
 }
+
+/// Formats FileHeader + FileFlags as a SAM header
+pub fn format_sam_header(
+    file_header: &FileHeader,
+    file_flags: &FileFlags
+) -> Result<sam::Header, E> {
+    let refs = file_flags.target_names.iter().map(|target_name| {
+        (
+            BString::from(target_name.clone()),
+            Map::<ReferenceSequence>::new(std::num::NonZeroUsize::try_from(1).unwrap()),
+        )
+    }).collect::<IndexMap<BString, Map<ReferenceSequence>>>();
+    // builder.add_program("noodles-sam", Map::<Program>::default()) TODO match format and add
+    // builder.add_comment("noodles-sam").build(); // TODO note that this was converted with ahda
+
+    Ok(
+        sam::Header::builder()
+            .set_header(Default::default())
+            .set_reference_sequences(refs)
+            .add_read_group(file_flags.query_name.clone(), Map::<ReadGroup>::default())
+            .build()
+    )
+}
+
 
 // Tests
 #[cfg(test)]
