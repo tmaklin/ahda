@@ -179,8 +179,8 @@ mod tests {
 
     #[test]
     fn parse_themisto_output() {
+        use crate::Format;
         use std::io::Cursor;
-
         use super::parse;
         use super::PseudoAln;
 
@@ -200,13 +200,15 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(&mut input).unwrap();
+        let (got, got_format) = parse(&mut input).unwrap();
 
+        assert_eq!(got_format, Format::Themisto);
         assert_eq!(got, expected);
     }
 
     #[test]
     fn parse_fulgor_output() {
+        use crate::Format;
         use std::io::Cursor;
 
         use super::parse;
@@ -245,8 +247,9 @@ mod tests {
         ];
 
         let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let got = parse(&mut input).unwrap();
+        let (got, got_format) = parse(&mut input).unwrap();
 
+        assert_eq!(got_format, Format::Fulgor);
         assert_eq!(got, expected);
     }
 }
