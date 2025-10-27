@@ -14,6 +14,7 @@
 use std::io::Read;
 
 use noodles_sam as sam;
+use noodles_sam::alignment::record::Flags;
 
 use crate::PseudoAln;
 
@@ -34,6 +35,11 @@ pub fn read_sam<R: Read>(
     let record = sam::Record::try_from(contents.as_bytes())?;
 
     let query_name: String = record.name().unwrap().to_string();
+
+    if record.flags().is_ok() && *record.flags().as_ref().unwrap() == Flags::UNMAPPED {
+        return Ok(PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: None });
+    }
+
     let target: String = record.reference_sequence_name().unwrap().to_string();
 
     let res = PseudoAln{query_id: None, ones: Some(vec![]), query_name: Some(query_name), ones_names: Some(vec![target]) };
