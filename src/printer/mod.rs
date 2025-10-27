@@ -35,7 +35,7 @@ pub mod themisto;
 // TODO this should just store FileFlags/FileHeader
 #[derive(Debug)]
 pub struct Printer<'a> {
-    records: &'a Vec<PseudoAln>,
+    records: &'a [PseudoAln],
     targets: Option<Vec<String>>,
     sam_header: Option<noodles_sam::Header>,
     index: usize,
@@ -50,7 +50,7 @@ impl<'a> Printer<'a> {
     }
 
     pub fn new_from_flags(
-        records: &'a Vec<PseudoAln>,
+        records: &'a [PseudoAln],
         flags: &FileFlags,
         format: &Format,
     ) -> Self {
@@ -58,7 +58,7 @@ impl<'a> Printer<'a> {
     }
 
     pub fn new_with_format(
-        records: &'a Vec<PseudoAln>,
+        records: &'a [PseudoAln],
         format: &Format,
     ) -> Self {
         Printer{ sam_header: None, records, format: format.clone(), targets: None, index: 0 }
