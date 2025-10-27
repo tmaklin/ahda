@@ -252,4 +252,58 @@ mod tests {
         assert_eq!(got_format, Format::Fulgor);
         assert_eq!(got, expected);
     }
+
+    #[test]
+    fn parse_bifrost_output() {
+        use crate::Format;
+        use std::io::Cursor;
+
+        use super::parse;
+        use super::PseudoAln;
+
+        let mut data: Vec<u8> = b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.724962\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1235744\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.431001\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.645400\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.3001\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.515778\t242\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.886205\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1254676\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.668031\t0\t121\n".to_vec());
+        data.append(&mut b"ERR4035126.388619\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.959743\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1146685\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1017809\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.788136\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1223924\t366\t9\n".to_vec());
+        data.append(&mut b"ERR4035126.910807\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.824748\t80\t0\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ query_name: Some("ERR4035126.724962".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.1235744".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.431001".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.645400".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.3001".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.515778".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.886205".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.1254676".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.668031".to_string()), ones: Some(vec![1]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.388619".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.959743".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.1146685".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.1017809".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.788136".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.1223924".to_string()), ones: Some(vec![0, 1]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.910807".to_string()), ones: Some(vec![]), ones_names: None, query_id: None },
+            PseudoAln{ query_name: Some("ERR4035126.824748".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
+        ];
+
+        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
+        let (got, got_format) = parse(&mut input).unwrap();
+
+        assert_eq!(got_format, Format::Bifrost);
+        assert_eq!(got, expected);
+    }
 }
