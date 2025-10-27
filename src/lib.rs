@@ -524,4 +524,15 @@ mod tests {
 
         assert_eq!(got, &expected);
     }
+
+    #[test]
+    fn print_metgraph_output() {
+        use crate::Format;
+        use std::io::Cursor;
+
+        use super::cat;
+        use super::PseudoAln;
+
+        assert_eq!(0, 1);
+    }
 }
