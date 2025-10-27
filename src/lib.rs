@@ -306,4 +306,15 @@ mod tests {
         assert_eq!(got_format, Format::Bifrost);
         assert_eq!(got, expected);
     }
+
+    #[test]
+    fn parse_metgraph_output() {
+        use crate::Format;
+        use std::io::Cursor;
+
+        use super::parse;
+        use super::PseudoAln;
+
+        assert_eq!(0, 1);
+    }
 }
