@@ -82,6 +82,24 @@ pub struct PseudoAln{
     pub query_name: Option<String>,
 }
 
+pub fn cat<W: Write>(
+    records: &[PseudoAln],
+    format: &Format,
+    conn: &mut W,
+) -> Result<(),E> {
+    let mut printer = printer::Printer::new_with_format(records, format);
+
+    let bytes = printer.print_header();
+    if let Some(bytes) = bytes {
+        conn.write_all(&bytes).unwrap();
+    }
+    while let Some(bytes) = printer.next() {
+        conn.write_all(&bytes).unwrap();
+    }
+
+    Ok(())
+}
+
 pub fn parse<R: Read>(
     conn: &mut R,
 ) -> Result<(Vec<PseudoAln>, Format), E> {
@@ -373,4 +391,83 @@ mod tests {
 
         // assert_eq!(got, expected);
     }
+
+    #[test]
+    fn print_themisto_output() {
+        use crate::Format;
+        use std::io::Cursor;
+        use super::cat;
+        use super::PseudoAln;
+
+        let data = vec![
+            PseudoAln{ones_names: None,  query_id: Some(128), ones: Some(vec![0, 7, 11, 3]), ..Default::default()},
+            PseudoAln{ones_names: None,  query_id: Some(7),   ones: Some(vec![3, 2, 1, 0]), ..Default::default()},
+            PseudoAln{ones_names: None,  query_id: Some(8),   ones: Some(vec![]), ..Default::default()},
+            PseudoAln{ones_names: None,  query_id: Some(0),   ones: Some(vec![]), ..Default::default()},
+            PseudoAln{ones_names: None,  query_id: Some(1),   ones: Some(vec![4, 2, 9, 7]), ..Default::default()},
+        ];
+
+        let expected: Vec<u8> = vec![b"128 0 7 11 3\n".to_vec(),
+                                     b"7 3 2 1 0\n".to_vec(),
+                                     b"8\n".to_vec(),
+                                     b"0\n".to_vec(),
+                                     b"1 4 2 9 7\n".to_vec(),
+        ].concat();
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        cat(&data, &Format::Themisto, &mut cursor).unwrap();
+        let got = cursor.get_ref();
+
+        assert_eq!(got, &expected);
+    }
+
+    #[test]
+    fn print_fulgor_output() {
+        use crate::Format;
+        use std::io::Cursor;
+
+        use super::cat;
+        use super::PseudoAln;
+
+        let data = vec![
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.4996".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262953".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262954".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262955".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262956".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262957".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262958".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262959".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.11302".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262960".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262961".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262962".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".to_string()) },
+        ];
+
+        let mut expected: Vec<u8> = b"ERR4035126.4996\t0\n".to_vec();
+        expected.append(&mut b"ERR4035126.1262953\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262954\t1\t1\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262955\t1\t1\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262956\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262957\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262958\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262959\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.651965\t2\t0\t1\n".to_vec());
+        expected.append(&mut b"ERR4035126.11302\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262960\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262961\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.1262962\t1\t0\n".to_vec());
+        expected.append(&mut b"ERR4035126.651965\t2\t0\t1\n".to_vec());
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        cat(&data, &Format::Fulgor, &mut cursor).unwrap();
+        let got = cursor.get_ref();
+
+        assert_eq!(got, &expected);
+    }
+
 }
