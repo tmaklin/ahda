@@ -48,11 +48,18 @@ pub fn format_sam_line<W: std::io::Write>(
     header: &sam::Header,
     conn: &mut W,
 ) -> Result<(), E> {
-    if aln.ones.is_none() || aln.query_name.is_none() {
+    // TODO Better error messages.
+    if aln.query_name.is_none() {
+        return Err(Box::new(SamPrinterError{}))
+    }
+    if aln.ones.is_none() || (aln.ones.is_none() && aln.ones.as_ref().unwrap().is_empty()) {
         return Err(Box::new(SamPrinterError{}))
     }
 
     let mut writer = noodles_sam::io::Writer::new(Vec::new());
+
+
+    // TODO print unaligned records
 
     for target_id in aln.ones.as_ref().unwrap() {
         let record = sam::alignment::RecordBuf::builder()
