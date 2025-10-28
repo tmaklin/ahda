@@ -54,7 +54,12 @@ impl<'a> Printer<'a> {
         flags: &FileFlags,
         format: &Format,
     ) -> Self {
-        Printer{ sam_header: None, records, targets: Some(flags.target_names.clone()), format: format.clone(), index: 0 }
+        let sam_header = if *format == Format::SAM {
+            Some(sam::build_sam_header(&flags.target_names).unwrap())
+        } else {
+            None
+        };
+        Printer{ sam_header, records, targets: Some(flags.target_names.clone()), format: format.clone(), index: 0 }
     }
 
     pub fn new_with_format(
