@@ -544,8 +544,6 @@ mod tests {
         cat(&data, &flags, &Format::Bifrost, &mut cursor).unwrap();
         let got = cursor.get_ref();
 
-        eprintln!("{}", got.iter().map(|x| *x as char).collect::<String>());
-        eprintln!("{}", expected.iter().map(|x| *x as char).collect::<String>());
         assert_eq!(got, &expected);
     }
 
