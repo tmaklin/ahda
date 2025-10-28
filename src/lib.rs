@@ -590,24 +590,24 @@ mod tests {
         use super::PseudoAln;
 
         let data = vec![
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.2".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.3".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1261584".to_string()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".to_string()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.4".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.5".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.6".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1178767".to_string()), ones_names: None, ones: None },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.2".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.3".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1261584".to_string()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![1]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".to_string()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![1]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.4".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.5".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.6".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1178767".to_string()), ones_names: None, ones: Some(vec![]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
         ];
 
-        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
+        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()] };
 
         let mut expected: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
         expected.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
