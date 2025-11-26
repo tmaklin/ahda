@@ -136,28 +136,16 @@ pub fn encode_file<R: Read, W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
 
-    let n_targets = targets.len();
-    let n_queries = query_to_pos.len();
-
-    // Adjust block size to fit within 32-bit address space
-    let block_size = ((u32::MAX as u64) / n_targets as u64).min(65537_u64) as usize;
-    assert!(block_size > 1);
-    let block_size = block_size - 1;
-
     let file_flags = FileFlags{ target_names: targets.to_vec(), query_name: query_name.to_string() };
     let flags_bytes = crate::headers::file::encode_file_flags(&file_flags)?;
-
-
-    // TODO fix
-    let file_header = FileHeader{ n_targets: n_targets as u32, n_queries: n_queries as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
-    let file_header_bytes = crate::headers::file::encode_file_header(n_targets as u32, n_queries as u32, flags_bytes.len() as u32, 1, 0,0,0)?;
-
-    conn_out.write_all(&file_header_bytes)?;
-    conn_out.write_all(&flags_bytes)?;
+    let file_header = FileHeader{ n_targets: targets.len() as u32, n_queries: query_to_pos.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
 
     let mut reader = crate::parser::Parser::new(conn_in)?;
     let format = reader.format.clone();
     let mut encoder = encoder::Encoder::new_with_format(&mut reader, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), format);
+
+    let bytes: Vec<u8> = encoder.encode_header_and_flags().unwrap();
+    conn_out.write_all(&bytes)?;
 
     while let Some(bytes) = encoder.next_block() {
         conn_out.write_all(&bytes)?;
