@@ -21,9 +21,9 @@ use crate::headers::file::encode_file_flags;
 use std::collections::HashMap;
 
 // TODO records should be anything that implements `next`
-pub struct Encoder<'a> {
+pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
-    records: &'a [PseudoAln],
+    records: &'a mut I,
     query_to_pos: &'a HashMap<String, usize>,
     pos_to_query: &'a HashMap<usize, String>,
 
@@ -37,9 +37,9 @@ pub struct Encoder<'a> {
     block_size: usize,
 }
 
-impl<'a> Encoder<'a> {
+impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new_with_format(
-        records: &'a Vec<PseudoAln>,
+        records: &'a mut I,
         query_to_pos: &'a HashMap<String, usize>,
         pos_to_query: &'a HashMap<usize, String>,
         header: FileHeader,
@@ -59,7 +59,7 @@ impl<'a> Encoder<'a> {
     }
 
     pub fn new(
-        records: &'a Vec<PseudoAln>,
+        records: &'a mut I,
         query_to_pos: &'a HashMap<String, usize>,
         pos_to_query: &'a HashMap<usize, String>,
         header: FileHeader,
@@ -70,14 +70,20 @@ impl<'a> Encoder<'a> {
 
 }
 
-impl Encoder<'_> {
+impl<'a, I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     pub fn next_block(
         &mut self,
     ) -> Option<Vec<u8>> {
         let mut out: Vec<u8> = Vec::new();
 
-        assert!(self.index < self.records.len());
-        let mut block_records = self.records[self.index..(self.index + self.block_size).min(self.records.len())].to_vec();
+        let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.block_size);
+        while let Some(record) = self.records.next() {
+            block_records.push(record);
+            if block_records.len() == self.block_size {
+                break;
+            }
+        }
+
         match &self.format {
             Format::Fulgor => {
                 block_records.iter_mut().for_each(|record| {

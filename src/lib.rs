@@ -162,7 +162,8 @@ pub fn encode_file<R: Read, W: Write>(
         records.push(record);
         if records.len() > block_size {
             // TODO Make initializing the struct outside of the loop work
-            let mut encoder = encoder::Encoder::new_with_format(&records, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), reader.format.clone());
+            let mut tmp = records.iter().cloned();
+            let mut encoder = encoder::Encoder::new_with_format(&mut tmp, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), reader.format.clone());
             bytes = encoder.next_block().unwrap();
             conn_out.write_all(&bytes)?;
             bytes.clear();
@@ -170,7 +171,8 @@ pub fn encode_file<R: Read, W: Write>(
         }
     }
     if !records.is_empty() {
-        let mut encoder = encoder::Encoder::new_with_format(&records, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), reader.format.clone());
+        let mut tmp = records.iter().cloned();
+        let mut encoder = encoder::Encoder::new_with_format(&mut tmp, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), reader.format.clone());
         bytes = encoder.next_block().unwrap();
         conn_out.write_all(&bytes)?;
     }
