@@ -42,7 +42,6 @@ use headers::file::read_file_header;
 
 use parser::Parser;
 
-use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 
@@ -143,6 +142,30 @@ pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     while let Some(bytes) = encoder.next_block() {
         conn_out.write_all(&bytes)?;
     }
+
+    conn_out.flush()?;
+    Ok(())
+}
+
+pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
+    out_format: Format,
+    conn_in: &mut R,
+    conn_out: &mut W,
+) -> Result<(), E> {
+    let file_header = headers::file::read_file_header(conn_in).unwrap();
+
+    let mut flags_bytes: Vec<u8> = vec![0; file_header.flags_len as usize];
+    conn_in.read_exact(&mut flags_bytes).unwrap();
+    let file_flags = headers::file::decode_file_flags(&flags_bytes).unwrap();
+
+    while let Ok(records) = decode_block_from_std_read(&file_flags, conn_in) {
+        let mut printer = printer::Printer::new_from_flags(&records, &file_flags, &out_format);
+        while let Some(line) = printer.next() {
+            conn_out.write_all(&line)?;
+        }
+    }
+
+    conn_out.flush()?;
     Ok(())
 }
 

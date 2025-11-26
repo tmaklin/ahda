@@ -103,38 +103,14 @@ fn main() {
             init_log(if *verbose { 2 } else { 1 });
 
             input_files.iter().for_each(|file| {
-                let mut conn_in = File::open(file).unwrap();
-
-                let file_header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
-
-                let mut flags_bytes: Vec<u8> = vec![0; file_header.flags_len as usize];
-                conn_in.read_exact(&mut flags_bytes).unwrap();
-                let file_flags = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
-
                 let out_name = file.file_stem().unwrap().to_string_lossy();
                 let out_path = PathBuf::from(out_name.to_string());
                 let f = File::create(out_path).unwrap();
 
                 let mut conn_out = BufWriter::new(f);
+                let mut conn_in = File::open(file).unwrap();
 
-                while let Ok(records) = ahda::decode_block_from_std_read(&file_flags, &mut conn_in) {
-                    let mut printer = match format.as_str() {
-                        "bifrost" => Printer::new_from_flags(&records, &file_flags, &ahda::Format::Bifrost),
-                        "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
-                        "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
-                        "sam" => Printer::new_with_format(&records, &ahda::Format::SAM),
-                        "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
-                        _ => panic!("Unrecognized format --format {}", format),
-                    };
-                    while let Some(line) = printer.next() {
-                        if *write_to_stdout {
-                            std::io::stdout().write_all(&line).unwrap();
-                        } else {
-                            conn_out.write_all(&line).unwrap();
-                        }
-                    }
-                    conn_out.flush().unwrap();
-                }
+                ahda::decode_from_std_read_to_std_write(format, &mut conn_in, &mut conn_out).unwrap();
             });
 
         },
