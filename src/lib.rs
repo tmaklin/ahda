@@ -74,6 +74,22 @@ pub enum Format {
     Themisto,
 }
 
+
+impl std::str::FromStr for Format {
+    type Err = String; // Define an error type for parsing failures
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "bifrost" => Ok(Format::Bifrost),
+            "fulgor" => Ok(Format::Fulgor),
+            "metagraph" => Ok(Format::Metagraph),
+            "sam" => Ok(Format::SAM),
+            "themisto" => Ok(Format::Themisto),
+            _ => Err(format!("'{}' is not a valid Format", s)),
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PseudoAln{

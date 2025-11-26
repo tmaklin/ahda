@@ -55,8 +55,8 @@ pub enum Commands {
         input_files: Vec<PathBuf>,
 
         // Output format, defaults to Themisto
-        #[arg(long = "format", default_value = "themisto")]
-        format: String,
+        #[arg(long = "format", required = false)]
+        format: Option<ahda::Format>,
 
         // Verbosity
         #[arg(short = 'c', long = "stdout", default_value_t = false)]

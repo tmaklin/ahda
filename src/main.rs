@@ -110,7 +110,7 @@ fn main() {
                 let mut conn_out = BufWriter::new(f);
                 let mut conn_in = File::open(file).unwrap();
 
-                ahda::decode_from_std_read_to_std_write(format, &mut conn_in, &mut conn_out).unwrap();
+                ahda::decode_from_std_read_to_std_write(format.clone().unwrap_or_default(), &mut conn_in, &mut conn_out).unwrap();
             });
 
         },
