@@ -127,7 +127,7 @@ pub fn encode_block<W: Write>(
     Ok(())
 }
 
-pub fn encode_file<R: Read, W: Write>(
+pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
     sample_name: &str,
@@ -135,8 +135,7 @@ pub fn encode_file<R: Read, W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in)?;
-    let format = reader.format.clone();
-    let mut encoder = encoder::Encoder::new_with_format(&mut reader, targets, queries, sample_name, format);
+    let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
     let bytes: Vec<u8> = encoder.encode_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;

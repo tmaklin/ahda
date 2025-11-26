@@ -79,16 +79,16 @@ fn main() {
                     let f = File::create(out_path).unwrap();
                     let mut conn_out = BufWriter::new(f);
 
-                    ahda::encode_file(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
+                    ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
                 }
             } else {
                 let mut conn_in = std::io::stdin();
                 if out_file.is_some() {
                     let f = File::create(out_file.as_ref().unwrap()).unwrap();
                     let mut conn_out = BufWriter::new(f);
-                    ahda::encode_file(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
+                    ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
                 } else {
-                    ahda::encode_file(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut std::io::stdout()).unwrap();
+                    ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut std::io::stdout()).unwrap();
                 }
             }
         },
