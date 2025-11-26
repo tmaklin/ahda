@@ -11,7 +11,6 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
-use crate::Format;
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
@@ -30,7 +29,6 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // These are given as construtor parameters
     header: FileHeader,
     flags: FileFlags,
-    pub format: Format,
 
     // Internals
     index: usize,
@@ -38,12 +36,11 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
-    pub fn new_with_format(
+    pub fn new(
         records: &'a mut I,
         targets: &[String],
         queries: &[String],
         sample_name: &str,
-        format: Format,
     ) -> Self {
 
         let mut query_to_pos: HashMap<String, usize> = HashMap::new();
@@ -64,20 +61,10 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
         Encoder{
             records, query_to_pos, pos_to_query,
-            header, flags, format,
+            header, flags,
             index: 0, block_size,
         }
     }
-
-    pub fn new(
-        records: &'a mut I,
-        targets: &[String],
-        queries: &[String],
-        sample_name: &str,
-    ) -> Self {
-        Encoder::new_with_format(records, targets, queries, sample_name, Format::default())
-    }
-
 }
 
 impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
@@ -86,18 +73,14 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     ) -> Option<Vec<u8>> {
         let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.block_size);
         for mut record in self.records.by_ref() {
-            match &self.format {
-                Format::Fulgor => {
-                    record.query_id = Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                    record.ones_names = Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+            record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
+            record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
+
+            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
                         self.flags.target_names[*target_idx as usize].clone()
-                    }).collect::<Vec<String>>());
-                },
-                Format::Themisto => {
-                    record.query_name = Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
-                },
-                _ => todo!("Format {:?} is not implemented", self.format),
-            };
+                }).collect::<Vec<String>>())};
+
             block_records.push(record);
             if block_records.len() == self.block_size {
                 break;
