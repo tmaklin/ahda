@@ -77,7 +77,7 @@ impl Encoder<'_> {
         let mut out: Vec<u8> = Vec::new();
 
         assert!(self.index < self.records.len());
-        let mut block_records = self.records[self.index..(self.index + self.block_size)].to_vec();
+        let mut block_records = self.records[self.index..(self.index + self.block_size).min(self.records.len())].to_vec();
         match &self.format {
             Format::Fulgor => {
                 block_records.iter_mut().for_each(|record| {
@@ -94,6 +94,7 @@ impl Encoder<'_> {
             },
             _ => todo!("Implement remaining formats"),
         }
+        self.index += block_records.len();
 
         block_records.sort_by_key(|x| x.query_id.unwrap());
         crate::encode_block(&self.header, &block_records, &mut out).unwrap();
