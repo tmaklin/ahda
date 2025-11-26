@@ -70,39 +70,38 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
 }
 
-impl<'a, I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
+impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     pub fn next_block(
         &mut self,
     ) -> Option<Vec<u8>> {
-        let mut out: Vec<u8> = Vec::new();
-
         let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.block_size);
-        while let Some(record) = self.records.next() {
+        for mut record in self.records.by_ref() {
+            match &self.format {
+                Format::Fulgor => {
+                    record.query_id = Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
+                    record.ones_names = Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                        self.flags.target_names[*target_idx as usize].clone()
+                    }).collect::<Vec<String>>());
+                },
+                Format::Themisto => {
+                    record.query_name = Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
+                },
+                _ => todo!("Format {:?} is not implemented", self.format),
+            };
             block_records.push(record);
             if block_records.len() == self.block_size {
                 break;
             }
         }
 
-        match &self.format {
-            Format::Fulgor => {
-                block_records.iter_mut().for_each(|record| {
-                    record.query_id = Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32);
-                    record.ones_names = Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                        self.flags.target_names[*target_idx as usize].clone()
-                    }).collect::<Vec<String>>());
-                });
-            },
-            Format::Themisto => {
-                block_records.iter_mut().for_each(|record| {
-                    record.query_name = Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone());
-                });
-            },
-            _ => todo!("Implement remaining formats"),
+        if block_records.is_empty() {
+            return None
         }
-        self.index += block_records.len();
 
+        self.index += block_records.len();
         block_records.sort_by_key(|x| x.query_id.unwrap());
+
+        let mut out: Vec<u8> = Vec::new();
         crate::encode_block(&self.header, &block_records, &mut out).unwrap();
 
         Some(out)
