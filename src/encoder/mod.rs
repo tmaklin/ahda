@@ -24,8 +24,8 @@ use std::collections::HashMap;
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
     records: &'a mut I,
-    query_to_pos: &'a HashMap<String, usize>,
-    pos_to_query: &'a HashMap<usize, String>,
+    query_to_pos: HashMap<String, usize>,
+    pos_to_query: HashMap<usize, String>,
 
     // These are given as construtor parameters
     header: FileHeader,
@@ -40,12 +40,23 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new_with_format(
         records: &'a mut I,
-        query_to_pos: &'a HashMap<String, usize>,
-        pos_to_query: &'a HashMap<usize, String>,
-        header: FileHeader,
-        flags: FileFlags,
+        targets: &[String],
+        queries: &[String],
+        sample_name: &str,
         format: Format,
     ) -> Self {
+
+        let mut query_to_pos: HashMap<String, usize> = HashMap::new();
+        let mut pos_to_query: HashMap<usize, String> = HashMap::new();
+        queries.iter().enumerate().for_each(|(idx, query)| {
+            query_to_pos.insert(query.clone(), idx);
+            pos_to_query.insert(idx, query.clone());
+        });
+
+        let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
+        let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
+        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: query_to_pos.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
+
         // Adjust block size to fit within 32-bit address space
         let block_size = ((u32::MAX as u64) / header.n_targets as u64).min(65537_u64) as usize;
         assert!(block_size > 1);
@@ -60,12 +71,11 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
     pub fn new(
         records: &'a mut I,
-        query_to_pos: &'a HashMap<String, usize>,
-        pos_to_query: &'a HashMap<usize, String>,
-        header: FileHeader,
-        flags: FileFlags,
+        targets: &[String],
+        queries: &[String],
+        sample_name: &str,
     ) -> Self {
-        Encoder::new_with_format(records, query_to_pos, pos_to_query, header, flags, Format::default())
+        Encoder::new_with_format(records, targets, queries, sample_name, Format::default())
     }
 
 }

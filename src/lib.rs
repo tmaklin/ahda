@@ -134,21 +134,9 @@ pub fn encode_file<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-
-    let mut query_to_pos: HashMap<String, usize> = HashMap::new();
-    let mut pos_to_query: HashMap<usize, String> = HashMap::new();
-    queries.iter().enumerate().for_each(|(idx, query)| {
-        query_to_pos.insert(query.clone(), idx);
-        pos_to_query.insert(idx, query.clone());
-    });
-
-    let file_flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
-    let flags_bytes = crate::headers::file::encode_file_flags(&file_flags)?;
-    let file_header = FileHeader{ n_targets: targets.len() as u32, n_queries: query_to_pos.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
-
     let mut reader = crate::parser::Parser::new(conn_in)?;
     let format = reader.format.clone();
-    let mut encoder = encoder::Encoder::new_with_format(&mut reader, &query_to_pos, &pos_to_query, file_header.clone(), file_flags.clone(), format);
+    let mut encoder = encoder::Encoder::new_with_format(&mut reader, targets, queries, sample_name, format);
 
     let bytes: Vec<u8> = encoder.encode_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
