@@ -14,7 +14,6 @@
 use ahda::headers::block::BlockHeader;
 use ahda::printer::Printer;
 
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -53,19 +52,13 @@ fn main() {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let mut query_to_pos: HashMap<String, usize> = HashMap::new();
-            let mut pos_to_query: HashMap<usize, String> = HashMap::new();
-
             let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
-            let mut count = 0;
+            let mut queries: Vec<String> = Vec::new();
             while let Some(record) = reader.next() {
                 let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
                 let mut infos = query_info.split(' ');
                 let query_name = infos.next().unwrap().to_string();
-
-                query_to_pos.insert(query_name.clone(), count);
-                pos_to_query.insert(count, query_name);
-                count += 1;
+                queries.push(query_name);
             }
 
             let targets: Vec<String> = {
@@ -86,16 +79,16 @@ fn main() {
                     let f = File::create(out_path).unwrap();
                     let mut conn_out = BufWriter::new(f);
 
-                    ahda::encode_file(&targets, &query_file.to_string_lossy(), &query_to_pos, &pos_to_query, &mut conn_in, &mut conn_out).unwrap();
+                    ahda::encode_file(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
                 }
             } else {
                 let mut conn_in = std::io::stdin();
                 if out_file.is_some() {
                     let f = File::create(out_file.as_ref().unwrap()).unwrap();
                     let mut conn_out = BufWriter::new(f);
-                    ahda::encode_file(&targets, &query_file.to_string_lossy(), &query_to_pos, &pos_to_query, &mut conn_in, &mut conn_out).unwrap();
+                    ahda::encode_file(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
                 } else {
-                    ahda::encode_file(&targets, &query_file.to_string_lossy(), &query_to_pos, &pos_to_query, &mut conn_in, &mut std::io::stdout()).unwrap();
+                    ahda::encode_file(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut std::io::stdout()).unwrap();
                 }
             }
         },
