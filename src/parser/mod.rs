@@ -74,57 +74,6 @@ impl<'a, R: Read> Parser<'a, R> {
 }
 
 impl<R: Read> Parser<'_, R> {
-    pub fn next(
-        &mut self,
-    ) -> Option<PseudoAln> {
-        // TODO this is a dumb implementation, fix
-
-        let mut line = Cursor::new(Vec::<u8>::new());
-        if !self.buf.get_ref().is_empty() {
-            line = self.buf.clone();
-            if line.get_mut().contains(&b'\n') {
-                line.get_mut().pop();
-            }
-            let res = match self.format {
-                Format::Themisto => read_themisto(&mut line).unwrap(),
-                Format::Fulgor => read_fulgor(&mut line).unwrap(),
-                Format::Metagraph => read_metagraph(&mut line).unwrap(),
-                Format::Bifrost => {
-                    let _ = self.read_header();
-
-                    line.get_mut().clear();
-                    self.reader.read_until(b'\n', line.get_mut()).unwrap();
-                    line.get_mut().pop();
-                    read_bifrost(&mut line).unwrap()
-                },
-                Format::SAM => {
-                    let _ = self.read_header();
-                    self.buf.get_mut().pop(); // first line after header is now here
-                    read_sam(&mut self.buf).unwrap()
-                },
-            };
-            self.buf.get_mut().clear();
-            return Some(res)
-        }
-
-        if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
-            if line.get_mut().is_empty() {
-                return None
-            }
-            line.get_mut().pop();
-            let res = match self.format {
-                Format::Themisto => read_themisto(&mut line).unwrap(),
-                Format::Fulgor => read_fulgor(&mut line).unwrap(),
-                Format::Metagraph => read_metagraph(&mut line).unwrap(),
-                Format::Bifrost => read_bifrost(&mut line).unwrap(),
-                Format::SAM => read_sam(&mut line).unwrap(),
-            };
-            Some(res)
-        } else {
-            None
-        }
-    }
-
     /// Consumes the header line and returns the target sequence names.
     ///
     /// The header line is only present in Bifrost and Metagraph output. For
@@ -178,6 +127,61 @@ impl<R: Read> Parser<'_, R> {
                 let target_names: Vec<String> = header.reference_sequences().iter().map(|x| x.0.to_string()).collect();
                 Some(target_names)
             },
+        }
+    }
+}
+
+impl<R: Read> Iterator for Parser<'_, R> {
+    type Item = PseudoAln;
+
+    fn next(
+        &mut self,
+    ) -> Option<PseudoAln> {
+        // TODO this is a dumb implementation, fix
+
+        let mut line = Cursor::new(Vec::<u8>::new());
+        if !self.buf.get_ref().is_empty() {
+            line = self.buf.clone();
+            if line.get_mut().contains(&b'\n') {
+                line.get_mut().pop();
+            }
+            let res = match self.format {
+                Format::Themisto => read_themisto(&mut line).unwrap(),
+                Format::Fulgor => read_fulgor(&mut line).unwrap(),
+                Format::Metagraph => read_metagraph(&mut line).unwrap(),
+                Format::Bifrost => {
+                    let _ = self.read_header();
+
+                    line.get_mut().clear();
+                    self.reader.read_until(b'\n', line.get_mut()).unwrap();
+                    line.get_mut().pop();
+                    read_bifrost(&mut line).unwrap()
+                },
+                Format::SAM => {
+                    let _ = self.read_header();
+                    self.buf.get_mut().pop(); // first line after header is now here
+                    read_sam(&mut self.buf).unwrap()
+                },
+            };
+            self.buf.get_mut().clear();
+            return Some(res)
+        }
+
+        if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
+            if line.get_mut().is_empty() {
+                return None
+            }
+            line.get_mut().pop();
+            let res = match self.format {
+                Format::Themisto => read_themisto(&mut line).unwrap(),
+                Format::Fulgor => read_fulgor(&mut line).unwrap(),
+                Format::Metagraph => read_metagraph(&mut line).unwrap(),
+                Format::Bifrost => read_bifrost(&mut line).unwrap(),
+                Format::SAM => read_sam(&mut line).unwrap(),
+            };
+            Some(res)
+        } else {
+            None
         }
     }
 }
