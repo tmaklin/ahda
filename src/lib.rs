@@ -147,7 +147,6 @@ pub fn encode_file<R: Read, W: Write>(
     let file_flags = FileFlags{ target_names: targets.to_vec(), query_name: query_name.to_string() };
     let flags_bytes = crate::headers::file::encode_file_flags(&file_flags)?;
 
-    let mut reader = crate::parser::Parser::new(conn_in)?;
 
     // TODO fix
     let file_header = FileHeader{ n_targets: n_targets as u32, n_queries: n_queries as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
@@ -156,24 +155,11 @@ pub fn encode_file<R: Read, W: Write>(
     conn_out.write_all(&file_header_bytes)?;
     conn_out.write_all(&flags_bytes)?;
 
-    let mut records: Vec<PseudoAln> = Vec::new();
-    let mut bytes: Vec<u8>;
-    while let Some(record) = reader.next() {
-        records.push(record);
-        if records.len() > block_size {
-            // TODO Make initializing the struct outside of the loop work
-            let mut tmp = records.iter().cloned();
-            let mut encoder = encoder::Encoder::new_with_format(&mut tmp, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), reader.format.clone());
-            bytes = encoder.next_block().unwrap();
-            conn_out.write_all(&bytes)?;
-            bytes.clear();
-            records.clear();
-        }
-    }
-    if !records.is_empty() {
-        let mut tmp = records.iter().cloned();
-        let mut encoder = encoder::Encoder::new_with_format(&mut tmp, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), reader.format.clone());
-        bytes = encoder.next_block().unwrap();
+    let mut reader = crate::parser::Parser::new(conn_in)?;
+    let format = reader.format.clone();
+    let mut encoder = encoder::Encoder::new_with_format(&mut reader, query_to_pos, pos_to_query, file_header.clone(), file_flags.clone(), format);
+
+    while let Some(bytes) = encoder.next_block() {
         conn_out.write_all(&bytes)?;
     }
     Ok(())
