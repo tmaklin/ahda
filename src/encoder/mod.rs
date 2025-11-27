@@ -31,8 +31,10 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     flags: Option<FileFlags>,
 
     // Internals
-    index: usize,
+    block: Option<Vec<u8>>,
+    block_index: usize,
     block_size: usize,
+    blocks_written: usize,
 }
 
 impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
@@ -62,7 +64,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         Encoder{
             records, query_to_pos, pos_to_query,
             header: Some(header), flags: Some(flags),
-            index: 0, block_size,
+            block: Some(Vec::new()), block_index: 0_usize, block_size, blocks_written: 0_usize,
         }
     }
 }
@@ -91,11 +93,12 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
             return None
         }
 
-        self.index += block_records.len();
         block_records.sort_by_key(|x| x.query_id.unwrap());
 
         let mut out: Vec<u8> = Vec::new();
         crate::encode_block(self.header.as_ref().unwrap(), &block_records, &mut out).unwrap();
+
+        self.blocks_written += 1;
 
         Some(out)
     }
@@ -113,4 +116,30 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 
         Some(out)
     }
+}
+
+impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
+    type Item = u8;
+
+    fn next(
+        &mut self,
+    ) -> Option<u8> {
+        if self.blocks_written == 0 {
+            self.block = self.encode_header_and_flags();
+            self.blocks_written += 1;
+        } else if self.block.is_none() {
+            self.block = self.next_block();
+            self.block_index = 0;
+        }
+
+        let ret = self.block.as_ref()?[self.block_index];
+
+        self.block_index += 1;
+        if self.block_index == self.block.as_ref().unwrap().len() {
+            self.block = None
+        }
+
+        Some(ret)
+    }
+
 }
