@@ -94,16 +94,14 @@ pub fn decode_from_roaring(
     Ok(alns)
 }
 
-pub fn unpack<R: Read>(
+pub fn unpack(
+    bytes: &[u8],
     block_header: &BlockHeader,
     file_flags: &FileFlags,
-    conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
     let n_targets = file_flags.target_names.len();
-    let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-    conn.read_exact(&mut deflated_bytes)?;
 
-    let inflated_bytes = inflate_bytes(&deflated_bytes)?;
+    let inflated_bytes = inflate_bytes(bytes)?;
     let inflated_bytes = inflate_bytes(&inflated_bytes)?;
 
     let block_flags = decode_block_flags(&inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()])?;

@@ -191,7 +191,8 @@ pub fn decode_block_from_std_read<R: Read>(
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
     let block_header = read_block_header(conn)?;
-    unpack::unpack(&block_header, &file_flags, conn)
+    let bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+    unpack::unpack(&bytes, &block_header, &file_flags)
 }
 
 /// Decodes a complete .ahda file from a reader that implements `std::io::Read`
@@ -207,7 +208,8 @@ pub fn decode_file_from_std_read<R: Read>(
 
     let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
     while let Ok(block_header) = read_block_header(conn) {
-        res.append(&mut unpack::unpack(&block_header, &file_flags, conn)?);
+        let bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        res.append(&mut unpack::unpack(&bytes, &block_header, file_flags)?);
     }
 
     todo!("Implement decode_file_from_std_read"); // This function is broken
@@ -232,7 +234,7 @@ pub fn read_bitmap<R: Read>(
         let flags_bytes = &inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()];
         let bitmap_bytes = &inflated_bytes[0..(block_header.block_len as usize)];
 
-        let mut block_flags = decode_block_flags(&flags_bytes)?;
+        let mut block_flags = decode_block_flags(flags_bytes)?;
         queries.append(&mut block_flags.queries);
         query_ids.append(&mut block_flags.query_ids);
 
