@@ -27,8 +27,8 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     pos_to_query: HashMap<usize, String>,
 
     // These are given as construtor parameters
-    header: FileHeader,
-    flags: FileFlags,
+    header: Option<FileHeader>,
+    flags: Option<FileFlags>,
 
     // Internals
     index: usize,
@@ -61,7 +61,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
         Encoder{
             records, query_to_pos, pos_to_query,
-            header, flags,
+            header: Some(header), flags: Some(flags),
             index: 0, block_size,
         }
     }
@@ -78,7 +78,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
                 Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                        self.flags.target_names[*target_idx as usize].clone()
+                        self.flags.as_ref().unwrap().target_names[*target_idx as usize].clone()
                 }).collect::<Vec<String>>())};
 
             block_records.push(record);
@@ -95,7 +95,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         block_records.sort_by_key(|x| x.query_id.unwrap());
 
         let mut out: Vec<u8> = Vec::new();
-        crate::encode_block(&self.header, &block_records, &mut out).unwrap();
+        crate::encode_block(self.header.as_ref().unwrap(), &block_records, &mut out).unwrap();
 
         Some(out)
     }
@@ -104,8 +104,8 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         &mut self,
     ) -> Option<Vec<u8>> {
         // TODO Replace unwraps in `encode_header_and_flags`
-        let mut flags_bytes = encode_file_flags(&self.flags).unwrap();
-        let mut header_bytes = encode_file_header(self.header.n_targets, self.header.n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+        let mut flags_bytes = encode_file_flags(self.flags.as_ref().unwrap()).unwrap();
+        let mut header_bytes = encode_file_header(self.header.as_ref().unwrap().n_targets, self.header.as_ref().unwrap().n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
 
         let mut out: Vec<u8> = Vec::new();
         out.append(&mut flags_bytes);
