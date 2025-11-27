@@ -89,6 +89,16 @@ pub fn read_file_header<R: Read>(
     Ok(res)
 }
 
+pub fn read_file_flags<R: Read>(
+    header: &FileHeader,
+    conn: &mut R,
+) -> Result<FileFlags, E> {
+    let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
+    conn.read_exact(&mut flags_bytes).unwrap();
+    let res = decode_file_flags(&flags_bytes).unwrap();
+    Ok(res)
+}
+
 pub fn encode_file_flags(
     flags: &FileFlags,
 ) -> Result<Vec<u8>, E> {
