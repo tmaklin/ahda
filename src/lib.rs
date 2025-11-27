@@ -103,10 +103,12 @@ pub struct PseudoAln{
 pub fn cat<W: Write>(
     records: &[PseudoAln],
     flags: &FileFlags,
+    header: &FileHeader,
     format: &Format,
     conn: &mut W,
 ) -> Result<(),E> {
-    let mut printer = printer::Printer::new_from_flags(records, flags, format);
+    let mut tmp = records.iter().cloned();
+    let mut printer = printer::Printer::new(&mut tmp, header.clone(), flags.clone(), format.clone());
 
     while let Some(bytes) = printer.next() {
         conn.write_all(&bytes).unwrap();
@@ -171,17 +173,16 @@ pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let file_header = headers::file::read_file_header(conn_in).unwrap();
+    let mut decoder = decoder::Decoder::new(conn_in);
 
-    let mut flags_bytes: Vec<u8> = vec![0; file_header.flags_len as usize];
-    conn_in.read_exact(&mut flags_bytes).unwrap();
-    let file_flags = headers::file::decode_file_flags(&flags_bytes).unwrap();
+    // TODO See if cloning the file header and flags can be avoided
 
-    while let Ok(records) = decode_block_from_std_read(&file_flags, conn_in) {
-        let mut printer = printer::Printer::new_from_flags(&records, &file_flags, &out_format);
-        while let Some(line) = printer.next() {
-            conn_out.write_all(&line)?;
-        }
+    let header = decoder.file_header().clone();
+    let flags = decoder.file_flags().clone();
+    let printer = printer::Printer::new(&mut decoder, header, flags, out_format);
+
+    for line in printer {
+        conn_out.write_all(&line)?;
     }
 
     conn_out.flush()?;
