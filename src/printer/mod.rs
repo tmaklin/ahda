@@ -70,10 +70,32 @@ impl<'a> Printer<'a> {
     }
 }
 
-// TODO implement Iterator and IntoIterator
-
 impl Printer<'_> {
-    pub fn next(
+    pub fn print_header(
+        &mut self,
+    ) -> Option<Vec<u8>> {
+        let mut out: Vec<u8> = Vec::new();
+        match self.format {
+            Format::Themisto => None,
+            Format::Fulgor => None,
+            Format::Metagraph => None,
+            Format::Bifrost => {
+                format_bifrost_header(self.targets.as_ref().unwrap(), &mut out).unwrap();
+                Some(out)
+            },
+            Format::SAM => {
+                self.sam_header = Some(build_sam_header(self.targets.as_ref().unwrap()).unwrap());
+                format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
+                Some(out)
+            },
+        }
+    }
+}
+
+impl Iterator for Printer<'_> {
+    type Item = Vec<u8>;
+
+    fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
         let mut out: Vec<u8> = Vec::new();
@@ -98,23 +120,4 @@ impl Printer<'_> {
         }
     }
 
-    pub fn print_header(
-        &mut self,
-    ) -> Option<Vec<u8>> {
-        let mut out: Vec<u8> = Vec::new();
-        match self.format {
-            Format::Themisto => None,
-            Format::Fulgor => None,
-            Format::Metagraph => None,
-            Format::Bifrost => {
-                format_bifrost_header(self.targets.as_ref().unwrap(), &mut out).unwrap();
-                Some(out)
-            },
-            Format::SAM => {
-                self.sam_header = Some(build_sam_header(self.targets.as_ref().unwrap()).unwrap());
-                format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
-                Some(out)
-            },
-        }
-    }
 }
