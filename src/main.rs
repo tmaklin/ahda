@@ -66,20 +66,30 @@ fn main() {
                 reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
             };
 
+            let mut inputs: Vec<Box<dyn Read>> = Vec::new();
+            let mut outputs: Vec<Box<dyn Write>> = Vec::new();
             if !input_files.is_empty() {
                 for file in input_files {
-                    let mut conn_in = File::open(file).unwrap();
+                    let conn_in = File::open(file).unwrap();
+                    inputs.push(Box::new(conn_in));
 
                     let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
                     let f = File::create(out_path).unwrap();
-                    let mut conn_out = BufWriter::new(f);
+                    let conn_out = BufWriter::new(f);
+                    outputs.push(Box::new(conn_out));
 
-                    ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
                 }
             } else {
-                let mut conn_in = std::io::stdin();
-                ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut std::io::stdout()).unwrap();
+                let conn_in = std::io::stdin();
+                inputs.push(Box::new(conn_in));
+
+                let conn_out = std::io::stdout();
+                outputs.push(Box::new(conn_out));
             }
+
+            inputs.iter_mut().zip(outputs.iter_mut()).for_each(|(conn_in, conn_out)| {
+                ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
+            })
         },
 
         // Decode
