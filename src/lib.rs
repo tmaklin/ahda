@@ -150,15 +150,17 @@ pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in)?;
-    let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
+    let encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
-    let bytes: Vec<u8> = encoder.encode_header_and_flags().unwrap();
-    conn_out.write_all(&bytes)?;
-
-    while let Some(bytes) = encoder.next_block() {
-        conn_out.write_all(&bytes)?;
+    let mut buf: Vec<u8> = Vec::with_capacity(1000000);
+    for byte in encoder {
+        buf.push(byte);
+        if buf.len() == 1000000 {
+            conn_out.write_all(&buf)?;
+            buf.clear();
+        }
     }
-
+    conn_out.write_all(&buf)?;
     conn_out.flush()?;
     Ok(())
 }
