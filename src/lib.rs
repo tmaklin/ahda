@@ -130,7 +130,7 @@ pub fn parse<R: Read>(
     Ok((res, reader.format))
 }
 
-/// Write pseudoalignments in .ahda format to a writer that implements `std::io::Write`
+/// Encode pseudoalignments to something that implements [Write](std::io::Write).
 pub fn encode_block<W: Write>(
     file_header: &FileHeader,
     records: &[PseudoAln],
@@ -145,6 +145,7 @@ pub fn encode_block<W: Write>(
     Ok(())
 }
 
+/// Parse plain-text pseudoalignments from [Read](std::io::Read) and encode to [Write](std::io::Write).
 pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
@@ -168,6 +169,7 @@ pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     Ok(())
 }
 
+/// Decode pseudoalignments from [Read](std::io::Read) and format them to [Write](std::io::Write).
 pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
     out_format: Format,
     conn_in: &mut R,
@@ -189,7 +191,7 @@ pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
     Ok(())
 }
 
-/// Decodes a single .ahda block from a reader that implements `std::io::Read`
+/// Decode a block of pseudoalignments from something that implements [Read](std::io::Read).
 pub fn decode_block_from_std_read<R: Read>(
     file_flags: &FileFlags,
     conn: &mut R,
@@ -197,10 +199,10 @@ pub fn decode_block_from_std_read<R: Read>(
     let block_header = read_block_header(conn)?;
     let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
     conn.read_exact(&mut bytes)?;
-    unpack::unpack(&bytes, &block_header, &file_flags)
+    unpack::unpack(&bytes, &block_header, file_flags)
 }
 
-/// Decodes a complete .ahda file from a reader that implements `std::io::Read`
+/// Decode all pseudoalignments from something that implements [Read](std::io::Read).
 pub fn decode_file_from_std_read<R: Read>(
     file_flags: &FileFlags,
     conn: &mut R,
