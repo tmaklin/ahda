@@ -48,6 +48,7 @@ use std::io::Write;
 use roaring::bitmap::RoaringBitmap;
 
 pub mod headers;
+pub mod decoder;
 pub mod encoder;
 pub mod pack;
 pub mod parser;
