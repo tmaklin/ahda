@@ -75,6 +75,18 @@ impl<R: Read> Decoder<'_, R> {
         Some(alns)
 
     }
+
+    pub fn file_header(
+        &self,
+    ) -> &FileHeader {
+        self.header.as_ref().unwrap()
+    }
+
+    pub fn file_flags(
+        &self,
+    ) -> &FileFlags {
+        self.flags.as_ref().unwrap()
+    }
 }
 
 impl<R: Read> Iterator for Decoder<'_, R> {
