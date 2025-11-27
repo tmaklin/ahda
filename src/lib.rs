@@ -193,7 +193,8 @@ pub fn decode_block_from_std_read<R: Read>(
     conn: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
     let block_header = read_block_header(conn)?;
-    let bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+    let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+    conn.read_exact(&mut bytes)?;
     unpack::unpack(&bytes, &block_header, &file_flags)
 }
 
@@ -210,7 +211,8 @@ pub fn decode_file_from_std_read<R: Read>(
 
     let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
     while let Ok(block_header) = read_block_header(conn) {
-        let bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        conn.read_exact(&mut bytes)?;
         res.append(&mut unpack::unpack(&bytes, &block_header, file_flags)?);
     }
 
