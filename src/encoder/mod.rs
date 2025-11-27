@@ -111,8 +111,8 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         let mut header_bytes = encode_file_header(self.header.as_ref().unwrap().n_targets, self.header.as_ref().unwrap().n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
 
         let mut out: Vec<u8> = Vec::new();
-        out.append(&mut flags_bytes);
         out.append(&mut header_bytes);
+        out.append(&mut flags_bytes);
 
         Some(out)
     }
