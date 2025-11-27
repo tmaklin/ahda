@@ -177,12 +177,13 @@ fn main() {
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
             let records = ahda::unpack::decode_from_roaring(&flags_a, &block_header, &block_flags_a, flags_a.target_names.len() as u32, &roaring_bytes).unwrap();
 
+            let mut tmp = records.iter().cloned();
             let mut printer = match format.as_str() {
-                "bifrost" => Printer::new_from_flags(&records, &flags_a, &ahda::Format::Bifrost),
-                "fulgor" => Printer::new_with_format(&records, &ahda::Format::Fulgor),
-                "metagraph" => Printer::new_with_format(&records, &ahda::Format::Metagraph),
-                "sam" => Printer::new_with_format(&records, &ahda::Format::SAM),
-                "themisto" => Printer::new_with_format(&records, &ahda::Format::Themisto),
+                "bifrost" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Bifrost),
+                "fulgor" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Fulgor),
+                "metagraph" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Metagraph),
+                "sam" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::SAM),
+                "themisto" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Themisto),
                 _ => panic!("Unrecognized format --format {}", format),
             };
             while let Some(line) = printer.next() {
