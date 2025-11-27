@@ -13,6 +13,7 @@
 //
 use crate::Format;
 use crate::PseudoAln;
+use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 
 use bifrost::format_bifrost_header;
@@ -32,45 +33,42 @@ pub mod metagraph;
 pub mod sam;
 pub mod themisto;
 
-// TODO this should just store FileFlags/FileHeader
-#[derive(Debug)]
-pub struct Printer<'a> {
-    records: &'a [PseudoAln],
-    targets: Option<Vec<String>>,
+pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
+    // Inputs
+    records: &'a mut I,
+
+    header: Option<FileHeader>,
+    flags: Option<FileFlags>,
+
     sam_header: Option<noodles_sam::Header>,
+
     index: usize,
     pub format: Format,
 }
 
-impl<'a> Printer<'a> {
+impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
-        records: &'a Vec<PseudoAln>,
+        records: &'a mut I,
+        header: FileHeader,
+        flags: FileFlags,
+        format: Format,
     ) -> Self {
-        Printer{ sam_header: None, records, targets: None, index: 0, format: Format::default() }
-    }
-
-    pub fn new_from_flags(
-        records: &'a [PseudoAln],
-        flags: &FileFlags,
-        format: &Format,
-    ) -> Self {
-        let sam_header = if *format == Format::SAM {
+        let sam_header = if format == Format::SAM {
             Some(sam::build_sam_header(&flags.target_names).unwrap())
         } else {
             None
         };
-        Printer{ sam_header, records, targets: Some(flags.target_names.clone()), format: format.clone(), index: 0 }
-    }
 
-    pub fn new_with_format(
-        records: &'a [PseudoAln],
-        format: &Format,
-    ) -> Self {
-        Printer{ sam_header: None, records, format: format.clone(), targets: None, index: 0 }
+        Printer{
+            records,
+            header: Some(header), flags: Some(flags),
+            sam_header, index: 0,
+            format: Format::default()
+        }
     }
 }
 
-impl Printer<'_> {
+impl<I: Iterator> Printer<'_, I> where I: Iterator<Item=PseudoAln> {
     pub fn print_header(
         &mut self,
     ) -> Option<Vec<u8>> {
@@ -80,11 +78,11 @@ impl Printer<'_> {
             Format::Fulgor => None,
             Format::Metagraph => None,
             Format::Bifrost => {
-                format_bifrost_header(self.targets.as_ref().unwrap(), &mut out).unwrap();
+                format_bifrost_header(&self.flags.as_ref().unwrap().target_names, &mut out).unwrap();
                 Some(out)
             },
             Format::SAM => {
-                self.sam_header = Some(build_sam_header(self.targets.as_ref().unwrap()).unwrap());
+                self.sam_header = Some(build_sam_header(&self.flags.as_ref().unwrap().target_names).unwrap());
                 format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
@@ -92,7 +90,7 @@ impl Printer<'_> {
     }
 }
 
-impl Iterator for Printer<'_> {
+impl<I: Iterator> Iterator for Printer<'_, I> where I: Iterator<Item=PseudoAln> {
     type Item = Vec<u8>;
 
     fn next(
@@ -105,13 +103,13 @@ impl Iterator for Printer<'_> {
             }
         }
 
-        if self.index < self.records.len() {
+        if let Some(record) = self.records.next() {
             match self.format {
-                Format::Themisto => format_themisto_line(&self.records[self.index], &mut out).unwrap(),
-                Format::Fulgor => format_fulgor_line(&self.records[self.index], &mut out).unwrap(),
-                Format::Metagraph => format_metagraph_line(&self.records[self.index], &mut out).unwrap(),
-                Format::Bifrost => format_bifrost_line(&self.records[self.index], self.targets.as_ref().unwrap().len(), &mut out).unwrap(),
-                Format::SAM => format_sam_line(&self.records[self.index], self.sam_header.as_ref().unwrap(), &mut out).unwrap(),
+                Format::Themisto => format_themisto_line(&record, &mut out).unwrap(),
+                Format::Fulgor => format_fulgor_line(&record, &mut out).unwrap(),
+                Format::Metagraph => format_metagraph_line(&record, &mut out).unwrap(),
+                Format::Bifrost => format_bifrost_line(&record, self.header.as_ref().unwrap().n_targets as usize, &mut out).unwrap(),
+                Format::SAM => format_sam_line(&record, self.sam_header.as_ref().unwrap(), &mut out).unwrap(),
             }
             self.index += 1;
             Some(out)
