@@ -45,7 +45,6 @@ fn main() {
         // Encode
         Some(cli::Commands::Encode {
             input_files,
-            out_file,
             query_file,
             target_list,
             verbose,
@@ -67,10 +66,6 @@ fn main() {
                 reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
             };
 
-            if input_files.len() > 1 && out_file.is_some() {
-                panic!("-o/--output can only be used with a single input file");
-            }
-
             if !input_files.is_empty() {
                 for file in input_files {
                     let mut conn_in = File::open(file).unwrap();
@@ -83,13 +78,7 @@ fn main() {
                 }
             } else {
                 let mut conn_in = std::io::stdin();
-                if out_file.is_some() {
-                    let f = File::create(out_file.as_ref().unwrap()).unwrap();
-                    let mut conn_out = BufWriter::new(f);
-                    ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut conn_out).unwrap();
-                } else {
-                    ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut std::io::stdout()).unwrap();
-                }
+                ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut conn_in, &mut std::io::stdout()).unwrap();
             }
         },
 

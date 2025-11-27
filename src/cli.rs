@@ -31,10 +31,6 @@ pub enum Commands {
         #[arg(group = "input", required = false, help = "Input file(s)")]
         input_files: Vec<PathBuf>,
 
-        // Output file path
-        #[arg(short = 'o', long = "output", required = false)]
-        out_file: Option<PathBuf>,
-
         // FastX file used to generate the alignment
         #[arg(short = 'q', long = "query", required = true)]
         query_file: PathBuf,
