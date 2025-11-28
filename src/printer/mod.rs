@@ -33,7 +33,7 @@ pub mod metagraph;
 pub mod sam;
 pub mod themisto;
 
-pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
+pub struct Printer<'a, I: Iterator> where I: Iterator<Item=&'a PseudoAln> {
     // Inputs
     records: &'a mut I,
 
@@ -46,7 +46,7 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     pub format: Format,
 }
 
-impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
+impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
     pub fn new(
         records: &'a mut I,
         header: FileHeader,
@@ -68,7 +68,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     }
 }
 
-impl<I: Iterator> Printer<'_, I> where I: Iterator<Item=PseudoAln> {
+impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
     pub fn print_header(
         &mut self,
     ) -> Option<Vec<u8>> {
@@ -90,7 +90,7 @@ impl<I: Iterator> Printer<'_, I> where I: Iterator<Item=PseudoAln> {
     }
 }
 
-impl<I: Iterator> Iterator for Printer<'_, I> where I: Iterator<Item=PseudoAln> {
+impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
     type Item = Vec<u8>;
 
     fn next(

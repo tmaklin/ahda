@@ -107,8 +107,8 @@ pub fn cat<W: Write>(
     format: &Format,
     conn: &mut W,
 ) -> Result<(),E> {
-    let mut tmp = records.iter().cloned();
-    let mut printer = printer::Printer::new(&mut tmp, header.clone(), flags.clone(), format.clone());
+    let mut records_iter = records.iter();
+    let mut printer = printer::Printer::new(&mut records_iter, header.clone(), flags.clone(), format.clone());
 
     while let Some(bytes) = printer.next() {
         conn.write_all(&bytes).unwrap();
