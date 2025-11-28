@@ -110,7 +110,7 @@ pub fn cat<W: Write>(
     let mut records_iter = records.iter();
     let mut printer = printer::Printer::new(&mut records_iter, header.clone(), flags.clone(), format.clone());
 
-    while let Some(bytes) = printer.next() {
+    for bytes in printer.by_ref() {
         conn.write_all(&bytes).unwrap();
     }
 
@@ -123,7 +123,7 @@ pub fn parse<R: Read>(
     let mut reader = Parser::new(conn)?;
 
     let mut res: Vec<PseudoAln> = Vec::new();
-    while let Some(record) = reader.next() {
+    for record in reader.by_ref() {
         res.push(record);
     }
 
