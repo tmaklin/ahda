@@ -33,7 +33,7 @@ pub mod metagraph;
 pub mod sam;
 pub mod themisto;
 
-pub struct Printer<'a, I: Iterator> where I: Iterator<Item=&'a PseudoAln> {
+pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
     records: &'a mut I,
 
@@ -46,7 +46,7 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=&'a PseudoAln> {
     pub format: Format,
 }
 
-impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
+impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
         records: &'a mut I,
         header: FileHeader,
@@ -68,7 +68,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
     }
 }
 
-impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
+impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn print_header(
         &mut self,
     ) -> Option<Vec<u8>> {
@@ -90,7 +90,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
     }
 }
 
-impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
+impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     type Item = Vec<u8>;
 
     fn next(
@@ -154,7 +154,7 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        let mut data_iter = data.iter();
+        let mut data_iter = data.into_iter();
         let mut printer = Printer::new(&mut data_iter, header, flags, Format::Themisto);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
@@ -214,16 +214,13 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        let mut data_iter = data.iter();
+        let mut data_iter = data.into_iter();
         let mut printer = Printer::new(&mut data_iter, header, flags, Format::Fulgor);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
         }
 
         let got = cursor.get_ref();
-
-        eprintln!("{}", got.iter().map(|x| *x as char).collect::<String>());
-        eprintln!("{}", expected.iter().map(|x| *x as char).collect::<String>());
 
         assert_eq!(got, &expected);
     }
@@ -284,7 +281,7 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        let mut data_iter = data.iter();
+        let mut data_iter = data.into_iter();
         let mut printer = Printer::new(&mut data_iter, header, flags, Format::Bifrost);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
@@ -326,16 +323,13 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        let mut data_iter = data.iter();
+        let mut data_iter = data.into_iter();
         let mut printer = Printer::new(&mut data_iter, header, flags, Format::Metagraph);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
         }
 
         let got = cursor.get_ref();
-
-        eprintln!("{}", got.iter().map(|x| *x as char).collect::<String>());
-        eprintln!("{}", expected.iter().map(|x| *x as char).collect::<String>());
 
         assert_eq!(got, &expected);
     }

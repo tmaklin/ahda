@@ -209,7 +209,7 @@ fn main() {
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
             let records = ahda::unpack::decode_from_roaring(&flags_a, &block_header, &block_flags_a, flags_a.target_names.len() as u32, &roaring_bytes).unwrap();
 
-            let mut tmp = records.iter();
+            let mut tmp = records.into_iter();
             let mut printer = match format.as_str() {
                 "bifrost" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Bifrost),
                 "fulgor" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Fulgor),
