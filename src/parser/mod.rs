@@ -21,6 +21,8 @@ pub mod themisto;
 
 use crate::Format;
 use crate::PseudoAln;
+use crate::headers::file::FileFlags;
+use crate::headers::file::FileHeader;
 
 use crate::parser::bifrost::read_bifrost;
 use crate::parser::fulgor::read_fulgor;
@@ -28,6 +30,7 @@ use crate::parser::metagraph::read_metagraph;
 use crate::parser::sam::read_sam;
 use crate::parser::themisto::read_themisto;
 
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Cursor;
@@ -46,25 +49,48 @@ impl std::fmt::Display for UnrecognizedInputFormat {
 
 impl std::error::Error for UnrecognizedInputFormat {}
 
-#[derive(Debug)]
 pub struct Parser<'a, R: Read> {
-    // conn: R,
     reader: BufReader<&'a mut R>,
     buf: Cursor<Vec<u8>>,
     pub format: Format,
+
+    query_to_pos: HashMap<String, usize>,
+    pos_to_query: HashMap<usize, String>,
+
+    _header: FileHeader,
+    flags: FileFlags,
+
 }
 
 impl<'a, R: Read> Parser<'a, R> {
     pub fn new(
         conn: &'a mut R,
+        targets: &[String],
+        queries: &[String],
+        sample_name: &str,
     ) -> Result<Self, E> {
+        let mut query_to_pos: HashMap<String, usize> = HashMap::new();
+        let mut pos_to_query: HashMap<usize, String> = HashMap::new();
+        queries.iter().enumerate().for_each(|(idx, query)| {
+            query_to_pos.insert(query.clone(), idx);
+            pos_to_query.insert(idx, query.clone());
+        });
+
+        let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
+        let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
+        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: query_to_pos.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
+
         let mut reader = BufReader::new(conn);
         let mut buf = Cursor::new(Vec::<u8>::new());
 
         reader.read_until(b'\n', buf.get_mut())?;
 
         if let Some(format) = guess_format(buf.get_ref()) {
-            Ok(Self { reader, buf, format })
+            Ok(Self {
+                reader, buf, format,
+                query_to_pos, pos_to_query,
+                _header: header, flags,
+            })
         } else {
             Err(Box::new(UnrecognizedInputFormat{}))
         }
@@ -145,7 +171,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
             if line.get_mut().contains(&b'\n') {
                 line.get_mut().pop();
             }
-            let res = match self.format {
+            let mut record = match self.format {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Metagraph => read_metagraph(&mut line).unwrap(),
@@ -164,7 +190,16 @@ impl<R: Read> Iterator for Parser<'_, R> {
                 },
             };
             self.buf.get_mut().clear();
-            return Some(res)
+
+            record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
+            record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
+
+            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                        self.flags.target_names[*target_idx as usize].clone()
+                }).collect::<Vec<String>>())};
+
+            return Some(record)
         }
 
         if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
@@ -172,14 +207,21 @@ impl<R: Read> Iterator for Parser<'_, R> {
                 return None
             }
             line.get_mut().pop();
-            let res = match self.format {
+            let mut record = match self.format {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Metagraph => read_metagraph(&mut line).unwrap(),
                 Format::Bifrost => read_bifrost(&mut line).unwrap(),
                 Format::SAM => read_sam(&mut line).unwrap(),
             };
-            Some(res)
+            record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
+            record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
+
+            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                        self.flags.target_names[*target_idx as usize].clone()
+                }).collect::<Vec<String>>())};
+            Some(record)
         } else {
             None
         }
