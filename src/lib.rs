@@ -175,16 +175,16 @@ pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut decoder = decoder::Decoder::new(conn_in);
-
-    // TODO See if cloning the file header and flags can be avoided
+    let decoder = decoder::Decoder::new(conn_in);
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    let printer = printer::Printer::new(&mut decoder, header, flags, out_format);
-
-    for line in printer {
-        conn_out.write_all(&line)?;
+    for block in decoder {
+        let mut block_iter = block.iter();
+        let printer = printer::Printer::new(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
+        for line in printer {
+            conn_out.write_all(&line)?;
+        }
     }
 
     conn_out.flush()?;
