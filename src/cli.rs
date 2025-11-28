@@ -63,6 +63,29 @@ pub enum Commands {
         verbose: bool,
     },
 
+    // Convert plaintext to another plaintext format
+    Convert {
+        // Input file
+        #[arg(group = "input", required = true, help = "Input file")]
+        input_file: PathBuf,
+
+        // FastX file used to generate the alignment
+        #[arg(short = 'q', long = "query", required = true)]
+        query_file: PathBuf,
+
+        // File listing target sequence names in the order they appear in the index
+        #[arg(long = "targets", required = true)]
+        target_list: PathBuf,
+
+        // Output format
+        #[arg(long = "format", required = false)]
+        format: Option<ahda::Format>,
+
+        // Verbosity
+        #[arg(long = "verbose", default_value_t = false)]
+        verbose: bool,
+    },
+
     // Convert between supported formats
     Cat {
         // Input file

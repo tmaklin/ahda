@@ -100,6 +100,28 @@ pub struct PseudoAln{
     pub query_name: Option<String>,
 }
 
+/// Convert from [Read] to [Write]
+pub fn convert_from_std_read_to_std_write<R: Read, W: Write>(
+    targets: &[String],
+    queries: &[String],
+    sample_name: &str,
+    format: Format,
+    conn_in: &mut R,
+    conn_out: &mut W,
+) -> Result<(), E> {
+    let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
+    let mut records: Vec<PseudoAln> = Vec::new();
+    for record in reader.by_ref() {
+        records.push(record);
+    }
+    let mut tmp = records.iter();
+    let mut writer = crate::printer::Printer::new(&mut tmp, reader.file_header().clone(), reader.file_flags().clone(), format);
+    for record in writer.by_ref() {
+        conn_out.write_all(&record)?;
+    }
+    Ok(())
+}
+
 /// Encode from memory to something that implements [Write](std::io::Write).
 pub fn encode_to_std_write<W: Write>(
     file_header: &FileHeader,
