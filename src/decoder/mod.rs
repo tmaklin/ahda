@@ -29,12 +29,10 @@ pub struct Decoder<'a, R: Read> {
     // Inputs
     conn: &'a mut R,
 
-    header: Option<FileHeader>,
-    flags: Option<FileFlags>,
+    header: FileHeader,
+    flags: FileFlags,
 
     // Internals
-    block: Option<Vec<PseudoAln>>,
-    block_index: usize,
     block_header: Option<BlockHeader>,
     block_flags: Option<BlockFlags>,
 }
@@ -49,64 +47,51 @@ impl<'a, R: Read> Decoder<'a, R> {
 
         Decoder{
             conn,
-            header: Some(header), flags: Some(flags),
-            block: None, block_index: 0_usize, block_header: None, block_flags: None,
+            header, flags,
+            block_header: None, block_flags: None,
         }
     }
 }
 
 impl<R: Read> Decoder<'_, R> {
-    pub fn next_block(
-        &mut self,
-    ) -> Option<Vec<PseudoAln>> {
-        let block_header = read_block_header(self.conn).unwrap();
-        let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        self.conn.read_exact(&mut bytes).unwrap();
-
-        bytes = inflate_bytes(&bytes).unwrap();
-        bytes = inflate_bytes(&bytes).unwrap();
-
-        let block_flags = decode_block_flags(&bytes[(block_header.block_len as usize)..bytes.len()]).unwrap();
-        let alns = decode_from_roaring(self.flags.as_ref().unwrap(), &block_header, &block_flags, self.header.as_ref().unwrap().n_targets, &bytes[0..(block_header.block_len as usize)]).unwrap();
-
-        self.block_header = Some(block_header);
-        self.block_flags = Some(block_flags);
-
-        Some(alns)
-
-    }
 
     pub fn file_header(
         &self,
     ) -> &FileHeader {
-        self.header.as_ref().unwrap()
+        &self.header
     }
 
     pub fn file_flags(
         &self,
     ) -> &FileFlags {
-        self.flags.as_ref().unwrap()
+        &self.flags
     }
 }
 
 impl<R: Read> Iterator for Decoder<'_, R> {
-    type Item = PseudoAln;
+    type Item = Vec<PseudoAln>;
 
     fn next(
         &mut self,
-    ) -> Option<PseudoAln> {
-        if self.block.is_none() {
-            self.block = self.next_block();
-            self.block_index = 0;
+    ) -> Option<Self::Item> {
+
+        match read_block_header(self.conn) {
+            Ok(block_header) => {
+                let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+                self.conn.read_exact(&mut bytes).unwrap();
+
+                bytes = inflate_bytes(&bytes).unwrap();
+                bytes = inflate_bytes(&bytes).unwrap();
+
+                let block_flags = decode_block_flags(&bytes[(block_header.block_len as usize)..bytes.len()]).unwrap();
+                let alns = decode_from_roaring(&self.flags, &block_header, &block_flags, self.header.n_targets, &bytes[0..(block_header.block_len as usize)]).unwrap();
+
+                self.block_header = Some(block_header);
+                self.block_flags = Some(block_flags);
+
+                Some(alns)
+            },
+            _ => None,
         }
-
-        let ret = self.block.as_ref()?[self.block_index].clone();
-
-        self.block_index += 1;
-        if self.block_index == self.block.as_ref().unwrap().len() {
-            self.block = None;
-        }
-
-        Some(ret)
     }
 }
