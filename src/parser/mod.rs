@@ -370,7 +370,10 @@ mod tests {
 
         let mut cursor = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut cursor).unwrap();
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string()];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -388,7 +391,10 @@ mod tests {
 
         let mut cursor = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut cursor).unwrap();
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string()];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
         let got: Vec<String> = reader.read_header().unwrap();
 
@@ -410,7 +416,10 @@ mod tests {
 
         let mut cursor = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut cursor).unwrap();
+        let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
+        let queries = vec!["ERR4035126.1".to_string()];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
         let got: Vec<String> = reader.read_header().unwrap();
 
@@ -433,7 +442,10 @@ mod tests {
 
         let mut cursor = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut cursor).unwrap();
+        let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
+        let queries = vec!["ERR4035126.1".to_string()];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -457,7 +469,10 @@ mod tests {
 
         let mut cursor = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut cursor).unwrap();
+        let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
+        let queries = vec!["ERR4035126.1".to_string()];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
         let got_header: Vec<String> = reader.read_header().unwrap();
         assert_eq!(got_header, expected_header);
@@ -488,7 +503,10 @@ mod tests {
 
         let mut cursor = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut cursor).unwrap();
+        let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
+        let queries = vec!["ERR4035126.1".to_string()];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
         let mut got: Vec<PseudoAln> = Vec::new();
         while let Some(record) = reader.next() {
@@ -522,9 +540,32 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: Some(1),   ones: Some(vec![4, 2, 9, 7]), ..Default::default()},
         ];
 
-        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut input).unwrap();
+        let targets = vec![
+            "0".to_string(),
+            "1".to_string(),
+            "2".to_string(),
+            "3".to_string(),
+            "4".to_string(),
+            "5".to_string(),
+            "6".to_string(),
+            "7".to_string(),
+            "8".to_string(),
+            "9".to_string(),
+            "10".to_string(),
+            "11".to_string(),
+        ];
+        let queries = vec![
+            "0".to_string(),
+            "1".to_string(),
+            "7".to_string(),
+            "8".to_string(),
+            "128".to_string(),
+        ];
+        let sample_name = "sample";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
             res.push(record);
@@ -577,9 +618,27 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".to_string()) },
         ];
 
-        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
 
-        let mut reader = Parser::new(&mut input).unwrap();
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec![
+            "ERR4035126.4996".to_string(),
+            "ERR4035126.1262953".to_string(),
+            "ERR4035126.12692954".to_string(),
+            "ERR4035126.1262955".to_string(),
+            "ERR4035126.1262956".to_string(),
+            "ERR4035126.1262957".to_string(),
+            "ERR4035126.1262958".to_string(),
+            "ERR4035126.1262959".to_string(),
+            "ERR4035126.651965".to_string(),
+            "ERR4035126.11302".to_string(),
+            "ERR4035126.1262960".to_string(),
+            "ERR4035126.1262961".to_string(),
+            "ERR4035126.651965".to_string(),
+        ];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
             res.push(record);
@@ -639,8 +698,31 @@ mod tests {
             PseudoAln{ query_name: Some("ERR4035126.824748".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
         ];
 
-        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let mut reader = Parser::new(&mut input).unwrap();
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let targets = vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec![
+            "ERR4035126.724962".to_string(),
+            "ERR4035126.1235744".to_string(),
+            "ERR4035126.431001".to_string(),
+            "ERR4035126.645400".to_string(),
+            "ERR4035126.3001".to_string(),
+            "ERR4035126.515778".to_string(),
+            "ERR4035126.886205".to_string(),
+            "ERR4035126.1254676".to_string(),
+            "ERR4035126.668031".to_string(),
+            "ERR4035126.388619".to_string(),
+            "ERR4035126.959743".to_string(),
+            "ERR4035126.1146685".to_string(),
+            "ERR4035126.1017809".to_string(),
+            "ERR4035126.788136".to_string(),
+            "ERR4035126.1223924".to_string(),
+            "ERR4035126.910807".to_string(),
+            "ERR4035126.824748".to_string(),
+        ];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
             res.push(record);
@@ -675,8 +757,19 @@ mod tests {
             PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: Some(vec![]), query_name: Some("ERR4035126.7543".to_string()) },
         ];
 
-        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let mut reader = Parser::new(&mut input).unwrap();
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec![
+            "ERR4035126.2".to_string(),
+            "ERR4035126.1".to_string(),
+            "ERR4035126.651903".to_string(),
+            "ERR4035126.16".to_string(),
+            "ERR4035126.7543".to_string(),
+        ];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
             res.push(record);
@@ -734,8 +827,29 @@ mod tests {
             PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![]) },
         ];
 
-        let mut input: Cursor<Vec<u8>> = Cursor::new(data);
-        let mut reader = Parser::new(&mut input).unwrap();
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
+        let queries = vec![
+            "ERR4035126.1".to_string(),
+            "ERR4035126.2".to_string(),
+            "ERR4035126.3".to_string(),
+            "ERR4035126.1261584".to_string(),
+            "ERR4035126.1213410".to_string(),
+            "ERR4035126.1213410".to_string(),
+            "ERR4035126.4".to_string(),
+            "ERR4035126.5".to_string(),
+            "ERR4035126.6".to_string(),
+            "ERR4035126.973529".to_string(),
+            "ERR4035126.973529".to_string(),
+            "ERR4035126.621281".to_string(),
+            "ERR4035126.1178767".to_string(),
+            "ERR4035126.621281".to_string(),
+            "ERR4035126.621281".to_string(),
+        ];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
             res.push(record);
