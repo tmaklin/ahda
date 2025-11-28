@@ -95,8 +95,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 
         block_records.sort_by_key(|x| x.query_id.unwrap());
 
-        let mut out: Vec<u8> = Vec::new();
-        crate::encode_block(self.header.as_ref().unwrap(), &block_records, &mut out).unwrap();
+        let out = crate::pack::pack(self.header.as_ref().unwrap(), &block_records).unwrap();
 
         self.blocks_written += 1;
 
