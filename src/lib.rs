@@ -144,7 +144,7 @@ pub fn encode_from_std_read<R: Read, W: Write>(
     sample_name: &str,
     conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
-    let mut reader = crate::parser::Parser::new(conn_in)?;
+    let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
     let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
     let mut bytes = encoder.encode_header_and_flags().unwrap();
@@ -162,7 +162,7 @@ pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut reader = crate::parser::Parser::new(conn_in)?;
+    let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
     let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
     let bytes = encoder.encode_header_and_flags().unwrap();
