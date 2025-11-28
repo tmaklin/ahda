@@ -480,6 +480,7 @@ mod tests {
     fn print_themisto_output() {
         use crate::Format;
         use crate::FileFlags;
+        use crate::FileHeader;
         use std::io::Cursor;
         use super::cat;
         use super::PseudoAln;
@@ -493,6 +494,7 @@ mod tests {
         ];
 
         let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
+        let header = FileHeader { n_targets: 2, n_queries: 5, flags_len: 0, format: 0, ph2: 0, ph3: 0, ph4: 0 };
         let expected: Vec<u8> = vec![b"128 0 7 11 3\n".to_vec(),
                                      b"7 3 2 1 0\n".to_vec(),
                                      b"8\n".to_vec(),
@@ -502,7 +504,7 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        cat(&data, &flags, &Format::Themisto, &mut cursor).unwrap();
+        cat(&data, &flags, &header, &Format::Themisto, &mut cursor).unwrap();
         let got = cursor.get_ref();
 
         assert_eq!(got, &expected);
@@ -512,6 +514,7 @@ mod tests {
     fn print_fulgor_output() {
         use crate::Format;
         use crate::FileFlags;
+        use crate::FileHeader;
         use std::io::Cursor;
 
         use super::cat;
@@ -535,6 +538,7 @@ mod tests {
         ];
 
         let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
+        let header = FileHeader { n_targets: 2, n_queries: 14, flags_len: 0, format: 0, ph2: 0, ph3: 0, ph4: 0 };
 
         let mut expected: Vec<u8> = b"ERR4035126.4996\t0\n".to_vec();
         expected.append(&mut b"ERR4035126.1262953\t1\t0\n".to_vec());
@@ -553,8 +557,11 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        cat(&data, &flags, &Format::Fulgor, &mut cursor).unwrap();
+        cat(&data, &flags, &header, &Format::Fulgor, &mut cursor).unwrap();
         let got = cursor.get_ref();
+
+        eprintln!("{}", got.iter().map(|x| *x as char).collect::<String>());
+        eprintln!("{}", expected.iter().map(|x| *x as char).collect::<String>());
 
         assert_eq!(got, &expected);
     }
@@ -563,6 +570,7 @@ mod tests {
     fn print_bifrost_output() {
         use crate::Format;
         use crate::FileFlags;
+        use crate::FileHeader;
         use std::io::Cursor;
 
         use super::cat;
@@ -589,6 +597,7 @@ mod tests {
         ];
 
         let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
+        let header = FileHeader { n_targets: 2, n_queries: 17, flags_len: 0, format: 0, ph2: 0, ph3: 0, ph4: 0 };
 
         let mut expected: Vec<u8> = b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
         expected.append(&mut b"ERR4035126.724962\t0\t0\n".to_vec());
@@ -611,16 +620,17 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        cat(&data, &flags, &Format::Bifrost, &mut cursor).unwrap();
+        cat(&data, &flags, &header, &Format::Bifrost, &mut cursor).unwrap();
         let got = cursor.get_ref();
 
         assert_eq!(got, &expected);
     }
 
     #[test]
-    fn print_metgraph_output() {
+    fn print_metagraph_output() {
         use crate::Format;
         use crate::FileFlags;
+        use crate::FileHeader;
         use std::io::Cursor;
 
         use super::cat;
@@ -635,6 +645,7 @@ mod tests {
         ];
 
         let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
+        let header = FileHeader { n_targets: 2, n_queries: 5, flags_len: 0, format: 0, ph2: 0, ph3: 0, ph4: 0 };
 
         let mut expected: Vec<u8> = b"3\tERR4035126.2\tchr.fasta\n".to_vec();
         expected.append(&mut b"2\tERR4035126.1\tchr.fasta\n".to_vec());
@@ -644,8 +655,11 @@ mod tests {
 
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        cat(&data, &flags, &Format::Metagraph, &mut cursor).unwrap();
+        cat(&data, &flags, &header, &Format::Metagraph, &mut cursor).unwrap();
         let got = cursor.get_ref();
+
+        eprintln!("{}", got.iter().map(|x| *x as char).collect::<String>());
+        eprintln!("{}", expected.iter().map(|x| *x as char).collect::<String>());
 
         assert_eq!(got, &expected);
     }
@@ -654,6 +668,7 @@ mod tests {
     // fn print_sam_output() {
     //     use crate::Format;
     //     use crate::FileFlags;
+    //     use crate::FileHeader;
     //     use std::io::Cursor;
 
     //     use super::cat;
@@ -678,6 +693,7 @@ mod tests {
     //     ];
 
     //     let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()] };
+    //     let header = FileHeader { n_targets: 2, n_queries: 15, flags_len: 0, format: 0, ph2: 0, ph3: 0, ph4: 0 };
 
     //     let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();
     //     expected.append(&mut b"@SQ\tSN:OZ038621.1\tLN:1\n".to_vec());
@@ -700,7 +716,7 @@ mod tests {
 
     //     let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-    //     cat(&data, &flags, &Format::SAM, &mut cursor).unwrap();
+    //     cat(&data, &flags, &header, &Format::SAM, &mut cursor).unwrap();
     //     let got = cursor.get_ref();
 
     //     eprintln!("{}", got.iter().map(|x| *x as char).collect::<String>());
