@@ -184,15 +184,13 @@ impl<R: Read> Iterator for Parser<'_, R> {
     fn next(
         &mut self,
     ) -> Option<PseudoAln> {
-        // TODO this is a dumb implementation, fix
-
         let mut line = Cursor::new(Vec::<u8>::new());
-        if !self.buf.get_ref().is_empty() {
+        let record = if !self.buf.get_ref().is_empty() {
             line = self.buf.clone();
             if line.get_mut().contains(&b'\n') {
                 line.get_mut().pop();
             }
-            let mut record = match self.format {
+            let record = match self.format {
                 Format::Themisto => read_themisto(&mut line).unwrap(),
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Metagraph => read_metagraph(&mut line).unwrap(),
@@ -211,60 +209,43 @@ impl<R: Read> Iterator for Parser<'_, R> {
                 },
             };
             self.buf.get_mut().clear();
-
-            record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
-            record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
-
-            let have_ones = record.ones.is_some();
-            let have_names = record.ones_names.is_some();
-            if have_ones {
-                record.ones_names = if have_names { record.ones_names } else {
-                    Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                        self.flags.target_names[*target_idx as usize].clone()
-                    }).collect::<Vec<String>>())};
-            }
-            if have_names {
-                record.ones = Some(record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                        *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
-                    }).collect::<Vec<u32>>());
-            }
-
-            return Some(record)
-        }
-
-        if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
+            Some(record)
+        } else if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
             if line.get_mut().is_empty() {
                 return None
             }
             line.get_mut().pop();
-            let mut record = match self.format {
-                Format::Themisto => read_themisto(&mut line).unwrap(),
-                Format::Fulgor => read_fulgor(&mut line).unwrap(),
-                Format::Metagraph => read_metagraph(&mut line).unwrap(),
-                Format::Bifrost => read_bifrost(&mut line).unwrap(),
-                Format::SAM => read_sam(&mut line).unwrap(),
-            };
-            record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
-            record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
-
-            if record.ones.is_some() {
-                record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
-                    Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                        self.flags.target_names[*target_idx as usize].clone()
-                    }).collect::<Vec<String>>())};
-            }
-            if record.ones_names.is_some() {
-                record.ones = Some(
-                    record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                        *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
-                    }).collect::<Vec<u32>>()
-                );
-            }
-
-            Some(record)
+            Some(
+                match self.format {
+                    Format::Themisto => read_themisto(&mut line).unwrap(),
+                    Format::Fulgor => read_fulgor(&mut line).unwrap(),
+                    Format::Metagraph => read_metagraph(&mut line).unwrap(),
+                    Format::Bifrost => read_bifrost(&mut line).unwrap(),
+                    Format::SAM => read_sam(&mut line).unwrap(),
+                },
+            )
         } else {
             None
+        };
+
+        let mut record = record?;
+        record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
+        record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
+        if record.ones.is_some() {
+            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                    self.flags.target_names[*target_idx as usize].clone()
+                }).collect::<Vec<String>>())};
         }
+        if record.ones_names.is_some() {
+            record.ones = Some(
+                record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                    *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
+                }).collect::<Vec<u32>>()
+            );
+        }
+
+        Some(record)
     }
 }
 
