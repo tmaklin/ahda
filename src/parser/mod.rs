@@ -85,9 +85,7 @@ impl<'a, R: Read> Parser<'a, R> {
             target_to_pos.insert(target.clone(), idx);
         });
 
-        let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
-        let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
-        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: query_to_pos.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
+        let (header, flags) = crate::headers::file::build_header_and_flags(targets, queries, sample_name)?;
 
         let mut reader = BufReader::new(conn);
         let mut buf = Cursor::new(Vec::<u8>::new());

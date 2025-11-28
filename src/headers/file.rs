@@ -54,6 +54,17 @@ pub struct FileFlags {
     pub target_names: Vec<String>,
 }
 
+pub fn build_header_and_flags(
+    targets: &[String],
+    queries: &[String],
+    sample: &str,
+) -> Result<(FileHeader, FileFlags), E> {
+    let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample.to_string() };
+    let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
+    let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
+    Ok((header, flags))
+}
+
 pub fn encode_file_header(
     n_targets: u32,
     n_queries: u32,
