@@ -70,6 +70,9 @@ impl<'a, R: Read> Parser<'a, R> {
         queries: &[String],
         sample_name: &str,
     ) -> Result<Self, E> {
+
+        // TODO Don't add keys twice to a hashmap if present
+
         let mut query_to_pos: HashMap<String, usize> = HashMap::new();
         let mut pos_to_query: HashMap<usize, String> = HashMap::new();
         queries.iter().enumerate().for_each(|(idx, query)| {
@@ -200,17 +203,18 @@ impl<R: Read> Iterator for Parser<'_, R> {
             record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
             record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
 
-            if record.ones.is_some() {
-                record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+            let have_ones = record.ones.is_some();
+            let have_names = record.ones_names.is_some();
+            if have_ones {
+                record.ones_names = if have_names { record.ones_names } else {
                     Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
                         self.flags.target_names[*target_idx as usize].clone()
                     }).collect::<Vec<String>>())};
             }
-            if record.ones_names.is_some() {
-                record.ones = if record.ones.is_some() { record.ones } else {
-                    Some(record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+            if have_names {
+                record.ones = Some(record.ones_names.as_ref().unwrap().iter().map(|target_name| {
                         *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
-                    }).collect::<Vec<u32>>())};
+                    }).collect::<Vec<u32>>());
             }
 
             return Some(record)
@@ -238,10 +242,11 @@ impl<R: Read> Iterator for Parser<'_, R> {
                     }).collect::<Vec<String>>())};
             }
             if record.ones_names.is_some() {
-                record.ones = if record.ones.is_some() { record.ones } else {
-                    Some(record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                record.ones = Some(
+                    record.ones_names.as_ref().unwrap().iter().map(|target_name| {
                         *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
-                    }).collect::<Vec<u32>>())};
+                    }).collect::<Vec<u32>>()
+                );
             }
 
             Some(record)
