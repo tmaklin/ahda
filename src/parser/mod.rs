@@ -58,7 +58,7 @@ pub struct Parser<'a, R: Read> {
     pos_to_query: HashMap<usize, String>,
     target_to_pos: HashMap<String, usize>,
 
-    _header: FileHeader,
+    header: FileHeader,
     flags: FileFlags,
 
 }
@@ -98,7 +98,7 @@ impl<'a, R: Read> Parser<'a, R> {
             Ok(Self {
                 reader, buf, format,
                 query_to_pos, pos_to_query, target_to_pos,
-                _header: header, flags,
+                header, flags,
             })
         } else {
             Err(Box::new(UnrecognizedInputFormat{}))
@@ -163,6 +163,18 @@ impl<R: Read> Parser<'_, R> {
                 Some(target_names)
             },
         }
+    }
+
+    pub fn file_header(
+        &self
+    ) -> &FileHeader {
+        &self.header
+    }
+
+    pub fn file_flags(
+        &self
+    ) -> &FileFlags {
+        &self.flags
     }
 }
 
