@@ -238,17 +238,19 @@ pub fn decode_to_std_write<R: Read, W: Write>(
 }
 
 /// Reads the full bitmap and combined block flags from a file
-pub fn read_bitmap<R: Read>(
-    conn: &mut R,
-) -> Result<(RoaringBitmap, BlockFlags), E> {
-    let mut bitmap = RoaringBitmap::new();
+pub fn decode_from_std_read_to_roaring<R: Read>(
+    conn_in: &mut R,
+    conn_out: &mut RoaringBitmap,
+) -> Result<(FileHeader, FileFlags, BlockFlags), E> {
+    let header = crate::headers::file::read_file_header(conn_in)?;
+    let flags = crate::headers::file::read_file_flags(&header, conn_in)?;
 
     let mut queries: Vec<String> = Vec::new();
     let mut query_ids: Vec<u32> = Vec::new();
 
-    while let Ok(block_header) = read_block_header(conn) {
+    while let Ok(block_header) = read_block_header(conn_in) {
         let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        conn.read_exact(&mut deflated_bytes)?;
+        conn_in.read_exact(&mut deflated_bytes)?;
 
         let inflated_bytes = unpack::inflate_bytes(&deflated_bytes)?;
         let inflated_bytes = unpack::inflate_bytes(&inflated_bytes)?;
@@ -261,7 +263,7 @@ pub fn read_bitmap<R: Read>(
         query_ids.append(&mut block_flags.query_ids);
 
         let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
-        bitmap |= bitmap_deser?;
+        *conn_out |= bitmap_deser?;
     }
 
     let mut both: Vec<(u32, String)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name.to_string())).collect();
@@ -269,5 +271,5 @@ pub fn read_bitmap<R: Read>(
     let queries: Vec<String> = both.iter().map(|x| x.1.to_string()).collect();
     let query_ids: Vec<u32> = both.iter().map(|x| x.0).collect();
 
-    Ok((bitmap, BlockFlags{ queries, query_ids }))
+    Ok((header, flags, BlockFlags{ queries, query_ids }))
 }
