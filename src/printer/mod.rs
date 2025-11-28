@@ -63,7 +63,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=&'a PseudoAln> {
             records,
             header: Some(header), flags: Some(flags),
             sam_header, index: 0,
-            format: Format::default()
+            format,
         }
     }
 }
