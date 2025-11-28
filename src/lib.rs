@@ -100,38 +100,8 @@ pub struct PseudoAln{
     pub query_name: Option<String>,
 }
 
-pub fn cat<W: Write>(
-    records: &[PseudoAln],
-    flags: &FileFlags,
-    header: &FileHeader,
-    format: &Format,
-    conn: &mut W,
-) -> Result<(),E> {
-    let mut records_iter = records.iter();
-    let mut printer = printer::Printer::new(&mut records_iter, header.clone(), flags.clone(), format.clone());
-
-    for bytes in printer.by_ref() {
-        conn.write_all(&bytes).unwrap();
-    }
-
-    Ok(())
-}
-
-pub fn parse<R: Read>(
-    conn: &mut R,
-) -> Result<(Vec<PseudoAln>, Format), E> {
-    let mut reader = Parser::new(conn)?;
-
-    let mut res: Vec<PseudoAln> = Vec::new();
-    for record in reader.by_ref() {
-        res.push(record);
-    }
-
-    Ok((res, reader.format))
-}
-
-/// Encode pseudoalignments to something that implements [Write](std::io::Write).
-pub fn encode_block<W: Write>(
+/// Encode from memory to something that implements [Write](std::io::Write).
+pub fn encode_to_std_write<W: Write>(
     file_header: &FileHeader,
     records: &[PseudoAln],
     conn: &mut W,
@@ -145,7 +115,24 @@ pub fn encode_block<W: Write>(
     Ok(())
 }
 
-/// Parse plain-text pseudoalignments from [Read](std::io::Read) and encode to [Write](std::io::Write).
+/// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to memory.
+pub fn encode_from_std_read<R: Read, W: Write>(
+    targets: &[String],
+    queries: &[String],
+    sample_name: &str,
+    conn_in: &mut R,
+) -> Result<Vec<u8>, E> {
+    let mut reader = crate::parser::Parser::new(conn_in)?;
+    let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
+
+    let mut bytes = encoder.encode_header_and_flags().unwrap();
+    while let Some(mut block) = encoder.next_block() {
+        bytes.append(&mut block);
+    }
+    Ok(bytes)
+}
+
+/// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to [Write](std::io::Write).
 pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
@@ -165,7 +152,7 @@ pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
     Ok(())
 }
 
-/// Decode pseudoalignments from [Read](std::io::Read) and format them to [Write](std::io::Write).
+/// Decode all pseudoalignments from [Read](std::io::Read) and format to [Write](std::io::Write).
 pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
     out_format: Format,
     conn_in: &mut R,
@@ -187,36 +174,48 @@ pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
     Ok(())
 }
 
-/// Decode a block of pseudoalignments from something that implements [Read](std::io::Read).
-pub fn decode_block_from_std_read<R: Read>(
+/// Decode all pseudoalignments from [Read](std::io::Read) to memory.
+pub fn decode_from_std_read<R: Read>(
     file_flags: &FileFlags,
-    conn: &mut R,
-) -> Result<Vec<PseudoAln>, E> {
-    let block_header = read_block_header(conn)?;
-    let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-    conn.read_exact(&mut bytes)?;
-    unpack::unpack(&bytes, &block_header, file_flags)
-}
-
-/// Decode all pseudoalignments from something that implements [Read](std::io::Read).
-pub fn decode_file_from_std_read<R: Read>(
-    file_flags: &FileFlags,
-    conn: &mut R,
+    conn_in: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
 
-    let file_header = read_file_header(conn).unwrap();
+    let file_header = read_file_header(conn_in).unwrap();
 
     let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
-    let _ = conn.read_exact(&mut dump);
+    let _ = conn_in.read_exact(&mut dump);
 
     let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
-    while let Ok(block_header) = read_block_header(conn) {
+    while let Ok(block_header) = read_block_header(conn_in) {
         let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        conn.read_exact(&mut bytes)?;
+        conn_in.read_exact(&mut bytes)?;
         res.append(&mut unpack::unpack(&bytes, &block_header, file_flags)?);
     }
 
     todo!("Implement decode_file_from_std_read"); // This function is broken
+}
+
+/// Decode from memory and format to [Write](std::io::Write).
+pub fn decode_to_std_write<R: Read, W: Write>(
+    out_format: Format,
+    records: &[u8],
+    conn_out: &mut W,
+) -> Result<(), E> {
+    let mut tmp = std::io::Cursor::new(&records);
+    let decoder = decoder::Decoder::new(&mut tmp);
+
+    let header = decoder.file_header().clone();
+    let flags = decoder.file_flags().clone();
+    for block in decoder {
+        let mut block_iter = block.iter();
+        let printer = printer::Printer::new(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
+        for line in printer {
+            conn_out.write_all(&line)?;
+        }
+    }
+
+    conn_out.flush()?;
+    Ok(())
 }
 
 /// Reads the full bitmap and combined block flags from a file
