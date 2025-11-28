@@ -56,6 +56,7 @@ pub struct Parser<'a, R: Read> {
 
     query_to_pos: HashMap<String, usize>,
     pos_to_query: HashMap<usize, String>,
+    target_to_pos: HashMap<String, usize>,
 
     _header: FileHeader,
     flags: FileFlags,
@@ -76,6 +77,11 @@ impl<'a, R: Read> Parser<'a, R> {
             pos_to_query.insert(idx, query.clone());
         });
 
+        let mut target_to_pos: HashMap<String, usize> = HashMap::new();
+        targets.iter().enumerate().for_each(|(idx, target)| {
+            target_to_pos.insert(target.clone(), idx);
+        });
+
         let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
         let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
         let header = FileHeader{ n_targets: targets.len() as u32, n_queries: query_to_pos.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
@@ -88,7 +94,7 @@ impl<'a, R: Read> Parser<'a, R> {
         if let Some(format) = guess_format(buf.get_ref()) {
             Ok(Self {
                 reader, buf, format,
-                query_to_pos, pos_to_query,
+                query_to_pos, pos_to_query, target_to_pos,
                 _header: header, flags,
             })
         } else {
@@ -194,10 +200,18 @@ impl<R: Read> Iterator for Parser<'_, R> {
             record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
             record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
 
-            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
-                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+            if record.ones.is_some() {
+                record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+                    Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
                         self.flags.target_names[*target_idx as usize].clone()
-                }).collect::<Vec<String>>())};
+                    }).collect::<Vec<String>>())};
+            }
+            if record.ones_names.is_some() {
+                record.ones = if record.ones.is_some() { record.ones } else {
+                    Some(record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                        *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
+                    }).collect::<Vec<u32>>())};
+            }
 
             return Some(record)
         }
@@ -217,10 +231,19 @@ impl<R: Read> Iterator for Parser<'_, R> {
             record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
             record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
 
-            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
-                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+            if record.ones.is_some() {
+                record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
+                    Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
                         self.flags.target_names[*target_idx as usize].clone()
-                }).collect::<Vec<String>>())};
+                    }).collect::<Vec<String>>())};
+            }
+            if record.ones_names.is_some() {
+                record.ones = if record.ones.is_some() { record.ones } else {
+                    Some(record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                        *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
+                    }).collect::<Vec<u32>>())};
+            }
+
             Some(record)
         } else {
             None
