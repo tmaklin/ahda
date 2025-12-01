@@ -105,7 +105,7 @@ pub enum Commands {
 
         // Output format, defaults to Themisto
         #[arg(long = "format", default_value = "themisto")]
-        format: String,
+        format: Option<ahda::Format>,
 
         // Operations
         // // Union

@@ -169,23 +169,15 @@ fn main() {
             assert!(input_files.len() > 1);
 
             // Read bitmap A from the first file
-            let (header_a, flags_a, (mut bitmap_a, block_flags_a)) = {
-                let mut conn_in = File::open(&input_files[0]).unwrap();
-                let header = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
-                let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
-                conn_in.read_exact(&mut flags_bytes).unwrap();
-                let flags = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
-                (header, flags, ahda::read_bitmap(&mut conn_in).unwrap())
-            };
+            let mut conn_in = File::open(&input_files[0]).unwrap();
+            let mut bitmap_a = roaring::RoaringBitmap::new();
+            let (header_a, flags_a, block_flags_a) = ahda::decode_from_std_read_to_roaring(&mut conn_in, &mut bitmap_a).unwrap();
 
             // Read the remainning bitmaps and perform requested operation
             for file in input_files.iter().skip(1) {
                 let mut conn_in = File::open(file).unwrap();
-                let header_b = ahda::headers::file::read_file_header(&mut conn_in).unwrap();
-                let mut flags_bytes: Vec<u8> = vec![0; header_b.flags_len as usize];
-                conn_in.read_exact(&mut flags_bytes).unwrap();
-                let flags_b = ahda::headers::file::decode_file_flags(&flags_bytes).unwrap();
-                let (bitmap_b, _) = ahda::read_bitmap(&mut conn_in).unwrap();
+                let mut bitmap_b = roaring::RoaringBitmap::new();
+                let (header_b, flags_b, _) = ahda::decode_from_std_read_to_roaring(&mut conn_in, &mut bitmap_b).unwrap();
 
                 // Files must have same dimension and same targets
                 assert_eq!(header_a.n_targets, header_b.n_targets);
@@ -204,21 +196,14 @@ fn main() {
                 }
             }
 
-            // TODO fix spaghetti
+            // TODO Avoid serializing and immediately deserializing the Roaring bitmap
             let roaring_bytes: Vec<u8> = ahda::pack::serialize_roaring(&bitmap_a).unwrap();
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
             let records = ahda::unpack::decode_from_roaring(&flags_a, &block_header, &block_flags_a, flags_a.target_names.len() as u32, &roaring_bytes).unwrap();
 
             let mut tmp = records.into_iter();
-            let mut printer = match format.as_str() {
-                "bifrost" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Bifrost),
-                "fulgor" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Fulgor),
-                "metagraph" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Metagraph),
-                "sam" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::SAM),
-                "themisto" => Printer::new(&mut tmp, header_a, flags_a, ahda::Format::Themisto),
-                _ => panic!("Unrecognized format --format {}", format),
-            };
-            while let Some(line) = printer.next() {
+            let printer = Printer::new(&mut tmp, header_a, flags_a, format.as_ref().unwrap().clone());
+            for line in printer {
                 std::io::stdout().write_all(&line).unwrap();
             }
             std::io::stdout().flush().unwrap();
