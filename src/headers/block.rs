@@ -65,9 +65,20 @@ pub fn decode_block_header(
 pub fn read_block_header<R: Read>(
     conn: &mut R,
 ) -> Result<BlockHeader, E> {
+    todo!("Fix read_block_header");
     let mut header_bytes: [u8; 32] = [0_u8; 32];
     conn.read_exact(&mut header_bytes)?;
     let res = decode_block_header(&header_bytes)?;
+    Ok(res)
+}
+
+pub fn read_block_flags<R: Read>(
+    header: &BlockHeader,
+    conn: &mut R,
+) -> Result<BlockFlags, E> {
+    let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
+    conn.read_exact(&mut flags_bytes).unwrap();
+    let res = decode_block_flags(&flags_bytes).unwrap();
     Ok(res)
 }
 

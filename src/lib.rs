@@ -37,11 +37,14 @@ use headers::file::FileHeader;
 use headers::file::FileFlags;
 use headers::block::BlockFlags;
 use headers::block::read_block_header;
+use headers::block::read_block_flags;
 use headers::block::decode_block_flags;
 use headers::file::read_file_header;
+use headers::file::read_file_flags;
+use headers::file::encode_file_flags;
+use headers::file::encode_file_header;
 
-use parser::Parser;
-
+use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 
@@ -98,6 +101,50 @@ pub struct PseudoAln{
     pub ones_names: Option<Vec<String>>,
     pub query_id: Option<u32>,
     pub query_name: Option<String>,
+}
+
+pub fn concatenate_from_std_read_to_std_write<R: Read, W: Write>(
+    conns: &mut [R],
+    conn_out: &mut W,
+) -> Result<(), E> {
+    let headers_flags = conns.iter_mut().map(|conn_in| {
+        let header = read_file_header(conn_in).unwrap();
+        let flags = read_file_flags(&header, conn_in).unwrap();
+        (header, flags)
+    }).collect::<Vec<(FileHeader, FileFlags)>>();
+
+    let mut n_queries = 0_u32;
+    let n_targets = headers_flags[0].0.n_targets;
+    let target_names = headers_flags[0].1.target_names.clone();
+
+    // TODO Think if this makes sense or if it would be better to rename the query
+    let query_name = headers_flags[0].1.query_name.clone();
+
+    headers_flags.iter().for_each(|(header, flags)| {
+        n_queries += header.n_queries;
+        assert_eq!(n_targets, header.n_targets);
+        assert_eq!(target_names, flags.target_names);
+    });
+
+    let new_flags = FileFlags { query_name, target_names };
+    let new_flags_bytes = encode_file_flags(&new_flags)?;
+    let new_header_bytes = encode_file_header(n_targets, n_queries, new_flags_bytes.len() as u32, 0_u16, 0_u16, 0_u64, 0_u64)?;
+
+    conn_out.write_all(&new_header_bytes)?;
+    conn_out.write_all(&new_flags_bytes)?;
+
+    // TODO Need to update query ids in BlockFlags
+    //
+    // Do we want to consider duplicated queries with the same ID as the original?
+    // yes?
+
+    conns.iter_mut().for_each(|conn_in| {
+        std::io::copy(conn_in, conn_out).unwrap();
+    });
+
+    conn_out.flush()?;
+
+    Ok(())
 }
 
 /// Convert from [Read] to [Write]
