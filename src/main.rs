@@ -196,15 +196,14 @@ fn main() {
                 }
             }
 
-            // TODO Avoid serializing and immediately deserializing the Roaring bitmap
-            let roaring_bytes: Vec<u8> = ahda::pack::serialize_roaring(&bitmap_a).unwrap();
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
-            let records = ahda::unpack::decode_from_roaring(&flags_a, &block_header, &block_flags_a, flags_a.target_names.len() as u32, &roaring_bytes).unwrap();
-
-            let mut tmp = records.into_iter();
-            let printer = Printer::new(&mut tmp, header_a, flags_a, format.as_ref().unwrap().clone());
-            for line in printer {
-                std::io::stdout().write_all(&line).unwrap();
+            let decoder = ahda::decoder::roaring_bitmaps::RoaringDecoder::new(&bitmap_a, header_a.clone(), flags_a.clone(), block_header, block_flags_a);
+            for block in decoder {
+                let mut records = block.into_iter();
+                let printer = Printer::new(&mut records, header_a.clone(), flags_a.clone(), format.as_ref().unwrap().clone());
+                for line in printer {
+                    std::io::stdout().write_all(&line).unwrap();
+                }
             }
             std::io::stdout().flush().unwrap();
 

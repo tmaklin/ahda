@@ -27,6 +27,8 @@ use roaring::bitmap::RoaringBitmap;
 
 use std::io::Read;
 
+pub mod roaring_bitmaps;
+
 pub struct Decoder<'a, R: Read> {
     // Inputs
     conn: &'a mut R,
