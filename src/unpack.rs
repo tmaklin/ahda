@@ -38,14 +38,12 @@ pub fn inflate_bytes(
 }
 
 pub fn decode_from_roaring(
+    aln_bits: &RoaringBitmap,
     file_flags: &FileFlags,
     header: &BlockHeader,
     block_flags: &BlockFlags,
     n_targets: u32,
-    bytes: &[u8],
 ) -> Result<Vec<PseudoAln>, E> {
-    let aln_bits: RoaringBitmap = RoaringBitmap::deserialize_from(bytes)?;
-
     let mut alns: Vec<PseudoAln> = Vec::with_capacity(header.num_records as usize);
 
     let mut prev_query_idx: Option<u32> = None;
@@ -106,7 +104,8 @@ pub fn unpack(
 
     let block_flags = decode_block_flags(&inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()])?;
 
-    let alns = decode_from_roaring(file_flags, block_header, &block_flags, n_targets as u32, &inflated_bytes[0..(block_header.block_len as usize)])?;
+    let aln_bits = RoaringBitmap::deserialize_from(&inflated_bytes[0..(block_header.block_len as usize)])?;
+    let alns = decode_from_roaring(&aln_bits, file_flags, block_header, &block_flags, n_targets as u32)?;
 
     Ok(alns)
 }

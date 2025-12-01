@@ -23,6 +23,8 @@ use crate::headers::block::decode_block_flags;
 use crate::unpack::inflate_bytes;
 use crate::unpack::decode_from_roaring;
 
+use roaring::bitmap::RoaringBitmap;
+
 use std::io::Read;
 
 pub struct Decoder<'a, R: Read> {
@@ -84,7 +86,8 @@ impl<R: Read> Iterator for Decoder<'_, R> {
                 bytes = inflate_bytes(&bytes).unwrap();
 
                 let block_flags = decode_block_flags(&bytes[(block_header.block_len as usize)..bytes.len()]).unwrap();
-                let alns = decode_from_roaring(&self.flags, &block_header, &block_flags, self.header.n_targets, &bytes[0..(block_header.block_len as usize)]).unwrap();
+                let bitmap = RoaringBitmap::deserialize_from(&bytes[0..(block_header.block_len as usize)]).unwrap();
+                let alns = decode_from_roaring(&bitmap, &self.flags, &block_header, &block_flags, self.header.n_targets).unwrap();
 
                 self.block_header = Some(block_header);
                 self.block_flags = Some(block_flags);
