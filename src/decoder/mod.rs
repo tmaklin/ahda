@@ -19,10 +19,6 @@ use crate::headers::file::read_file_flags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
-use crate::headers::block::decode_block_flags;
-use crate::unpack::inflate_bytes;
-
-use roaring::bitmap::RoaringBitmap;
 
 use std::io::Read;
 
@@ -82,12 +78,7 @@ impl<R: Read> Iterator for Decoder<'_, R> {
             Ok(block_header) => {
                 let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
                 self.conn.read_exact(&mut bytes).unwrap();
-
-                bytes = inflate_bytes(&bytes).unwrap();
-                bytes = inflate_bytes(&bytes).unwrap();
-
-                let block_flags = decode_block_flags(&bytes[(block_header.block_len as usize)..bytes.len()]).unwrap();
-                let bitmap = RoaringBitmap::deserialize_from(&bytes[0..(block_header.block_len as usize)]).unwrap();
+                let (bitmap, block_flags) = crate::unpack::unpack(&bytes, &block_header).unwrap();
 
                 let mut tmp = bitmap.iter();
                 let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());

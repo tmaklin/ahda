@@ -253,7 +253,9 @@ pub fn decode_from_std_read<R: Read>(
     while let Ok(block_header) = read_block_header(conn_in) {
         let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
         conn_in.read_exact(&mut bytes)?;
-        res.append(&mut unpack::unpack(&bytes, &block_header, file_flags)?);
+        let (bitmap, block_flags) = unpack::unpack(&bytes, &block_header)?;
+        let mut alns = unpack::decode_from_roaring(&bitmap, file_flags, &block_header, &block_flags, file_header.n_targets)?;
+        res.append(&mut alns);
     }
 
     todo!("Implement decode_file_from_std_read"); // This function is broken
@@ -294,21 +296,15 @@ pub fn decode_from_std_read_to_roaring<R: Read>(
     let mut query_ids: Vec<u32> = Vec::new();
 
     while let Ok(block_header) = read_block_header(conn_in) {
-        let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        conn_in.read_exact(&mut deflated_bytes)?;
+        let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        conn_in.read_exact(&mut block_bytes)?;
 
-        let inflated_bytes = unpack::inflate_bytes(&deflated_bytes)?;
-        let inflated_bytes = unpack::inflate_bytes(&inflated_bytes)?;
+        let (bitmap, mut block_flags) = unpack::unpack(&block_bytes, &block_header)?;
 
-        let flags_bytes = &inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()];
-        let bitmap_bytes = &inflated_bytes[0..(block_header.block_len as usize)];
-
-        let mut block_flags = decode_block_flags(flags_bytes)?;
         queries.append(&mut block_flags.queries);
         query_ids.append(&mut block_flags.query_ids);
 
-        let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
-        bitmap_out |= bitmap_deser?;
+        bitmap_out |= bitmap;
     }
 
     let mut both: Vec<(u32, String)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name.to_string())).collect();
@@ -331,19 +327,12 @@ pub fn decode_from_std_read_into_roaring<R: Read>(
     crate::headers::file::read_file_flags(&header, conn_in)?;
 
     while let Ok(block_header) = read_block_header(conn_in) {
-        let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        conn_in.read_exact(&mut deflated_bytes)?;
+        let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        conn_in.read_exact(&mut block_bytes)?;
 
-        let inflated_bytes = unpack::inflate_bytes(&deflated_bytes)?;
-        let inflated_bytes = unpack::inflate_bytes(&inflated_bytes)?;
+        let (bitmap, _block_flags) = unpack::unpack(&block_bytes, &block_header)?;
 
-        let flags_bytes = &inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()];
-        let bitmap_bytes = &inflated_bytes[0..(block_header.block_len as usize)];
-
-        decode_block_flags(flags_bytes)?;
-
-        let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
-        *bitmap_out |= bitmap_deser?;
+        *bitmap_out |= bitmap;
     }
 
     Ok(())
