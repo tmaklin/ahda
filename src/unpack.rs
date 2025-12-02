@@ -67,10 +67,10 @@ pub fn decode_from_roaring(
             seen.insert(id as usize);
             ones.clear();
 
-            ones.push(target_idx as u32);
+            ones.push(target_idx);
             prev_query_idx = Some(query_idx);
         } else {
-            ones.push(target_idx as u32);
+            ones.push(target_idx);
         }
     });
     if prev_query_idx.is_some() {
