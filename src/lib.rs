@@ -285,8 +285,8 @@ pub fn decode_to_std_write<R: Read, W: Write>(
 /// Reads the full bitmap and combined block flags from a file
 pub fn decode_from_std_read_to_roaring<R: Read>(
     conn_in: &mut R,
-    conn_out: &mut RoaringBitmap,
-) -> Result<(FileHeader, FileFlags, BlockFlags), E> {
+) -> Result<(RoaringBitmap, FileHeader, FileFlags, BlockFlags), E> {
+    let mut bitmap_out = RoaringBitmap::new();
     let header = crate::headers::file::read_file_header(conn_in)?;
     let flags = crate::headers::file::read_file_flags(&header, conn_in)?;
 
@@ -308,7 +308,7 @@ pub fn decode_from_std_read_to_roaring<R: Read>(
         query_ids.append(&mut block_flags.query_ids);
 
         let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
-        *conn_out |= bitmap_deser?;
+        bitmap_out |= bitmap_deser?;
     }
 
     let mut both: Vec<(u32, String)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name.to_string())).collect();
@@ -316,5 +316,35 @@ pub fn decode_from_std_read_to_roaring<R: Read>(
     let queries: Vec<String> = both.iter().map(|x| x.1.to_string()).collect();
     let query_ids: Vec<u32> = both.iter().map(|x| x.0).collect();
 
-    Ok((header, flags, BlockFlags{ queries, query_ids }))
+    Ok((bitmap_out, header, flags, BlockFlags{ queries, query_ids }))
+}
+
+/// Merge bitmap from Read to an existing bitmap with Union
+///
+/// Doesn't check that the bitmaps are compatible.
+///
+pub fn decode_from_std_read_into_roaring<R: Read>(
+    conn_in: &mut R,
+    bitmap_out: &mut RoaringBitmap,
+) -> Result<(), E> {
+    let header = crate::headers::file::read_file_header(conn_in)?;
+    crate::headers::file::read_file_flags(&header, conn_in)?;
+
+    while let Ok(block_header) = read_block_header(conn_in) {
+        let mut deflated_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+        conn_in.read_exact(&mut deflated_bytes)?;
+
+        let inflated_bytes = unpack::inflate_bytes(&deflated_bytes)?;
+        let inflated_bytes = unpack::inflate_bytes(&inflated_bytes)?;
+
+        let flags_bytes = &inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()];
+        let bitmap_bytes = &inflated_bytes[0..(block_header.block_len as usize)];
+
+        decode_block_flags(flags_bytes)?;
+
+        let bitmap_deser = RoaringBitmap::deserialize_from(bitmap_bytes);
+        *bitmap_out |= bitmap_deser?;
+    }
+
+    Ok(())
 }
