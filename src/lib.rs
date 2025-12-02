@@ -100,7 +100,7 @@ pub struct PseudoAln{
     pub query_name: Option<String>,
 }
 
-pub fn concatenate_from_std_read_to_std_write<R: Read, W: Write>(
+pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conns: &mut [R],
     conn_out: &mut W,
 ) -> Result<(), E> {
@@ -145,7 +145,7 @@ pub fn concatenate_from_std_read_to_std_write<R: Read, W: Write>(
 }
 
 /// Convert from [Read] to [Write]
-pub fn convert_from_std_read_to_std_write<R: Read, W: Write>(
+pub fn convert_from_read_to_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
     sample_name: &str,
@@ -164,7 +164,7 @@ pub fn convert_from_std_read_to_std_write<R: Read, W: Write>(
 }
 
 /// Encode from memory to something that implements [Write](std::io::Write).
-pub fn encode_to_std_write<W: Write>(
+pub fn encode_to_write<W: Write>(
     file_header: &FileHeader,
     records: &[PseudoAln],
     conn: &mut W,
@@ -179,7 +179,7 @@ pub fn encode_to_std_write<W: Write>(
 }
 
 /// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to memory.
-pub fn encode_from_std_read<R: Read, W: Write>(
+pub fn encode_from_read<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
     sample_name: &str,
@@ -196,7 +196,7 @@ pub fn encode_from_std_read<R: Read, W: Write>(
 }
 
 /// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to [Write](std::io::Write).
-pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
+pub fn encode_from_read_to_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
     sample_name: &str,
@@ -216,7 +216,7 @@ pub fn encode_from_std_read_to_std_write<R: Read, W: Write>(
 }
 
 /// Decode all pseudoalignments from [Read](std::io::Read) and format to [Write](std::io::Write).
-pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
+pub fn decode_from_read_to_write<R: Read, W: Write>(
     out_format: Format,
     conn_in: &mut R,
     conn_out: &mut W,
@@ -238,7 +238,7 @@ pub fn decode_from_std_read_to_std_write<R: Read, W: Write>(
 }
 
 /// Decode all pseudoalignments from [Read](std::io::Read) to memory.
-pub fn decode_from_std_read<R: Read>(
+pub fn decode_from_read<R: Read>(
     file_flags: &FileFlags,
     conn_in: &mut R,
 ) -> Result<Vec<PseudoAln>, E> {
@@ -257,11 +257,11 @@ pub fn decode_from_std_read<R: Read>(
         res.append(&mut alns);
     }
 
-    todo!("Implement decode_file_from_std_read"); // This function is broken
+    todo!("Implement decode_file_from_read"); // This function is broken
 }
 
 /// Decode from memory and format to [Write](std::io::Write).
-pub fn decode_to_std_write<R: Read, W: Write>(
+pub fn decode_to_write<R: Read, W: Write>(
     out_format: Format,
     records: &[u8],
     conn_out: &mut W,
@@ -284,7 +284,7 @@ pub fn decode_to_std_write<R: Read, W: Write>(
 }
 
 /// Reads the full bitmap and combined block flags from a file
-pub fn decode_from_std_read_to_roaring<R: Read>(
+pub fn decode_from_read_to_roaring<R: Read>(
     conn_in: &mut R,
 ) -> Result<(RoaringBitmap, FileHeader, FileFlags, BlockFlags), E> {
     let mut bitmap_out = RoaringBitmap::new();
@@ -318,7 +318,7 @@ pub fn decode_from_std_read_to_roaring<R: Read>(
 ///
 /// Doesn't check that the bitmaps are compatible.
 ///
-pub fn decode_from_std_read_into_roaring<R: Read>(
+pub fn decode_from_read_into_roaring<R: Read>(
     conn_in: &mut R,
     bitmap_out: &mut RoaringBitmap,
 ) -> Result<(), E> {

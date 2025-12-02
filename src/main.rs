@@ -88,7 +88,7 @@ fn main() {
             }
 
             inputs.iter_mut().zip(outputs.iter_mut()).for_each(|(conn_in, conn_out)| {
-                ahda::encode_from_std_read_to_std_write(&targets, &queries, &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
+                ahda::encode_from_read_to_write(&targets, &queries, &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
             })
         },
 
@@ -109,7 +109,7 @@ fn main() {
                 let mut conn_out = BufWriter::new(f);
                 let mut conn_in = File::open(file).unwrap();
 
-                ahda::decode_from_std_read_to_std_write(format.clone().unwrap_or_default(), &mut conn_in, &mut conn_out).unwrap();
+                ahda::decode_from_read_to_write(format.clone().unwrap_or_default(), &mut conn_in, &mut conn_out).unwrap();
             });
 
         },
@@ -128,7 +128,7 @@ fn main() {
             }
             let mut conn_out = std::io::stdout();
 
-            ahda::concatenate_from_std_read_to_std_write(&mut inputs, &mut conn_out).unwrap();
+            ahda::concatenate_from_read_to_write(&mut inputs, &mut conn_out).unwrap();
         },
 
         // Convert
@@ -160,7 +160,7 @@ fn main() {
             let mut conn_out = std::io::stdout();
 
             let sample_name = query_file.file_stem().unwrap().to_string_lossy();
-            ahda::convert_from_std_read_to_std_write(&targets, &queries, &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
+            ahda::convert_from_read_to_write(&targets, &queries, &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
         },
 
         // Set operations
@@ -175,12 +175,12 @@ fn main() {
 
             // Read bitmap A from the first file
             let mut conn_in = File::open(&input_files[0]).unwrap();
-            let (mut bitmap_a, header_a, flags_a, block_flags_a) = ahda::decode_from_std_read_to_roaring(&mut conn_in).unwrap();
+            let (mut bitmap_a, header_a, flags_a, block_flags_a) = ahda::decode_from_read_to_roaring(&mut conn_in).unwrap();
 
             // Read the remainning bitmaps and perform requested operation
             for file in input_files.iter().skip(1) {
                 let mut conn_in = File::open(file).unwrap();
-                ahda::decode_from_std_read_into_roaring(&mut conn_in, &mut bitmap_a).unwrap();
+                ahda::decode_from_read_into_roaring(&mut conn_in, &mut bitmap_a).unwrap();
             }
 
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
