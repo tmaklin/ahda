@@ -160,9 +160,6 @@ fn main() {
             input_files,
             format,
             union,
-            intersection,
-            diff,
-            xor,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -170,30 +167,12 @@ fn main() {
 
             // Read bitmap A from the first file
             let mut conn_in = File::open(&input_files[0]).unwrap();
-            let mut bitmap_a = roaring::RoaringBitmap::new();
-            let (header_a, flags_a, block_flags_a) = ahda::decode_from_std_read_to_roaring(&mut conn_in, &mut bitmap_a).unwrap();
+            let (mut bitmap_a, header_a, flags_a, block_flags_a) = ahda::decode_from_std_read_to_roaring(&mut conn_in).unwrap();
 
             // Read the remainning bitmaps and perform requested operation
             for file in input_files.iter().skip(1) {
                 let mut conn_in = File::open(file).unwrap();
-                let mut bitmap_b = roaring::RoaringBitmap::new();
-                let (header_b, flags_b, _) = ahda::decode_from_std_read_to_roaring(&mut conn_in, &mut bitmap_b).unwrap();
-
-                // Files must have same dimension and same targets
-                assert_eq!(header_a.n_targets, header_b.n_targets);
-                assert_eq!(header_a.n_queries, header_b.n_queries);
-                assert_eq!(flags_a.target_names, flags_b.target_names);
-
-                // Opcodes are mutually exclusive so this works
-                if *union {
-                    bitmap_a |= bitmap_b;
-                } else if *intersection {
-                    bitmap_a &= bitmap_b;
-                } else if *diff {
-                    bitmap_a -= bitmap_b;
-                } else if *xor {
-                    bitmap_a ^= bitmap_b;
-                }
+                ahda::decode_from_std_read_into_roaring(&mut conn_in, &mut bitmap_a).unwrap();
             }
 
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
