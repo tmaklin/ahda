@@ -193,6 +193,6 @@ fn main() {
             std::io::stdout().flush().unwrap();
 
         },
-        None => { todo!("Print help message.")},
+        None => { eprintln!("ahda: Try 'ahda --help' for more information.") },
     }
 }
