@@ -116,11 +116,19 @@ fn main() {
 
         // Cat
         Some(cli::Commands::Cat {
-            input_file,
+            input_files,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
-            todo!("Implement cat.")
+
+            let mut inputs: Vec<Box<dyn Read>> = Vec::new();
+            for file in input_files {
+                let conn_in = File::open(file).unwrap();
+                inputs.push(Box::new(conn_in));
+            }
+            let mut conn_out = std::io::stdout();
+
+            ahda::concatenate_from_std_read_to_std_write(&mut inputs, &mut conn_out).unwrap();
         },
 
         // Convert

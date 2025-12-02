@@ -86,11 +86,11 @@ pub enum Commands {
         verbose: bool,
     },
 
-    // Convert between supported formats
+    // Concatenate encoded data
     Cat {
         // Input file
-        #[arg(group = "input", required = true, help = "Input file")]
-        input_file: PathBuf,
+        #[arg(group = "input", required = true, help = "Input file(s)")]
+        input_files: Vec<PathBuf>,
 
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
