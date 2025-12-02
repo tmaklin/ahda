@@ -26,7 +26,7 @@ use roaring::bitmap::RoaringBitmap;
 
 use std::io::Read;
 
-pub mod roaring_bitmaps;
+pub mod bitmap;
 
 pub struct Decoder<'a, R: Read> {
     // Inputs
@@ -90,7 +90,7 @@ impl<R: Read> Iterator for Decoder<'_, R> {
                 let bitmap = RoaringBitmap::deserialize_from(&bytes[0..(block_header.block_len as usize)]).unwrap();
 
                 let mut tmp = bitmap.iter();
-                let bitmap_decoder = roaring_bitmaps::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());
+                let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());
                 let mut alns: Vec<PseudoAln> = Vec::new();
                 for record in bitmap_decoder {
                     alns.push(record);
