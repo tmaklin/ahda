@@ -21,7 +21,6 @@ use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use crate::headers::block::decode_block_flags;
 use crate::unpack::inflate_bytes;
-use crate::unpack::decode_from_roaring;
 
 use roaring::bitmap::RoaringBitmap;
 
@@ -89,7 +88,13 @@ impl<R: Read> Iterator for Decoder<'_, R> {
 
                 let block_flags = decode_block_flags(&bytes[(block_header.block_len as usize)..bytes.len()]).unwrap();
                 let bitmap = RoaringBitmap::deserialize_from(&bytes[0..(block_header.block_len as usize)]).unwrap();
-                let alns = decode_from_roaring(&bitmap, &self.flags, &block_header, &block_flags, self.header.n_targets).unwrap();
+
+                let mut tmp = bitmap.iter();
+                let bitmap_decoder = roaring_bitmaps::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());
+                let mut alns: Vec<PseudoAln> = Vec::new();
+                for record in bitmap_decoder {
+                    alns.push(record);
+                }
 
                 self.block_header = Some(block_header);
                 self.block_flags = Some(block_flags);

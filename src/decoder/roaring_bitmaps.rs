@@ -16,44 +16,76 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
-use crate::unpack::decode_from_roaring;
 
-use roaring::RoaringBitmap;
-
-pub struct RoaringDecoder<'a> {
+pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     // Inputs
-    bitmap: &'a RoaringBitmap,
+    bits_iter: &'a mut I,
+    index: Option<u32>,
+    prev_index: Option<u32>,
 
     file_header: FileHeader,
     file_flags: FileFlags,
 
-    block_header: BlockHeader,
+    _block_header: BlockHeader,
     block_flags: BlockFlags,
 }
 
-impl<'a> RoaringDecoder<'a> {
+impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u32> {
     pub fn new(
-        bitmap: &'a RoaringBitmap,
+        bits_iter: &'a mut I,
         file_header: FileHeader,
         file_flags: FileFlags,
         block_header: BlockHeader,
         block_flags: BlockFlags,
     ) -> Self {
 
-        RoaringDecoder {
-            bitmap, file_header, file_flags, block_header, block_flags,
+        BitmapDecoder {
+            bits_iter, file_header, file_flags, _block_header: block_header, block_flags,
+            index: Some(0), prev_index: None,
         }
     }
 }
 
-impl Iterator for RoaringDecoder<'_> {
-    type Item = Vec<PseudoAln>;
+impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
+    type Item = PseudoAln;
 
     fn next(
         &mut self,
     ) -> Option<Self::Item> {
+        let mut ones: Vec<u32> = Vec::with_capacity(self.file_header.n_targets as usize);
+        let mut names: Vec<String> = Vec::with_capacity(self.file_header.n_targets as usize);
+        let mut query_idx = None;
 
-        let alns = decode_from_roaring(self.bitmap, &self.file_flags, &self.block_header, &self.block_flags, self.file_header.n_targets).unwrap();
-        Some(alns)
+        for idx in self.bits_iter.by_ref() {
+            if self.prev_index.is_some() {
+                let target_idx = self.prev_index.unwrap() % self.file_header.n_targets;
+                ones.push(target_idx);
+                names.push(self.file_flags.target_names[target_idx as usize].clone());
+                self.prev_index = None;
+            }
+            query_idx = Some(idx / self.file_header.n_targets);
+            if query_idx.unwrap() == *self.index.as_ref().unwrap() / self.file_header.n_targets {
+                let target_idx = idx % self.file_header.n_targets;
+                ones.push(target_idx);
+                names.push(self.file_flags.target_names[target_idx as usize].clone());
+                self.index = Some(idx);
+            } else {
+                query_idx = Some(self.index.unwrap() / self.file_header.n_targets);
+                self.index = Some(idx);
+                self.prev_index = Some(idx);
+                break;
+            }
+        }
+
+        if let Some(query_idx) = query_idx {
+            Some(PseudoAln {
+                ones: Some(ones),
+                ones_names: Some(names),
+                query_id: Some(query_idx),
+                query_name: Some(self.block_flags.queries[query_idx as usize].clone()),
+            })
+        } else {
+            None
+        }
     }
 }
