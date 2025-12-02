@@ -37,14 +37,12 @@ use headers::file::FileHeader;
 use headers::file::FileFlags;
 use headers::block::BlockFlags;
 use headers::block::read_block_header;
-use headers::block::read_block_flags;
 use headers::block::decode_block_flags;
 use headers::file::read_file_header;
 use headers::file::read_file_flags;
 use headers::file::encode_file_flags;
 use headers::file::encode_file_header;
 
-use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 

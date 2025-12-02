@@ -18,7 +18,6 @@ use crate::headers::block::decode_block_flags;
 use crate::headers::file::FileFlags;
 
 use std::collections::HashSet;
-use std::io::Read;
 use std::io::Write;
 
 use roaring::bitmap::RoaringBitmap;
