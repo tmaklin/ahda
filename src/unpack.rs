@@ -26,7 +26,7 @@ use flate2::write::GzDecoder;
 
 type E = Box<dyn std::error::Error>;
 
-pub fn inflate_bytes(
+fn inflate_bytes(
     deflated: &[u8],
 ) -> Result<Vec<u8>, E> {
     let mut inflated: Vec<u8> = Vec::new();
@@ -94,17 +94,13 @@ pub fn decode_from_roaring(
 pub fn unpack(
     bytes: &[u8],
     block_header: &BlockHeader,
-    file_flags: &FileFlags,
-) -> Result<Vec<PseudoAln>, E> {
-    let n_targets = file_flags.target_names.len();
-
+) -> Result<(RoaringBitmap, BlockFlags), E> {
     let inflated_bytes = inflate_bytes(bytes)?;
     let inflated_bytes = inflate_bytes(&inflated_bytes)?;
 
     let block_flags = decode_block_flags(&inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()])?;
 
     let aln_bits = RoaringBitmap::deserialize_from(&inflated_bytes[0..(block_header.block_len as usize)])?;
-    let alns = decode_from_roaring(&aln_bits, file_flags, block_header, &block_flags, n_targets as u32)?;
 
-    Ok(alns)
+    Ok((aln_bits, block_flags))
 }
