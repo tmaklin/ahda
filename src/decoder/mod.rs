@@ -67,6 +67,7 @@ impl<R: Read> Decoder<'_, R> {
     }
 }
 
+// TODO This should return a single pseudoalignment using BitmapDecoder
 impl<R: Read> Iterator for Decoder<'_, R> {
     type Item = Vec<PseudoAln>;
 
