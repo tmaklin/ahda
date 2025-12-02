@@ -197,13 +197,11 @@ fn main() {
             }
 
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
-            let decoder = ahda::decoder::roaring_bitmaps::RoaringDecoder::new(&bitmap_a, header_a.clone(), flags_a.clone(), block_header, block_flags_a);
-            for block in decoder {
-                let mut records = block.into_iter();
-                let printer = Printer::new(&mut records, header_a.clone(), flags_a.clone(), format.as_ref().unwrap().clone());
-                for line in printer {
-                    std::io::stdout().write_all(&line).unwrap();
-                }
+            let mut iter = bitmap_a.iter();
+            let mut decoder = ahda::decoder::bitmap::BitmapDecoder::new(&mut iter, header_a.clone(), flags_a.clone(), block_header, block_flags_a);
+            let printer = Printer::new(&mut decoder, header_a.clone(), flags_a.clone(), format.as_ref().unwrap().clone());
+            for line in printer {
+                std::io::stdout().write_all(&line).unwrap();
             }
             std::io::stdout().flush().unwrap();
 
