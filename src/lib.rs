@@ -239,25 +239,22 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 
 /// Decode all pseudoalignments from [Read](std::io::Read) to memory.
 pub fn decode_from_read<R: Read>(
-    file_flags: &FileFlags,
     conn_in: &mut R,
-) -> Result<Vec<PseudoAln>, E> {
+) -> Result<(FileHeader, FileFlags, Vec<PseudoAln>), E> {
 
     let file_header = read_file_header(conn_in).unwrap();
-
-    let mut dump: Vec<u8> = vec![0; file_header.flags_len as usize];
-    let _ = conn_in.read_exact(&mut dump);
+    let file_flags = read_file_flags(&file_header, conn_in).unwrap();
 
     let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
     while let Ok(block_header) = read_block_header(conn_in) {
         let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
         conn_in.read_exact(&mut bytes)?;
         let (bitmap, block_flags) = unpack::unpack(&bytes, &block_header)?;
-        let mut alns = unpack::decode_from_roaring(&bitmap, file_flags, &block_header, &block_flags, file_header.n_targets)?;
+        let mut alns = unpack::decode_from_roaring(&bitmap, &file_flags, &block_header, &block_flags, file_header.n_targets)?;
         res.append(&mut alns);
     }
 
-    todo!("Implement decode_file_from_read"); // This function is broken
+    Ok((file_header, file_flags, res))
 }
 
 /// Decode from memory and format to [Write](std::io::Write).
