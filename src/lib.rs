@@ -473,3 +473,43 @@ mod tests {
         assert_eq!(expected_flags, file_flags);
         assert_eq!(expected_alns, got);
     }
+
+    #[test]
+    fn decode_to_write() {
+        use super::decode_to_write;
+        use super::decode_from_read;
+
+        use super::headers::file::build_header_and_flags;
+
+        use crate::Format;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+        use std::io::Seek;
+        use std::io::Write;
+
+        let expected = b"0\tERR4035126.1\tchr.fasta\n1\tERR4035126.2\tchr.fasta\n2\tERR4035126.651903\tchr.fasta:plasmid.fasta\n3\tERR4035126.7543\tplasmid.fasta\n4\tERR4035126.16\t\n";
+        let mut expected_alns = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+        expected_alns.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+        let (expected_header, expected_flags) = build_header_and_flags(&vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()], &vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()], &"ERR4035126".to_string()).unwrap();
+
+        let data: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 102, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 39, 15, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 229, 140, 161, 136, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 121, 207, 254, 168, 252, 241, 140, 175, 111, 79, 164, 164, 228, 140, 136, 25, 140, 102, 251, 13, 119, 102, 51, 48, 48, 0, 0, 158, 168, 250, 0, 82, 0, 0, 0];
+
+        let format = Format::Metagraph;
+
+        let mut tmp = Cursor::new(data.clone());
+        let test = decode_from_read(&mut tmp).unwrap();
+
+        let mut got_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        decode_to_write(format, &data, &mut got_bytes).unwrap();
+
+        let got = got_bytes.get_ref();
+
+        assert_eq!(*got, *expected);
+    }
