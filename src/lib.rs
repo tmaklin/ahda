@@ -436,18 +436,8 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_name ="ERR4035126".to_string();
 
-        let (header, flags) = build_header_and_flags(&targets, &queries, &query_name).unwrap();
-        let format = Format::Metagraph;
-
-        let mut tmp = data.into_iter();
-        let mut writer = crate::printer::Printer::new(&mut tmp, header, flags, format);
-        for record in writer.by_ref() {
-            bytes.write(&record).unwrap();
-        }
-        bytes.rewind().unwrap();
-
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        encode_from_read_to_write(&targets, &queries, &query_name, &mut bytes, &mut bytes_got).unwrap();
+        encode_from_read_to_write(&targets, &queries, &query_name, &mut data, &mut bytes_got).unwrap();
         let got = bytes_got.get_ref();
 
         assert_eq!(*got, expected);
