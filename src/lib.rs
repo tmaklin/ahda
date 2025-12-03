@@ -179,7 +179,7 @@ pub fn encode_to_write<W: Write>(
 }
 
 /// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to memory.
-pub fn encode_from_read<R: Read, W: Write>(
+pub fn encode_from_read<R: Read>(
     targets: &[String],
     queries: &[String],
     sample_name: &str,
