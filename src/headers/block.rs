@@ -43,7 +43,7 @@ pub struct BlockHeader {
 ///
 /// Contents may differ between implementations.
 ///
-#[derive(Encode, Clone, Decode)]
+#[derive(Encode, Clone, Decode, Debug)]
 pub struct BlockFlags {
     /// Names of query records
     pub queries: Vec<String>,
