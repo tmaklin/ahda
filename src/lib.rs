@@ -258,7 +258,7 @@ pub fn decode_from_read<R: Read>(
 }
 
 /// Decode from memory and format to [Write](std::io::Write).
-pub fn decode_to_write<R: Read, W: Write>(
+pub fn decode_to_write<W: Write>(
     out_format: Format,
     records: &[u8],
     conn_out: &mut W,
