@@ -25,7 +25,7 @@ type E = Box<dyn std::error::Error>;
 //
 // Must always conform to this format.
 //
-#[derive(Clone, Encode, Decode, Default)]
+#[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct FileHeader {
     /// Number of alignment targets.
     pub n_targets: u32,
@@ -46,7 +46,7 @@ pub struct FileHeader {
 ///
 /// Contents may differ between implementations.
 ///
-#[derive(Clone, Encode, Decode)]
+#[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct FileFlags {
     /// Query file basename
     pub query_name: String,
@@ -63,6 +63,15 @@ pub fn build_header_and_flags(
     let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
     let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, ph2: 0, ph3: 0, ph4: 0 };
     Ok((header, flags))
+}
+
+pub fn encode_header_and_flags(
+    header: &FileHeader,
+    flags: &FileFlags,
+) -> Result<Vec<u8>, E> {
+    let mut bytes: Vec<u8> = encode_file_header(header.n_targets, header.n_queries, header.flags_len, header.format, header.ph2, header.ph3, header.ph4)?;
+    bytes.append(&mut encode_file_flags(flags)?);
+    Ok(bytes)
 }
 
 pub fn encode_file_header(
