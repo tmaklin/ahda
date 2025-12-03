@@ -21,7 +21,6 @@ pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     // Inputs
     bits_iter: &'a mut I,
     index: Option<u32>,
-    prev_index: Option<u32>,
 
     file_header: FileHeader,
     file_flags: FileFlags,
@@ -41,7 +40,7 @@ impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u32> {
 
         BitmapDecoder {
             bits_iter, file_header, file_flags, _block_header: block_header, block_flags,
-            index: Some(0), prev_index: None,
+            index: None
         }
     }
 }
@@ -54,36 +53,40 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
     ) -> Option<Self::Item> {
         let mut ones: Vec<u32> = Vec::with_capacity(self.file_header.n_targets as usize);
         let mut names: Vec<String> = Vec::with_capacity(self.file_header.n_targets as usize);
-        let mut query_idx = None;
+        let mut query_id: Option<u32> = None;
 
-        for idx in self.bits_iter.by_ref() {
-            if self.prev_index.is_some() {
-                let target_idx = self.prev_index.unwrap() % self.file_header.n_targets;
-                ones.push(target_idx);
-                names.push(self.file_flags.target_names[target_idx as usize].clone());
-                self.prev_index = None;
-            }
-            query_idx = Some(idx / self.file_header.n_targets);
-            if query_idx.unwrap() == *self.index.as_ref().unwrap() / self.file_header.n_targets {
-                let target_idx = idx % self.file_header.n_targets;
-                ones.push(target_idx);
-                names.push(self.file_flags.target_names[target_idx as usize].clone());
-                self.index = Some(idx);
-            } else {
-                query_idx = Some(self.index.unwrap() / self.file_header.n_targets);
-                self.index = Some(idx);
-                self.prev_index = Some(idx);
-                break;
-            }
+        if self.index.is_some() {
+            let query_idx = self.index.as_ref().unwrap() / self.file_header.n_targets;
+            let target_idx = self.index.as_ref().unwrap() % self.file_header.n_targets;
+            ones.push(target_idx);
+            names.push(self.file_flags.target_names[target_idx as usize].clone());
+            query_id = Some(query_idx);
+            self.index = None;
         }
 
-        if let Some(query_idx) = query_idx {
-            Some(PseudoAln {
-                ones: Some(ones),
-                ones_names: Some(names),
-                query_id: Some(query_idx),
-                query_name: Some(self.block_flags.queries[query_idx as usize].clone()),
-            })
+        for idx in self.bits_iter.by_ref() {
+            self.index = Some(idx);
+            let query_idx = self.index.as_ref().unwrap() / self.file_header.n_targets;
+            if query_id.is_some() && query_idx != *query_id.as_ref().unwrap() {
+                break;
+            }
+            let target_idx = self.index.as_ref().unwrap() % self.file_header.n_targets;
+            ones.push(target_idx);
+            names.push(self.file_flags.target_names[target_idx as usize].clone());
+            query_id = Some(query_idx);
+        }
+
+        if query_id.is_some() {
+            let ret = Some(PseudoAln{
+                ones: Some(ones.clone()),
+                ones_names: Some(names.clone()),
+                query_id,
+                query_name: Some(self.block_flags.queries[*query_id.as_ref().unwrap() as usize].clone()),
+            });
+            ones.clear();
+            names.clear();
+            query_id = None;
+            ret
         } else {
             None
         }
