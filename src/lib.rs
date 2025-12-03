@@ -414,6 +414,53 @@ mod tests {
     }
 
     #[test]
+    fn encode_from_read_to_write() {
+        use super::encode_from_read_to_write;
+
+        use super::headers::file::build_header_and_flags;
+        use super::headers::file::encode_header_and_flags;
+
+        use crate::PseudoAln;
+        use crate::Format;
+
+        use std::io::Cursor;
+        use std::io::Seek;
+        use std::io::Write;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+
+        let mut bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        let expected: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 103, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 231, 14, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 227, 140, 161, 144, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 119, 206, 152, 61, 75, 226, 179, 210, 107, 211, 228, 212, 132, 148, 164, 52, 70, 134, 146, 247, 91, 214, 102, 51, 48, 48, 0, 0, 206, 10, 209, 169, 83, 0, 0, 0];
+
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+        let query_name ="ERR4035126".to_string();
+
+        let (header, flags) = build_header_and_flags(&targets, &queries, &query_name).unwrap();
+        let format = Format::Metagraph;
+
+        let mut tmp = data.into_iter();
+        let mut writer = crate::printer::Printer::new(&mut tmp, header, flags, format);
+        for record in writer.by_ref() {
+            bytes.write(&record).unwrap();
+        }
+        bytes.rewind().unwrap();
+
+        let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        encode_from_read_to_write(&targets, &queries, &query_name, &mut bytes, &mut bytes_got).unwrap();
+        let got = bytes_got.get_ref();
+
+        assert_eq!(*got, expected);
+    }
+
+    #[test]
     fn decode_from_read() {
         use super::decode_from_read;
 
