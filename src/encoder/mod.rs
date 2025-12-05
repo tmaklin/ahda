@@ -48,7 +48,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
         Encoder{
             records,
-            header: header, flags: flags,
+            header, flags,
             block_size, blocks_written: 0_usize,
         }
     }
