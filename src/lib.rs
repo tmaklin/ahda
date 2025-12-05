@@ -241,20 +241,18 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 pub fn decode_from_read<R: Read>(
     conn_in: &mut R,
 ) -> Result<(FileHeader, FileFlags, Vec<PseudoAln>), E> {
+    let decoder = decoder::Decoder::new(conn_in);
 
-    let file_header = read_file_header(conn_in).unwrap();
-    let file_flags = read_file_flags(&file_header, conn_in).unwrap();
+    let header = decoder.file_header().clone();
+    let flags = decoder.file_flags().clone();
 
-    let mut res: Vec<PseudoAln> = Vec::with_capacity(file_header.n_queries as usize);
-    while let Ok(block_header) = read_block_header(conn_in) {
-        let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        conn_in.read_exact(&mut bytes)?;
-        let (bitmap, block_flags) = unpack::unpack(&bytes, &block_header)?;
-        let mut alns = unpack::decode_from_roaring(&bitmap, &file_flags, &block_header, &block_flags, file_header.n_targets)?;
-        res.append(&mut alns);
+    let mut alns: Vec<PseudoAln> = Vec::with_capacity(header.n_queries as usize);
+    for block in decoder {
+        let block_iter = block.into_iter();
+        alns.extend(block_iter);
     }
 
-    Ok((file_header, file_flags, res))
+    Ok((header, flags, alns))
 }
 
 /// Decode from memory and format to [Write](std::io::Write).
