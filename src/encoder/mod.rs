@@ -68,6 +68,16 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 
         Some(out)
     }
+
+    pub fn set_block_size(
+        &mut self,
+        block_size: usize
+    ) {
+        let new_block_size = block_size.min(65536_usize);
+        assert!(new_block_size > 1);
+        self.block_size = new_block_size;
+    }
+
 }
 
 impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
