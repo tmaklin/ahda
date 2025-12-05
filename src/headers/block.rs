@@ -26,7 +26,7 @@ type E = Box<dyn std::error::Error>;
 // further by using different compression schemes for inputs with different
 // distributions.
 //
-#[derive(Encode, Clone, Debug, Decode)]
+#[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct BlockHeader {
     pub num_records: u32,
     pub deflated_len: u32,
