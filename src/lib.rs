@@ -336,6 +336,33 @@ pub fn decode_from_read_into_roaring<R: Read>(
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn convert_from_read_to_write() {
+        use super::convert_from_read_to_write;
+
+        use crate::Format;
+
+        use std::io::Cursor;
+
+        let data_bytes: Vec<u8> = vec![49, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 10, 48, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 10, 50, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 58, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 10, 52, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54, 9, 10, 51, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51, 9, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 10];
+        let mut data = Cursor::new(data_bytes);
+
+        let expected = b"query_name\tchr.fasta\tplasmid.fasta\nERR4035126.2\t1\t0\nERR4035126.1\t1\t0\nERR4035126.651903\t1\t1\nERR4035126.16\t0\t0\nERR4035126.7543\t0\t1\n".to_vec();
+
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+        let query_name ="ERR4035126".to_string();
+
+        let out_format = Format::Bifrost;
+
+        let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        convert_from_read_to_write(&targets, &queries, &query_name, out_format, &mut data, &mut bytes_got).unwrap();
+        let got = bytes_got.get_ref();
+
+        assert_eq!(*got, expected);
+    }
+
     #[test]
     fn encode_to_write() {
         use super::encode_to_write;
