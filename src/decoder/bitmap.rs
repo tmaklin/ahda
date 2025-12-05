@@ -85,7 +85,6 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
             });
             ones.clear();
             names.clear();
-            query_id = None;
             ret
         } else {
             None
