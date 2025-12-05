@@ -26,8 +26,6 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     flags: Option<FileFlags>,
 
     // Internals
-    block: Option<Vec<u8>>,
-    block_index: usize,
     block_size: usize,
     blocks_written: usize,
 }
@@ -51,13 +49,31 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         Encoder{
             records,
             header: Some(header), flags: Some(flags),
-            block: Some(Vec::new()), block_index: 0_usize, block_size, blocks_written: 0_usize,
+            block_size, blocks_written: 0_usize,
         }
     }
 }
 
 impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
-    pub fn next_block(
+    pub fn encode_header_and_flags(
+        &mut self,
+    ) -> Option<Vec<u8>> {
+        // TODO Replace unwraps in `encode_header_and_flags`
+        let mut flags_bytes = encode_file_flags(self.flags.as_ref().unwrap()).unwrap();
+        let mut header_bytes = encode_file_header(self.header.as_ref().unwrap().n_targets, self.header.as_ref().unwrap().n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+
+        let mut out: Vec<u8> = Vec::new();
+        out.append(&mut header_bytes);
+        out.append(&mut flags_bytes);
+
+        Some(out)
+    }
+}
+
+impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
+    type Item = Vec<u8>;
+
+    fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
         let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.block_size);
@@ -80,45 +96,6 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         self.blocks_written += 1;
 
         Some(out)
-    }
-
-    pub fn encode_header_and_flags(
-        &mut self,
-    ) -> Option<Vec<u8>> {
-        // TODO Replace unwraps in `encode_header_and_flags`
-        let mut flags_bytes = encode_file_flags(self.flags.as_ref().unwrap()).unwrap();
-        let mut header_bytes = encode_file_header(self.header.as_ref().unwrap().n_targets, self.header.as_ref().unwrap().n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
-
-        let mut out: Vec<u8> = Vec::new();
-        out.append(&mut header_bytes);
-        out.append(&mut flags_bytes);
-
-        Some(out)
-    }
-}
-
-impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
-    type Item = u8;
-
-    fn next(
-        &mut self,
-    ) -> Option<u8> {
-        if self.blocks_written == 0 {
-            self.block = self.encode_header_and_flags();
-            self.blocks_written += 1;
-        } else if self.block.is_none() {
-            self.block = self.next_block();
-            self.block_index = 0;
-        }
-
-        let ret = self.block.as_ref()?[self.block_index];
-
-        self.block_index += 1;
-        if self.block_index == self.block.as_ref().unwrap().len() {
-            self.block = None
-        }
-
-        Some(ret)
     }
 
 }
