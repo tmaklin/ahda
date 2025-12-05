@@ -22,8 +22,8 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     records: &'a mut I,
 
     // These are given as construtor parameters
-    header: Option<FileHeader>,
-    flags: Option<FileFlags>,
+    header: FileHeader,
+    flags: FileFlags,
 
     // Internals
     block_size: usize,
@@ -48,7 +48,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
         Encoder{
             records,
-            header: Some(header), flags: Some(flags),
+            header: header, flags: flags,
             block_size, blocks_written: 0_usize,
         }
     }
@@ -59,8 +59,8 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         &mut self,
     ) -> Option<Vec<u8>> {
         // TODO Replace unwraps in `encode_header_and_flags`
-        let mut flags_bytes = encode_file_flags(self.flags.as_ref().unwrap()).unwrap();
-        let mut header_bytes = encode_file_header(self.header.as_ref().unwrap().n_targets, self.header.as_ref().unwrap().n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+        let mut flags_bytes = encode_file_flags(&self.flags).unwrap();
+        let mut header_bytes = encode_file_header(self.header.n_targets, self.header.n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
 
         let mut out: Vec<u8> = Vec::new();
         out.append(&mut header_bytes);
@@ -91,7 +91,7 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
 
         block_records.sort_by_key(|x| x.query_id.unwrap());
 
-        let out = crate::pack::pack(self.header.as_ref().unwrap(), &block_records).unwrap();
+        let out = crate::pack::pack(&self.header, &block_records).unwrap();
 
         self.blocks_written += 1;
 
