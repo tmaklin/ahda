@@ -82,7 +82,6 @@ pub fn read_block_flags<R: Read>(
     header: &BlockHeader,
     conn: &mut R,
 ) -> Result<BlockFlags, E> {
-    todo!("Fix read_block_flags");
     let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
     conn.read_exact(&mut flags_bytes).unwrap();
     let res = decode_block_flags(&flags_bytes).unwrap();
