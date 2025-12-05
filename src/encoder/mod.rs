@@ -109,3 +109,63 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
     }
 
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn encode_header_and_flags() {
+        use crate::PseudoAln;
+        use super::Encoder;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+
+        let expected = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
+
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+        let query_name ="ERR4035126".to_string();
+
+        let mut tmp = data.into_iter();
+        let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
+
+        let got = encoder.encode_header_and_flags().unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn next() {
+        use crate::PseudoAln;
+        use super::Encoder;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+
+        let expected = vec![2, 0, 0, 0, 76, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 53, 206, 170, 188, 144, 18, 73, 73, 74, 200, 201, 202, 72, 89, 150, 158, 150, 149, 145, 153, 112, 166, 91, 37, 41, 227, 216, 145, 35, 76, 12, 159, 242, 186, 250, 45, 24, 24, 24, 0, 233, 70, 193, 6, 59, 0, 0, 0];
+
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+        let query_name ="ERR4035126".to_string();
+
+        let mut tmp = data.into_iter();
+        let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
+        encoder.set_block_size(2);
+
+        let _ = encoder.next();
+        let got = encoder.next().unwrap();
+
+        assert_eq!(got, expected);
+    }
+}
