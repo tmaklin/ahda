@@ -97,3 +97,90 @@ impl<R: Read> Iterator for Decoder<'_, R> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn file_header_and_file_flags() {
+        use super::Decoder;
+        use crate::headers::file::FileFlags;
+        use crate::headers::file::FileHeader;
+
+        use std::io::Cursor;
+
+        let expected_header = FileHeader { n_targets: 2, n_queries: 5, flags_len: 36, format: 1, ph2: 0, ph3: 0, ph4: 0 };
+        let expected_flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()] };
+
+        let data_bytes: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 102, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 39, 15, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 229, 140, 161, 136, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 121, 207, 254, 168, 252, 241, 140, 175, 111, 79, 164, 164, 228, 140, 136, 25, 140, 102, 251, 13, 119, 102, 51, 48, 48, 0, 0, 158, 168, 250, 0, 82, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let mut decoder = Decoder::new(&mut data);
+
+        let got_header = decoder.file_header().clone();
+        let got_flags = decoder.file_flags().clone();
+
+        assert_eq!(got_header, expected_header);
+        assert_eq!(got_flags, expected_flags);
+    }
+
+    #[test]
+    fn next() {
+        use super::Decoder;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut expected = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+        expected.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        let data_bytes: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 102, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 39, 15, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 229, 140, 161, 136, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 121, 207, 254, 168, 252, 241, 140, 175, 111, 79, 164, 164, 228, 140, 136, 25, 140, 102, 251, 13, 119, 102, 51, 48, 48, 0, 0, 158, 168, 250, 0, 82, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let mut decoder = Decoder::new(&mut data);
+
+        let mut got = decoder.next().unwrap();
+        got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn decode_three_blocks() {
+        use super::Decoder;
+        use crate::headers::file::FileFlags;
+        use crate::headers::file::FileHeader;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut expected = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+        expected.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        let data_bytes: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 76, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 53, 206, 170, 188, 144, 18, 73, 73, 74, 200, 201, 202, 72, 89, 150, 158, 150, 149, 145, 153, 112, 166, 91, 37, 41, 227, 216, 145, 35, 76, 12, 159, 242, 186, 250, 45, 24, 24, 24, 0, 233, 70, 193, 6, 59, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 4, 102, 79, 188, 111, 170, 113, 226, 200, 129, 27, 87, 46, 156, 240, 57, 127, 231, 202, 145, 25, 19, 37, 25, 122, 190, 105, 11, 170, 50, 48, 48, 0, 0, 42, 148, 23, 51, 50, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let mut decoder = Decoder::new(&mut data);
+
+        let mut got: Vec<PseudoAln> = Vec::new();
+        for block in decoder.by_ref() {
+            got.append(&mut block.clone());
+        }
+        got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        assert_eq!(got, expected);
+        assert_eq!(0, 1);
+    }
+}
