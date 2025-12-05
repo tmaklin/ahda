@@ -516,4 +516,38 @@ mod tests {
 
         assert_eq!(*got, *expected);
     }
+
+    #[test]
+    fn decode_from_read_to_roaring() {
+        use super::decode_from_read_to_roaring;
+        use super::headers::file::build_header_and_flags;
+        use super::headers::block::BlockFlags;
+
+        use std::io::Cursor;
+
+        use roaring::RoaringBitmap;
+
+        let mut expected = RoaringBitmap::new();
+        expected.insert(0);
+        expected.insert(2);
+        expected.insert(4);
+        expected.insert(5);
+        expected.insert(9);
+
+        let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+        let query_ids = vec![0, 1, 2, 3, 4];
+        let expected_block_flags = BlockFlags { queries: queries.clone(), query_ids };
+        let (expected_header, expected_flags) = build_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
+
+        let data: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 102, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 39, 15, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 229, 140, 161, 136, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 121, 207, 254, 168, 252, 241, 140, 175, 111, 79, 164, 164, 228, 140, 136, 25, 140, 102, 251, 13, 119, 102, 51, 48, 48, 0, 0, 158, 168, 250, 0, 82, 0, 0, 0];
+        let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let (got, file_header, file_flags, block_flags) = decode_from_read_to_roaring(&mut bytes).unwrap();
+
+        assert_eq!(expected_header, file_header);
+        assert_eq!(expected_flags, file_flags);
+        assert_eq!(expected_block_flags, block_flags);
+        assert_eq!(got, expected);
+    }
 }
