@@ -76,12 +76,12 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
             query_id = Some(query_idx);
         }
 
-        if query_id.is_some() {
+        if let Some(query_idx) = query_id {
             let ret = Some(PseudoAln{
                 ones: Some(ones.clone()),
                 ones_names: Some(names.clone()),
                 query_id,
-                query_name: Some(self.block_flags.queries[*query_id.as_ref().unwrap() as usize].clone()),
+                query_name: Some(self.block_flags.queries[query_idx as usize].clone()),
             });
             ones.clear();
             names.clear();

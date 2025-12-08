@@ -79,7 +79,7 @@ pub fn encode_file_header(
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::with_capacity(32);
     let nbytes = encode_into_std_write(
-        &header,
+        header,
         &mut bytes,
         bincode::config::standard().with_fixed_int_encoding(),
     )?;
