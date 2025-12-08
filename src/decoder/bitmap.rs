@@ -100,8 +100,6 @@ mod tests {
         use super::BitmapDecoder;
         use crate::PseudoAln;
         use crate::headers::file::build_header_and_flags;
-        use crate::headers::file::FileFlags;
-        use crate::headers::file::FileHeader;
         use crate::headers::block::BlockFlags;
         use crate::headers::block::BlockHeader;
 

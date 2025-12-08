@@ -394,13 +394,9 @@ mod tests {
     fn encode_to_write() {
         use super::encode_to_write;
 
-        use super::headers::file::build_header_and_flags;
-        use super::headers::file::encode_header_and_flags;
-
         use crate::PseudoAln;
 
         use std::io::Cursor;
-        use std::io::Write;
 
         let data = vec![
             PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
