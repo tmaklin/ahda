@@ -69,24 +69,17 @@ pub fn encode_header_and_flags(
     header: &FileHeader,
     flags: &FileFlags,
 ) -> Result<Vec<u8>, E> {
-    let mut bytes: Vec<u8> = encode_file_header(header.n_targets, header.n_queries, header.flags_len, header.format, header.ph2, header.ph3, header.ph4)?;
+    let mut bytes: Vec<u8> = encode_file_header(header)?;
     bytes.append(&mut encode_file_flags(flags)?);
     Ok(bytes)
 }
 
 pub fn encode_file_header(
-    n_targets: u32,
-    n_queries: u32,
-    flags_len: u32,
-    format: u16,
-    ph2: u16,
-    ph3: u64,
-    ph4: u64
+    header: &FileHeader,
 ) -> Result<Vec<u8>, E> {
-    let mut bytes: Vec<u8> = Vec::new();
-    let header_placeholder = FileHeader{ n_targets, n_queries, flags_len, format, ph2, ph3, ph4 };
+    let mut bytes: Vec<u8> = Vec::with_capacity(32);
     let nbytes = encode_into_std_write(
-        &header_placeholder,
+        &header,
         &mut bytes,
         bincode::config::standard().with_fixed_int_encoding(),
     )?;
