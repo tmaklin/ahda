@@ -42,6 +42,7 @@ use headers::file::read_file_header;
 use headers::file::read_file_flags;
 use headers::file::encode_file_flags;
 use headers::file::encode_file_header;
+use decoder::unpack_roaring::unpack_block_roaring;
 
 use std::io::Read;
 use std::io::Write;
@@ -73,7 +74,6 @@ pub enum Format {
     SAM,
     Themisto,
 }
-
 
 impl std::str::FromStr for Format {
     type Err = String; // Define an error type for parsing failures
@@ -299,7 +299,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
         let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
         conn_in.read_exact(&mut block_bytes)?;
 
-        let (bitmap, mut block_flags) = unpack::unpack(&block_bytes, &block_header)?;
+        let (bitmap, mut block_flags) = unpack_block_roaring(&block_bytes, &block_header)?;
 
         queries.append(&mut block_flags.queries);
         query_ids.append(&mut block_flags.query_ids);
@@ -330,7 +330,7 @@ pub fn decode_from_read_into_roaring<R: Read>(
         let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
         conn_in.read_exact(&mut block_bytes)?;
 
-        let (bitmap, _block_flags) = unpack::unpack(&block_bytes, &block_header)?;
+        let (bitmap, _block_flags) = unpack_block_roaring(&block_bytes, &block_header)?;
 
         *bitmap_out |= bitmap;
     }

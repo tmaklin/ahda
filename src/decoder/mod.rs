@@ -11,6 +11,10 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+pub mod bitmap;
+pub mod unpack_roaring;
+
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
@@ -19,10 +23,9 @@ use crate::headers::file::read_file_flags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
+use unpack_roaring::unpack_block_roaring;
 
 use std::io::Read;
-
-pub mod bitmap;
 
 pub struct Decoder<'a, R: Read> {
     // Inputs
@@ -79,7 +82,7 @@ impl<R: Read> Iterator for Decoder<'_, R> {
             Ok(block_header) => {
                 let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
                 self.conn.read_exact(&mut bytes).unwrap();
-                let (bitmap, block_flags) = crate::unpack::unpack(&bytes, &block_header).unwrap();
+                let (bitmap, block_flags) = unpack_block_roaring(&bytes, &block_header).unwrap();
 
                 let mut tmp = bitmap.iter();
                 let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());
