@@ -53,7 +53,6 @@ pub mod decoder;
 pub mod encoder;
 pub mod parser;
 pub mod printer;
-pub mod unpack;
 
 type E = Box<dyn std::error::Error>;
 

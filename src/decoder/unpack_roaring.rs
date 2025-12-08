@@ -91,7 +91,7 @@ pub fn decode_from_roaring(
     Ok(alns)
 }
 
-pub fn unpack(
+pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,
 ) -> Result<(RoaringBitmap, BlockFlags), E> {
