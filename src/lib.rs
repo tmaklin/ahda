@@ -166,15 +166,22 @@ pub fn convert_from_read_to_write<R: Read, W: Write>(
 
 /// Encode from memory to something that implements [Write](std::io::Write).
 pub fn encode_to_write<W: Write>(
-    file_header: &FileHeader,
+    targets: &[String],
+    queries: &[String],
+    sample_name: &str,
     records: &[PseudoAln],
-    conn: &mut W,
+    conn_out: &mut W,
 ) -> Result<(), E> {
     assert!(!records.is_empty());
 
-    let packed = pack::pack(file_header, records)?;
-    conn.write_all(&packed)?;
-    conn.flush()?;
+    let mut records_iter = records.iter().cloned();
+    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, queries, sample_name);
+
+    let bytes = encoder.encode_header_and_flags().unwrap();
+    conn_out.write_all(&bytes)?;
+    for block in encoder.by_ref() {
+        conn_out.write_all(&block)?;
+    }
 
     Ok(())
 }
