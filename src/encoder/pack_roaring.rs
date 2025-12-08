@@ -79,7 +79,7 @@ pub fn serialize_roaring(
     Ok(bytes)
 }
 
-pub fn pack(
+pub fn pack_block_roaring(
     file_header: &FileHeader,
     records: &[PseudoAln],
 ) -> Result<Vec<u8>, E> {
