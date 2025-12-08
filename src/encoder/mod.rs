@@ -60,7 +60,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     ) -> Option<Vec<u8>> {
         // TODO Replace unwraps in `encode_header_and_flags`
         let mut flags_bytes = encode_file_flags(&self.flags).unwrap();
-        let mut header_bytes = encode_file_header(self.header.n_targets, self.header.n_queries, flags_bytes.len() as u32, 1, 0,0,0).unwrap();
+        let mut header_bytes = encode_file_header(&self.header).unwrap();
 
         let mut out: Vec<u8> = Vec::new();
         out.append(&mut header_bytes);
