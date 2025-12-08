@@ -112,6 +112,14 @@ pub fn read_file_flags<R: Read>(
     Ok(res)
 }
 
+pub fn read_file_header_and_flags<R: Read>(
+    conn: &mut R,
+) -> Result<(FileHeader, FileFlags), E> {
+    let header = read_file_header(conn)?;
+    let flags = read_file_flags(&header, conn)?;
+    Ok((header, flags))
+}
+
 pub fn encode_file_flags(
     flags: &FileFlags,
 ) -> Result<Vec<u8>, E> {
