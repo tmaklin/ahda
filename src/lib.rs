@@ -197,7 +197,7 @@ pub fn encode_from_read<R: Read>(
     let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
     let mut bytes = encoder.encode_header_and_flags().unwrap();
-    while let Some(mut block) = encoder.next() {
+    for mut block in encoder.by_ref() {
         bytes.append(&mut block);
     }
     Ok(bytes)
@@ -216,8 +216,8 @@ pub fn encode_from_read_to_write<R: Read, W: Write>(
 
     let bytes = encoder.encode_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
-    while let Some(bytes) = encoder.next() {
-        conn_out.write_all(&bytes)?;
+    for block in encoder.by_ref() {
+        conn_out.write_all(&block)?;
     }
     conn_out.flush()?;
     Ok(())
