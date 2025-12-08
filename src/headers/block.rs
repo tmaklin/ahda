@@ -88,6 +88,14 @@ pub fn read_block_flags<R: Read>(
     Ok(res)
 }
 
+pub fn read_block_header_and_flags<R: Read>(
+    conn: &mut R,
+) -> Result<(BlockHeader, BlockFlags), E> {
+    let header = read_block_header(conn)?;
+    let flags = read_block_flags(&header, conn)?;
+    Ok((header, flags))
+}
+
 pub fn encode_block_flags(
     flags: &BlockFlags,
 ) -> Result<Vec<u8>, E> {
@@ -191,5 +199,25 @@ mod tests {
 
         let got = read_block_flags(&header, &mut data).unwrap();
         assert_eq!(got, expected);
+    }
+
+
+    #[test]
+    fn read_block_header_and_flags() {
+        use super::read_block_header_and_flags;
+        use super::BlockFlags;
+        use super::BlockHeader;
+
+        use std::io::Cursor;
+
+        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 97, 1, 98, 1, 99, 3, 1, 0, 2];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let expected_header = BlockHeader{ num_records: 31, deflated_len: 257, block_len: 65511, flags_len: 11 as u32, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let expected_flags = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
+
+        let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();
+        assert_eq!(got_header, expected_header);
+        assert_eq!(got_flags, expected_flags);
     }
 }
