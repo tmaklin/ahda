@@ -144,3 +144,183 @@ pub fn decode_file_flags(
 
     Ok(flags)
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn build_header_and_flags() {
+        use super::build_header_and_flags;
+        use super::encode_file_flags;
+        use super::FileHeader;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
+        let sample = "sample";
+
+        let expected_flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let nbytes = encode_file_flags(&expected_flags).unwrap().len();
+        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+
+        let (got_header, got_flags) = build_header_and_flags(&targets, &queries, &sample).unwrap();
+
+        assert_eq!(got_header, expected_header);
+        assert_eq!(got_flags, expected_flags);
+    }
+
+    #[test]
+    fn encode_header_and_flags() {
+        use super::encode_header_and_flags;
+        use super::encode_file_flags;
+        use super::FileHeader;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
+        let sample = "sample";
+
+        let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let nbytes = encode_file_flags(&flags).unwrap().len();
+        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+
+        let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+
+        let got = encode_header_and_flags(&header, &flags).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn encode_file_header() {
+        use super::encode_file_header;
+        use super::encode_file_flags;
+        use super::FileHeader;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
+        let sample = "sample";
+
+        let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let nbytes = encode_file_flags(&flags).unwrap().len();
+        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+
+        let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        let got = encode_file_header(&header).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn encode_file_flags() {
+        use super::encode_file_flags;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let sample = "sample";
+
+        let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+
+        let expected: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+
+        let got = encode_file_flags(&flags).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn decode_file_header() {
+        use super::decode_file_header;
+        use super::FileHeader;
+
+        let data: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+
+        let got = decode_file_header(&data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn decode_file_flags() {
+        use super::decode_file_flags;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let sample = "sample";
+
+        let data: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+
+        let expected = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+
+        let got = decode_file_flags(&data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_file_header() {
+        use super::read_file_header;
+        use super::FileHeader;
+
+        use std::io::Cursor;
+
+        let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+
+        let got = read_file_header(&mut data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_file_flags() {
+        use super::read_file_flags;
+        use super::FileHeader;
+        use super::FileFlags;
+
+        use std::io::Cursor;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let sample = "sample";
+
+        let header = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+        let data_bytes: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99, 3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let expected = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+
+        let got = read_file_flags(&header, &mut data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_file_header_and_flags() {
+        use super::read_file_header_and_flags;
+        use super::FileHeader;
+        use super::FileFlags;
+
+        use std::io::Cursor;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
+        let sample = "sample";
+
+        let expected_flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: 14_u32, format: 1_u16, ph2: 0_u16, ph3: 0_u64, ph4: 0_u64 };
+
+        let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let (got_header, got_flags) = read_file_header_and_flags(&mut data).unwrap();
+
+        assert_eq!(got_header, expected_header);
+        assert_eq!(got_flags, expected_flags);
+    }
+}
