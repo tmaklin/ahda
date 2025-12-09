@@ -37,11 +37,10 @@ use headers::file::FileHeader;
 use headers::file::FileFlags;
 use headers::block::BlockFlags;
 use headers::block::read_block_header;
-use headers::file::build_header_and_flags;
 use headers::file::read_file_header;
 use headers::file::read_file_flags;
-use headers::file::encode_file_flags;
 use headers::file::encode_file_header;
+use headers::file::encode_file_flags;
 use decoder::unpack_roaring::unpack_block_roaring;
 
 use std::io::Read;
@@ -112,8 +111,6 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     let mut n_queries = 0_u32;
     let n_targets = headers_flags[0].0.n_targets;
     let target_names = headers_flags[0].1.target_names.clone();
-
-    // TODO Think if this makes sense or if it would be better to rename the query
     let query_name = headers_flags[0].1.query_name.clone();
 
     headers_flags.iter().for_each(|(header, flags)| {
@@ -122,17 +119,12 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
         assert_eq!(target_names, flags.target_names);
     });
 
-    let (new_header, new_flags) = build_header_and_flags(&target_names, &vec!["".to_string(); n_queries as usize], &query_name)?;
+    let new_flags = FileFlags { query_name, target_names };
     let new_flags_bytes = encode_file_flags(&new_flags)?;
+    let new_header = FileHeader { n_targets, n_queries, flags_len: new_flags_bytes.len() as u32, format: 0, ph2: 0, ph3: 0, ph4: 0 };
     let new_header_bytes = encode_file_header(&new_header)?;
-
     conn_out.write_all(&new_header_bytes)?;
     conn_out.write_all(&new_flags_bytes)?;
-
-    // TODO Need to update query ids in BlockFlags
-    //
-    // Do we want to consider duplicated queries with the same ID as the original?
-    // yes?
 
     conns.iter_mut().for_each(|conn_in| {
         std::io::copy(conn_in, conn_out).unwrap();
