@@ -109,6 +109,12 @@ impl std::str::FromStr for MergeOp {
 }
 
 /// A decompressed pseudoalignment record.
+///
+/// The fields are stored as Option to enable parsing them from incomplete
+/// plaintext formats. If an incomplete alignment is parsed without using the
+/// ahda API, this data must be filled in to create a valid .ahda record from
+/// the encode API calls or with the [Encoder] class.
+///
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PseudoAln{
     /// Indexes of positive alignment targets.
