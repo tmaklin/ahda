@@ -56,13 +56,14 @@ pub fn convert_to_roaring(
     let n_targets: usize = file_header.n_targets as usize;
     let mut bits: RoaringBitmap = RoaringBitmap::new();
 
-    for (idx, record) in records.iter().enumerate() {
+    for record in records.iter() {
         if record.ones.is_none() || record.query_id.is_none() {
             return Err(Box::new(EncodeError{}))
         }
         let ones = record.ones.as_ref().unwrap();
+        let idx = *record.query_id.as_ref().unwrap();
         ones.iter().for_each(|bit_idx| {
-            let index = idx as u32 *n_targets as u32 + *bit_idx;
+            let index = idx *n_targets as u32 + *bit_idx;
             bits.insert(index);
         });
     }
