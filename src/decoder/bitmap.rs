@@ -17,6 +17,8 @@ use crate::headers::file::FileFlags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
 
+use std::collections::HashMap;
+
 pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     // Inputs
     bits_iter: &'a mut I,
@@ -25,8 +27,7 @@ pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     file_header: FileHeader,
     file_flags: FileFlags,
 
-    _block_header: BlockHeader,
-    block_flags: BlockFlags,
+    id_to_name: HashMap<u32, String>,
 }
 
 impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u32> {
@@ -38,9 +39,14 @@ impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u32> {
         block_flags: BlockFlags,
     ) -> Self {
 
+        let mut id_to_name: HashMap<u32, String> = HashMap::with_capacity(block_header.num_records as usize);
+        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
+            id_to_name.insert(*idx, name.clone());
+        });
+
         BitmapDecoder {
-            bits_iter, file_header, file_flags, _block_header: block_header, block_flags,
-            index: None
+            bits_iter, file_header, file_flags,
+            index: None, id_to_name,
         }
     }
 }
@@ -82,7 +88,7 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
                 ones: Some(ones.clone()),
                 ones_names: Some(names.clone()),
                 query_id,
-                query_name: Some(self.block_flags.queries[query_idx as usize].clone()),
+                query_name: Some(self.id_to_name.get(&query_idx).unwrap().to_string()),
             });
             ones.clear();
             names.clear();
