@@ -29,7 +29,11 @@
 //! to retrieve the alignments.
 //!
 //! ## Usage
+//!
 //! ### Decoder
+//!
+//! Decoder is useful for reading all alignments or a block of alignments from a stream.
+//!
 //! ```rust
 //! use ahda::{encode_from_read_to_write, decode_from_read_to_write};
 //! use ahda::{Format, PseudoAln};
@@ -72,6 +76,16 @@
 //!                     ];
 //!
 //! assert_eq!(alns, expected);
+//! ```
+//!
+//! ### BitmapDecoder
+//!
+//! BitmapDecoder is useful for retrieving the alignments stored in some bitmap
+//! that can be iterated to get the indexes of aligned bits in a flattened
+//! representation of the pseudoalignment.
+//!
+//! ```rust
+//! todo!("Add BitmapDecoder example to `src/decoder/mod.rs` documentation.");
 //! ```
 //!
 
