@@ -56,13 +56,7 @@ pub mod printer;
 
 type E = Box<dyn std::error::Error>;
 
-/// Supported formats
-///
-/// Encoded as a 16-bit integer in [FileHeader] with the following mapping:
-///
-///   - 0: Unknown
-///   - 1: [Themisto](https://github.com/algbio/themisto)
-///
+/// Supported plain text formats.
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Format {
@@ -89,6 +83,7 @@ impl std::str::FromStr for Format {
     }
 }
 
+/// Supported set operations for [decode_from_read_into_roaring].
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum MergeOp {
@@ -113,15 +108,80 @@ impl std::str::FromStr for MergeOp {
     }
 }
 
-#[non_exhaustive]
+/// A decompressed pseudoalignment record.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PseudoAln{
+    /// Indexes of positive alignment targets.
     pub ones: Option<Vec<u32>>,
+    /// Names of positive alignment targets.
     pub ones_names: Option<Vec<String>>,
+    /// Index of the query sequence in the query file.
     pub query_id: Option<u32>,
+    /// Name of the query sequence in the query file.
     pub query_name: Option<String>,
 }
 
+/// Merge compressed data by concatenating all blocks.
+///
+/// This simply appends the blocks in input order using [std::io::copy], it does
+/// not check or modify the contents of the block header, block flags, or the
+/// block data.
+///
+/// Updates the `n_queries` and `flags_len` fields in [FileHeader] to match the
+/// new data.
+///
+/// Retains the `query_name` and `target_names` fields for [FileFlags] from the
+/// first input.
+///
+/// ## Errors and panics
+///
+/// Panics if the [file headers](FileHeader) have different
+/// number of targets or different target sequence names.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::{concatenate_from_read_to_write, decode_from_read, encode_to_write};
+/// use ahda::PseudoAln;
+/// use std::io::{Cursor, Seek};
+///
+/// // Set up mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let name = "ERR4035126".to_string();
+///
+/// let data_1 = vec![
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+/// ];
+/// let data_2 = vec![
+///     PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+///     PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+/// ];
+///
+/// let mut data_bytes_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// let mut data_bytes_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+///
+/// // Encode the mock inputs to data_bytes_1 and data_bytes_2.
+/// encode_to_write(&targets, &queries, &name, &data_1, &mut data_bytes_1).unwrap();
+/// encode_to_write(&targets, &queries, &name, &data_2, &mut data_bytes_2).unwrap();
+///
+/// data_bytes_1.rewind();
+/// data_bytes_2.rewind();
+///
+/// // Concatenate the data
+/// let mut inputs = vec![data_bytes_1, data_bytes_2];
+/// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+///
+/// concatenate_from_read_to_write(&mut inputs, &mut output).unwrap();
+/// output.rewind();
+///
+/// // output contains the alignments from data_1 and data_2
+/// let (file_header, _file_flags, data_both) = decode_from_read(&mut output).unwrap();
+///
+/// assert_eq!(data_both[0..2], data_1);
+/// assert_eq!(data_both[2..4], data_2);
+/// ```
 pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conns: &mut [R],
     conn_out: &mut W,
@@ -159,7 +219,57 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     Ok(())
 }
 
-/// Convert from [Read] to [Write]
+/// Convert plain text data from [Read] to plain text data to [Write].
+///
+/// Can read and write to any format supported by [Format].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::convert_from_read_to_write;
+/// use ahda::Format;
+/// use std::io::Cursor;
+///
+/// // Mock themisto formatted data
+///
+/// // Have this input
+/// //   3 0 2
+/// //   0 2
+/// //   4 0 1 2
+/// //   2
+///
+/// let mut input_bytes: Vec<u8> = Vec::new();
+/// input_bytes.append(&mut b"3 0 2\n".to_vec());
+/// input_bytes.append(&mut b"0 2\n".to_vec());
+/// input_bytes.append(&mut b"4 0 1 2\n".to_vec());
+/// input_bytes.append(&mut b"2\n".to_vec());
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes);
+///
+/// // Mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let queries = vec!["1".to_string(), "2".to_string(), "651903".to_string(), "7543".to_string(), "16".to_string()];
+/// let name = "sample".to_string();
+///
+/// // Convert to metagraph format
+/// let out_format = Format::Metagraph;
+/// let mut output: Vec<u8> = Vec::new();
+/// convert_from_read_to_write(&targets, &queries, &name, out_format, &mut input, &mut output).unwrap();
+///
+/// // Expect to get this output:
+/// //   3    7543    chr.fasta:virus.fasta
+/// //   0    1       virus.fasta
+/// //   4    16      chr.fasta:plasmid.fasta:virus.fasta
+/// //   2    651903
+/// //
+/// let mut expected: Vec<u8> = Vec::new();
+/// expected.append(&mut b"3\t7543\tchr.fasta:virus.fasta\n".to_vec());
+/// expected.append(&mut b"0\t1\tvirus.fasta\n".to_vec());
+/// expected.append(&mut b"4\t16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+/// expected.append(&mut b"2\t651903\t\n".to_vec());
+///
+/// assert_eq!(output, expected);
+/// ```
+///
 pub fn convert_from_read_to_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
@@ -179,6 +289,38 @@ pub fn convert_from_read_to_write<R: Read, W: Write>(
 }
 
 /// Encode from memory to something that implements [Write](std::io::Write).
+///
+/// ## Errors and panics
+///
+/// Panics if the input `records` is empty
+///
+/// ## Usage
+/// ```rust
+/// use ahda::{encode_to_write, decode_from_read};
+/// use ahda::PseudoAln;
+/// use std::io::{Cursor, Seek};
+///
+/// // Mock data
+/// let data = vec![
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+/// ];
+///
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let name = "ERR4035126".to_string();
+///
+/// // Encode to `output`
+/// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_to_write(&targets, &queries, &name, &data, &mut output).unwrap();
+///
+/// // `output` can be decoded to get the original data back
+/// output.rewind();
+/// let (header, flags, decoded_data) = decode_from_read(&mut output).unwrap();
+///
+/// assert_eq!(decoded_data, data);
+/// ```
+///
 pub fn encode_to_write<W: Write>(
     targets: &[String],
     queries: &[String],
@@ -201,6 +343,42 @@ pub fn encode_to_write<W: Write>(
 }
 
 /// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to memory.
+///
+/// ## Usage
+/// ```rust
+/// use ahda::{encode_from_read, decode_from_read_to_write};
+/// use ahda::Format;
+/// use std::io::{Cursor, Seek};
+///
+/// // Mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let name = "sample".to_string();
+///
+/// // Have this input data:
+/// //   3    r7543    chr.fasta:virus.fasta
+/// //   0    r1       virus.fasta
+/// //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+/// //   2    r651903
+/// //
+/// let mut input_bytes: Vec<u8> = Vec::new();
+/// input_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+/// input_bytes.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+/// input_bytes.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+/// input_bytes.append(&mut b"2\tr651903\t\n".to_vec());
+///
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
+///
+/// let output = encode_from_read(&targets, &queries, &name, &mut input).unwrap();
+///
+/// // `output` can be decoded to get the original data back
+/// let mut encoded: Cursor<Vec<u8>> = Cursor::new(output);
+/// let mut decoded: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// decode_from_read_to_write(Format::Metagraph, &mut encoded, &mut decoded).unwrap();
+///
+/// assert_eq!(decoded.get_ref(), &input_bytes);
+/// ```
+///
 pub fn encode_from_read<R: Read>(
     targets: &[String],
     queries: &[String],
@@ -218,6 +396,43 @@ pub fn encode_from_read<R: Read>(
 }
 
 /// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to [Write](std::io::Write).
+///
+/// ## Usage
+/// ```rust
+/// use ahda::{encode_from_read_to_write, decode_from_read_to_write};
+/// use ahda::Format;
+/// use std::io::{Cursor, Seek};
+///
+/// // Mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let name = "sample".to_string();
+///
+/// // Have this input data:
+/// //   3    r7543    chr.fasta:virus.fasta
+/// //   0    r1       virus.fasta
+/// //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+/// //   2    r651903
+/// //
+/// let mut input_bytes: Vec<u8> = Vec::new();
+/// input_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+/// input_bytes.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+/// input_bytes.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+/// input_bytes.append(&mut b"2\tr651903\t\n".to_vec());
+///
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
+///
+/// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_from_read_to_write(&targets, &queries, &name, &mut input, &mut output).unwrap();
+///
+/// // `output` can be decoded to get the original data back
+/// output.rewind();
+/// let mut decoded: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// decode_from_read_to_write(Format::Metagraph, &mut output, &mut decoded).unwrap();
+///
+/// assert_eq!(decoded.get_ref(), &input_bytes);
+/// ```
+///
 pub fn encode_from_read_to_write<R: Read, W: Write>(
     targets: &[String],
     queries: &[String],
@@ -238,6 +453,37 @@ pub fn encode_from_read_to_write<R: Read, W: Write>(
 }
 
 /// Decode all pseudoalignments from [Read](std::io::Read) and format to [Write](std::io::Write).
+///
+/// ## Usage
+/// ```rust
+/// use ahda::{decode_from_read_to_write, encode_from_read_to_write};
+/// use ahda::Format;
+/// use std::io::{Cursor, Seek};
+///
+/// // Set up mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let name = "sample".to_string();
+///
+/// let mut plaintext_bytes: Vec<u8> = Vec::new();
+/// plaintext_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+/// plaintext_bytes.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+/// plaintext_bytes.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+/// plaintext_bytes.append(&mut b"2\tr651903\t\n".to_vec());
+///
+/// // Encode mock data
+/// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext, &mut input).unwrap();
+/// input.rewind();
+///
+/// // Decode all alignments and compare against the original inputs
+/// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// decode_from_read_to_write(Format::Metagraph, &mut input, &mut output).unwrap();
+///
+/// assert_eq!(output.get_ref(), plaintext.get_ref());
+/// ```
+///
 pub fn decode_from_read_to_write<R: Read, W: Write>(
     out_format: Format,
     conn_in: &mut R,
@@ -260,6 +506,33 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 }
 
 /// Decode all pseudoalignments from [Read](std::io::Read) to memory.
+///
+/// ## Usage
+/// ```rust
+/// use ahda::{decode_from_read, encode_to_write};
+/// use ahda::PseudoAln;
+/// use std::io::{Cursor, Seek};
+///
+/// // Mock data
+/// let data = vec![
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+/// ];
+///
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let name = "ERR4035126".to_string();
+///
+/// // Encode mock data
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_to_write(&targets, &queries, &name, &data, &mut input).unwrap();
+/// input.rewind();
+///
+/// // Decode to recover the original data
+/// let (_file_header, _file_flags, alns) = decode_from_read(&mut input).unwrap();
+///
+/// assert_eq!(alns, data);
+///
 pub fn decode_from_read<R: Read>(
     conn_in: &mut R,
 ) -> Result<(FileHeader, FileFlags, Vec<PseudoAln>), E> {
@@ -278,6 +551,40 @@ pub fn decode_from_read<R: Read>(
 }
 
 /// Decode from memory and format to [Write](std::io::Write).
+///
+/// ## Usage
+/// ```rust
+/// use ahda::{decode_to_write, encode_to_write};
+/// use ahda::{Format, PseudoAln};
+/// use std::io::{Cursor, Seek};
+///
+/// // Mock data
+/// let data = vec![
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+/// ];
+///
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let name = "ERR4035126".to_string();
+///
+/// // Encode mock data
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_to_write(&targets, &queries, &name, &data, &mut input).unwrap();
+///
+/// // Decode to recover the original data
+/// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// decode_to_write(Format::Metagraph, input.get_ref(), &mut output).unwrap();
+///
+/// // Expect this output data:
+/// //   0    ERR4035126.1    chr.fasta
+/// //   1    ERR4035126.2    chr.fasta
+/// let mut expected: Vec<u8> = Vec::new();
+/// expected.append(&mut b"0\tERR4035126.1\tchr.fasta\n".to_vec());
+/// expected.append(&mut b"1\tERR4035126.2\tchr.fasta\n".to_vec());
+///
+/// assert_eq!(output.get_ref(), &expected);
+///
 pub fn decode_to_write<W: Write>(
     out_format: Format,
     records: &[u8],
@@ -301,6 +608,52 @@ pub fn decode_to_write<W: Write>(
 }
 
 /// Reads the full bitmap and combined block flags from a file
+///
+/// Returns the [RoaringBitmap] containing all alignments from every block in
+/// the input, and the corresponding file header, file flags, and block flags
+/// for a single block containing all the data.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::{decode_from_read_to_roaring, encode_from_read_to_write};
+/// use ahda::Format;
+/// use ahda::headers::file::{FileHeader, FileFlags};
+/// use ahda::headers::block::{BlockHeader, BlockFlags};
+/// use roaring::RoaringBitmap;
+/// use std::io::{Cursor, Seek};
+///
+/// // Set up mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let name = "sample".to_string();
+///
+/// let mut plaintext_bytes: Vec<u8> = Vec::new();
+/// plaintext_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+/// plaintext_bytes.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+/// plaintext_bytes.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+/// plaintext_bytes.append(&mut b"2\tr651903\t\n".to_vec());
+///
+/// // Encode mock data
+/// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
+/// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext, &mut input).unwrap();
+/// input.rewind();
+///
+/// // Decode all alignments and compare against the original inputs
+/// let (bitmap, file_header, file_flags, block_flags) = decode_from_read_to_roaring(&mut input).unwrap();
+///
+/// // Expect these outputs:
+/// //   RoaringBitmap<[2, 9, 11, 12, 13, 14]>
+/// //   FileHeader   { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, ph2: 0, ph3: 0, ph4: 0 }
+/// //   FileFlags    { query_name: "sample", target_names: ["chr.fasta", "plasmid.fasta", "virus.fasta"] }
+/// //   BlockFlags   { queries: ["r1", "r651903", "r7543", "r16"], query_ids: [0, 2, 3, 4] }
+///
+/// assert_eq!(bitmap, RoaringBitmap::from([2, 9, 11, 12, 13, 14]));
+/// assert_eq!(file_header, FileHeader{ n_targets: 3, n_queries: 5, flags_len: 44, format: 1, ph2: 0, ph3: 0, ph4: 0 });
+/// assert_eq!(file_flags, FileFlags{ query_name: "sample".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()] });
+/// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] });
+///
 pub fn decode_from_read_to_roaring<R: Read>(
     conn_in: &mut R,
 ) -> Result<(RoaringBitmap, FileHeader, FileFlags, BlockFlags), E> {
@@ -333,7 +686,62 @@ pub fn decode_from_read_to_roaring<R: Read>(
 
 /// Merge bitmap from Read to an existing bitmap with Union
 ///
-/// Doesn't check that the bitmaps are compatible.
+/// Doesn't check that the encoded data was created for compatible data, this
+/// just merges the bitmaps.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::{decode_from_read_into_roaring, decode_from_read_to_roaring, encode_from_read_to_write};
+/// use ahda::MergeOp;
+/// use roaring::RoaringBitmap;
+/// use std::io::{Cursor, Seek};
+///
+/// // Set up mock inputs
+/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let name = "sample".to_string();
+///
+/// // Have this input data in two files:
+/// //     0    r1    virus.fasta
+/// //     3    r7543 chr.fasta:virus.fasta
+/// //
+/// //     0    r1    plasmid.fasta:virus.fasta
+/// //     3    r7543 plasmid.fasta
+/// //
+/// // ...and want to compute the intersection
+///
+/// let mut plaintext_bytes_1: Vec<u8> = Vec::new();
+/// plaintext_bytes_1.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+/// plaintext_bytes_1.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+///
+/// let mut plaintext_bytes_2: Vec<u8> = Vec::new();
+/// plaintext_bytes_2.append(&mut b"0\tr1\tplasmid.fasta:virus.fasta\n".to_vec());
+/// plaintext_bytes_2.append(&mut b"3\tr7543\tplasmid.fasta\n".to_vec());
+///
+/// // Encode mock data
+/// let mut plaintext_1: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_1.clone());
+/// let mut input_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext_1, &mut input_1).unwrap();
+/// input_1.rewind();
+///
+/// let mut plaintext_2: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_2.clone());
+/// let mut input_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext_2, &mut input_2).unwrap();
+/// input_2.rewind();
+///
+/// // Decode data from `input_1`
+/// let (mut bitmap, _file_header, _file_flags, _block_flags) = decode_from_read_to_roaring(&mut input_1).unwrap();
+///
+/// // Intersect data from `input_2` with the decoded `bitmap`
+/// decode_from_read_into_roaring(&mut input_2, &MergeOp::Intersection, &mut bitmap).unwrap();
+///
+/// // Expect these outputs:
+/// //     RoaringBitmap<[2]>
+/// // ...ie the alignment in the intersection is:
+/// //     0    r1    virus.fasta
+///
+/// assert_eq!(bitmap, RoaringBitmap::from([2]));
 ///
 pub fn decode_from_read_into_roaring<R: Read>(
     conn_in: &mut R,
