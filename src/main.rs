@@ -96,7 +96,6 @@ fn main() {
         Some(cli::Commands::Decode {
             input_files,
             format,
-            write_to_stdout,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
