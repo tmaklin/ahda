@@ -71,6 +71,7 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
                 break;
             }
             let target_idx = self.index.as_ref().unwrap() % self.file_header.n_targets;
+            self.index = None;
             ones.push(target_idx);
             names.push(self.file_flags.target_names[target_idx as usize].clone());
             query_id = Some(query_idx);
@@ -85,6 +86,7 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
             });
             ones.clear();
             names.clear();
+            // query_id = None; // Unnecessary
             ret
         } else {
             None
