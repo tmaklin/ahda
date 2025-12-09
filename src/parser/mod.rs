@@ -247,6 +247,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
     }
 }
 
+// TODO This should return ambiguous format error if the format is fulgor && maybe_metagraph
 pub fn guess_format(
     bytes: &[u8],
 ) -> Option<Format> {
