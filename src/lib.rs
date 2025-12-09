@@ -340,21 +340,35 @@ pub fn decode_from_read_into_roaring<R: Read>(
     merge_op: &MergeOp,
     bitmap_out: &mut RoaringBitmap,
 ) -> Result<(), E> {
-    // Have to read in the whole bitmap and then perform the merge
-    //
-    let (bitmap_b, _, _, _) = decode_from_read_to_roaring(conn_in)?;
     match merge_op {
-        MergeOp::Union => {
-            *bitmap_out |= bitmap_b;
-        },
         MergeOp::Intersection => {
+            // Have to read in the whole bitmap to perform intersection
+            let (bitmap_b, _, _, _) = decode_from_read_to_roaring(conn_in)?;
             *bitmap_out &= bitmap_b;
         },
-        MergeOp::Xor => {
-            *bitmap_out ^= bitmap_b;
-        },
-        MergeOp::Diff => {
-            *bitmap_out -= bitmap_b;
+        _ => {
+            let header = crate::headers::file::read_file_header(conn_in)?;
+            let _ = crate::headers::file::read_file_flags(&header, conn_in)?;
+
+            while let Ok(block_header) = read_block_header(conn_in) {
+                let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+                conn_in.read_exact(&mut block_bytes)?;
+
+                let (bitmap_b, _) = unpack_block_roaring(&block_bytes, &block_header)?;
+
+                match merge_op {
+                    MergeOp::Union => {
+                        *bitmap_out |= bitmap_b;
+                    },
+                    MergeOp::Xor => {
+                        *bitmap_out ^= bitmap_b;
+                    },
+                    MergeOp::Diff => {
+                        *bitmap_out -= bitmap_b;
+                    },
+                    _ => panic!("This shouldn't happen"),
+                }
+            }
         },
     }
 
