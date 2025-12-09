@@ -12,6 +12,69 @@
 // at your option.
 //
 
+//! Decoder implementations.
+//!
+//! Contains implementations for two core classes:
+//!
+//! - [Decoder]: reads the .ahda binary format from a connection implementing
+//!   [Read] and returns blocks of [PseudoAln] records when [next] is called.
+//!
+//! - [BitmapDecoder](bitmap::BitmapDecoder): decodes a [PseudoAln] record from
+//!   any struct that returns u32 indexes of aligned bits in a flattened
+//!   pseudoalignment. Currently, the intended use case is with
+//!   [RoaringBitmap](roaring::RoaringBitmap) but in principle works with other
+//!   structs that implement a similar iterator.
+//!
+//! Internally, Decoder reads in a single block at a time and uses BitmapDecoder
+//! to retrieve the alignments.
+//!
+//! ## Usage
+//! ### Decoder
+//! ```rust
+//! use ahda::{encode_from_read_to_write, decode_from_read_to_write};
+//! use ahda::{Format, PseudoAln};
+//! use ahda::decoder::Decoder;
+//! use std::io::{Cursor, Seek};
+//!
+//! // First set up some mock encoded data
+//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let name = "sample".to_string();
+//!
+//! // Have this input data:
+//! //   3    r7543    chr.fasta:virus.fasta
+//! //   0    r1       virus.fasta
+//! //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+//! //   2    r651903
+//! //
+//! let mut input_bytes: Vec<u8> = Vec::new();
+//! input_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+//! input_bytes.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+//! input_bytes.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+//! input_bytes.append(&mut b"2\tr651903\t\n".to_vec());
+//!
+//! let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
+//!
+//! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+//! encode_from_read_to_write(&targets, &queries, &name, &mut input, &mut output).unwrap();
+//! output.rewind();
+//!
+//! // Then, create a Decoder from `output` and retrieve the original data
+//! let mut decoder = Decoder::new(&mut output);
+//!
+//! let alns: Vec<PseudoAln> = decoder.next().unwrap(); // This reads 1 block at a time
+//!
+//! let expected = vec![
+//!                     PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) },
+//!                     PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) },
+//!                     PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) },
+//!                     PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) }
+//!                     ];
+//!
+//! assert_eq!(alns, expected);
+//! ```
+//!
+
 pub mod bitmap;
 pub mod unpack_roaring;
 
