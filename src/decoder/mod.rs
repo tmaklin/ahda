@@ -25,6 +25,7 @@ use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use unpack_roaring::unpack_block_roaring;
 
+use std::collections::HashSet;
 use std::io::Read;
 
 pub struct Decoder<'a, R: Read> {
@@ -77,7 +78,6 @@ impl<R: Read> Iterator for Decoder<'_, R> {
     fn next(
         &mut self,
     ) -> Option<Self::Item> {
-
         match read_block_header(self.conn) {
             Ok(block_header) => {
                 let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
@@ -93,6 +93,15 @@ impl<R: Read> Iterator for Decoder<'_, R> {
 
                 self.block_header = Some(block_header);
                 self.block_flags = Some(block_flags);
+
+                let mut seen: HashSet<u32> = HashSet::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
+                alns.iter().for_each(|aln| { seen.insert(*aln.query_id.as_ref().unwrap()); });
+
+                self.block_flags.as_ref().unwrap().query_ids.iter().zip(self.block_flags.as_ref().unwrap().queries.iter()).for_each(|(idx, name)| {
+                    if !seen.contains(idx) {
+                        alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+                    }
+                });
 
                 Some(alns)
             },
