@@ -198,6 +198,5 @@ mod tests {
         got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
         assert_eq!(got, expected);
-        assert_eq!(0, 1);
     }
 }
