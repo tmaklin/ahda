@@ -25,6 +25,7 @@ use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use unpack_roaring::unpack_block_roaring;
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
 
@@ -84,24 +85,30 @@ impl<R: Read> Iterator for Decoder<'_, R> {
                 self.conn.read_exact(&mut bytes).unwrap();
                 let (bitmap, block_flags) = unpack_block_roaring(&bytes, &block_header).unwrap();
 
+                let mut name_to_id: HashMap<String, u32> = HashMap::with_capacity(block_header.num_records as usize);
+                let mut seen: HashSet<u32> = HashSet::with_capacity(block_header.num_records as usize);
+                block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
+                    name_to_id.insert(name.clone(), *idx);
+                });
+
                 let mut tmp = bitmap.iter();
                 let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());
                 let mut alns: Vec<PseudoAln> = Vec::new();
-                for record in bitmap_decoder {
+                for mut record in bitmap_decoder {
+                    let query_id = *name_to_id.get(record.query_name.as_ref().unwrap()).unwrap();
+                    record.query_id = Some(query_id);
+                    seen.insert(query_id);
                     alns.push(record);
                 }
 
-                self.block_header = Some(block_header);
-                self.block_flags = Some(block_flags);
-
-                let mut seen: HashSet<u32> = HashSet::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
-                alns.iter().for_each(|aln| { seen.insert(*aln.query_id.as_ref().unwrap()); });
-
-                self.block_flags.as_ref().unwrap().query_ids.iter().zip(self.block_flags.as_ref().unwrap().queries.iter()).for_each(|(idx, name)| {
+                block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
                     if !seen.contains(idx) {
                         alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
                     }
                 });
+
+                self.block_header = Some(block_header);
+                self.block_flags = Some(block_flags);
 
                 Some(alns)
             },
