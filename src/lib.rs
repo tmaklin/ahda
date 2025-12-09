@@ -90,6 +90,30 @@ impl std::str::FromStr for Format {
 }
 
 #[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum MergeOp {
+    #[default]
+    Union,
+    Intersection,
+    Xor,
+    Diff,
+}
+
+impl std::str::FromStr for MergeOp {
+    type Err = String; // Define an error type for parsing failures
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "union" => Ok(MergeOp::Union),
+            "intersection" => Ok(MergeOp::Intersection),
+            "xor" => Ok(MergeOp::Xor),
+            "diff" => Ok(MergeOp::Diff),
+            _ => Err(format!("'{}' is not a valid MergeOp", s)),
+        }
+    }
+}
+
+#[non_exhaustive]
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PseudoAln{
     pub ones: Option<Vec<u32>>,
@@ -313,18 +337,25 @@ pub fn decode_from_read_to_roaring<R: Read>(
 ///
 pub fn decode_from_read_into_roaring<R: Read>(
     conn_in: &mut R,
+    merge_op: &MergeOp,
     bitmap_out: &mut RoaringBitmap,
 ) -> Result<(), E> {
-    let header = crate::headers::file::read_file_header(conn_in)?;
-    crate::headers::file::read_file_flags(&header, conn_in)?;
-
-    while let Ok(block_header) = read_block_header(conn_in) {
-        let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
-        conn_in.read_exact(&mut block_bytes)?;
-
-        let (bitmap, _block_flags) = unpack_block_roaring(&block_bytes, &block_header)?;
-
-        *bitmap_out |= bitmap;
+    // Have to read in the whole bitmap and then perform the merge
+    //
+    let (bitmap_b, _, _, _) = decode_from_read_to_roaring(conn_in)?;
+    match merge_op {
+        MergeOp::Union => {
+            *bitmap_out |= bitmap_b;
+        },
+        MergeOp::Intersection => {
+            *bitmap_out &= bitmap_b;
+        },
+        MergeOp::Xor => {
+            *bitmap_out ^= bitmap_b;
+        },
+        MergeOp::Diff => {
+            *bitmap_out -= bitmap_b;
+        },
     }
 
     Ok(())
@@ -577,5 +608,120 @@ mod tests {
         assert_eq!(expected_flags, file_flags);
         assert_eq!(expected_block_flags, block_flags);
         assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn decode_from_read_into_roaring_union() {
+        use super::decode_from_read_into_roaring;
+        use super::MergeOp;
+
+        use std::io::Cursor;
+
+        use roaring::RoaringBitmap;
+
+        let data_right: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 81, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 217, 216, 216, 196, 216, 194, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 142, 83, 17, 116, 54, 86, 83, 19, 99, 72, 187, 176, 155, 197, 130, 129, 129, 1, 0, 108, 96, 207, 141, 64, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 216, 216, 202, 216, 220, 234, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 45, 14, 22, 78, 118, 75, 99, 240, 250, 44, 246, 92, 149, 129, 129, 1, 0, 130, 110, 173, 8, 52, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_right);
+
+        let mut data_left = RoaringBitmap::new();
+        data_left.insert(1);
+        data_left.insert(5);
+        data_left.insert(8);
+
+        let mut expected = RoaringBitmap::new();
+        expected.insert(0);
+        expected.insert(1);
+        expected.insert(2);
+        expected.insert(4);
+        expected.insert(5);
+        expected.insert(7);
+        expected.insert(8);
+
+        decode_from_read_into_roaring(&mut data, &MergeOp::Union, &mut data_left).unwrap();
+
+        assert_eq!(data_left, expected);
+    }
+
+    #[test]
+    fn decode_from_read_into_roaring_intersection() {
+        use super::decode_from_read_into_roaring;
+        use super::MergeOp;
+
+        use std::io::Cursor;
+
+        use roaring::RoaringBitmap;
+
+        let data_right: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 81, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 217, 216, 216, 196, 216, 194, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 142, 83, 17, 116, 54, 86, 83, 19, 99, 72, 187, 176, 155, 197, 130, 129, 129, 1, 0, 108, 96, 207, 141, 64, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 216, 216, 202, 216, 220, 234, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 45, 14, 22, 78, 118, 75, 99, 240, 250, 44, 246, 92, 149, 129, 129, 1, 0, 130, 110, 173, 8, 52, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_right);
+
+        let mut data_left = RoaringBitmap::new();
+        data_left.insert(0);
+        data_left.insert(3);
+        data_left.insert(7);
+
+        let mut expected = RoaringBitmap::new();
+        expected.insert(0);
+        expected.insert(7);
+
+        decode_from_read_into_roaring(&mut data, &MergeOp::Intersection, &mut data_left).unwrap();
+
+        assert_eq!(data_left, expected);
+    }
+
+    #[test]
+    fn decode_from_read_into_roaring_xor() {
+        use super::decode_from_read_into_roaring;
+        use super::MergeOp;
+
+        use std::io::Cursor;
+
+        use roaring::RoaringBitmap;
+
+        let data_right: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 81, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 217, 216, 216, 196, 216, 194, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 142, 83, 17, 116, 54, 86, 83, 19, 99, 72, 187, 176, 155, 197, 130, 129, 129, 1, 0, 108, 96, 207, 141, 64, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 216, 216, 202, 216, 220, 234, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 45, 14, 22, 78, 118, 75, 99, 240, 250, 44, 246, 92, 149, 129, 129, 1, 0, 130, 110, 173, 8, 52, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_right);
+
+        let mut data_left = RoaringBitmap::new();
+        data_left.insert(0);
+        data_left.insert(1);
+        data_left.insert(5);
+        data_left.insert(7);
+
+        let mut expected = RoaringBitmap::new();
+        expected.insert(1);
+        expected.insert(2);
+        expected.insert(4);
+
+        decode_from_read_into_roaring(&mut data, &MergeOp::Xor, &mut data_left).unwrap();
+
+        assert_eq!(data_left, expected);
+    }
+
+    #[test]
+    fn decode_from_read_into_roaring_diff() {
+        use super::decode_from_read_into_roaring;
+        use super::MergeOp;
+
+        use std::io::Cursor;
+
+        use roaring::RoaringBitmap;
+
+        let data_right: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 81, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 217, 216, 216, 196, 216, 194, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 142, 83, 17, 116, 54, 86, 83, 19, 99, 72, 187, 176, 155, 197, 130, 129, 129, 1, 0, 108, 96, 207, 141, 64, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 216, 216, 202, 216, 220, 234, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 45, 14, 22, 78, 118, 75, 99, 240, 250, 44, 246, 92, 149, 129, 129, 1, 0, 130, 110, 173, 8, 52, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_right);
+
+        let mut data_left = RoaringBitmap::new();
+        data_left.insert(0);
+        data_left.insert(2);
+        data_left.insert(3);
+        data_left.insert(4);
+        data_left.insert(5);
+        data_left.insert(6);
+        data_left.insert(7);
+
+        let mut expected = RoaringBitmap::new();
+        expected.insert(3);
+        expected.insert(6);
+
+        decode_from_read_into_roaring(&mut data, &MergeOp::Diff, &mut data_left).unwrap();
+
+        assert_eq!(data_left, expected);
     }
 }
