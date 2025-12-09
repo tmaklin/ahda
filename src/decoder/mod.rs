@@ -28,6 +28,11 @@
 //! Internally, Decoder reads in a single block at a time and uses BitmapDecoder
 //! to retrieve the alignments.
 //!
+//! BitmapDecoder will only return alignments that have some hits.
+//!
+//! Decoder will pad the output from BitmapDecoder to include queries that are
+//! included in [BlockFlags] but did not align against any target.
+//!
 //! ## Usage
 //!
 //! ### Decoder
@@ -85,7 +90,26 @@
 //! representation of the pseudoalignment.
 //!
 //! ```rust
-//! todo!("Add BitmapDecoder example to `src/decoder/mod.rs` documentation.");
+//! use ahda::headers::file::{FileHeader, FileFlags};
+//! use ahda::headers::block::{BlockHeader, BlockFlags};
+//! use ahda::decoder::bitmap::BitmapDecoder;
+//! use ahda::PseudoAln;
+//! use roaring::RoaringBitmap;
+//!
+//! let input = RoaringBitmap::from([2, 9, 11, 12, 13, 14]);
+//! let file_header = FileHeader { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, ph2: 0, ph3: 0, ph4: 0 };
+//! let file_flags = FileFlags { query_name: "sample".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()] };
+//! let block_header = BlockHeader { num_records: 4, deflated_len: 90, block_len: 28, flags_len: 27, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+//! let block_flags = BlockFlags { queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] };
+//!
+//! let mut bits_iter = input.iter();
+//! let mut bitmap_decoder = BitmapDecoder::new(&mut bits_iter, file_header, file_flags, block_header, block_flags);
+//!
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) });
+//!
+//! assert_eq!(bitmap_decoder.next(), None); // Note that the PseudoAln with query_id: 2 is not included because it did not align against anything
 //! ```
 //!
 
