@@ -107,10 +107,9 @@ pub enum Commands {
         #[arg(long = "format", default_value = "themisto")]
         format: Option<ahda::Format>,
 
-        // Operations
-        // // Union
-        #[arg(short = 'u', long = "union", group = "op", required = true, help = "Union (A or B)")]
-        union: bool,
+        // Merge operation
+        #[arg(long = "op", default_value = "union", help = "Merge operation")]
+        operation: Option<ahda::MergeOp>,
 
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]

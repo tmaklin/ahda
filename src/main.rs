@@ -167,7 +167,7 @@ fn main() {
         Some(cli::Commands::Set {
             input_files,
             format,
-            union,
+            operation,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -180,7 +180,7 @@ fn main() {
             // Read the remainning bitmaps and perform requested operation
             for file in input_files.iter().skip(1) {
                 let mut conn_in = File::open(file).unwrap();
-                ahda::decode_from_read_into_roaring(&mut conn_in, &mut bitmap_a).unwrap();
+                ahda::decode_from_read_into_roaring(&mut conn_in, operation.as_ref().unwrap(), &mut bitmap_a).unwrap();
             }
 
             let block_header = BlockHeader{ num_records: header_a.n_queries, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
