@@ -11,6 +11,64 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Printer for outputting [PseudoAln] records as plain text in any supported [Format].
+//!
+//! Can be used to convert any iterator over [PseudoAln] data to their plain
+//! text representation.
+//!
+//! Returns 1 line at a time using next().
+//!
+//! If the desired output format has header lines, this can be formatted by
+//! Printer using [print_header](Printer::print_header).
+//!
+//! ## Usage
+//!
+//! ### Print PseudoAln records stored in memory
+//!
+//! ```rust
+//! use ahda::{Format, PseudoAln};
+//! use ahda::printer::Printer;
+//! use std::io::{Cursor, Write};
+//!
+//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let name = "sample".to_string();
+//!
+//! let data = vec![
+//!                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) },
+//!                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) },
+//!                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) },
+//!                 PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) }
+//!                ];
+//!
+//! let mut iter = data.into_iter(); // Printer expectes PseudoAln, not &PseudoAln
+//!
+//! let mut printer = Printer::new(&mut iter, &targets, &queries, &name, Format::Metagraph);
+//!
+//! // Print the records in Metagraph format
+//! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+//! for line in printer.by_ref() {
+//!     output.write_all(&line).unwrap()
+//! }
+//!
+//! // Expect this plain text output
+//! //   0    r1       virus.fasta
+//! //   3    r7543    chr.fasta:virus.fasta
+//! //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+//! //   2    r651903
+//! //
+//! let mut expected: Vec<u8> = Vec::new();
+//! expected.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+//! expected.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+//! expected.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+//! expected.append(&mut b"2\tr651903\t\n".to_vec());
+//!
+//! assert_eq!(output.get_ref(), &expected);
+//!
+//! ```
+//!
+
 use crate::Format;
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
