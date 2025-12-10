@@ -11,6 +11,127 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Encoder implementation for an iterator over [PseudoAln] records.
+//!
+//! Implements the [Encoder] struct that can be used to encode data from any
+//! other struct that implements an iterator returning [PseudoAln] data.
+//!
+//! Calling next on Encoder will return a single block consisting of encoded
+//! bytes representing all records in the block.
+//!
+//! To create a valid .ahda record, [Encoder::encode_header_and_flags] should be
+//! called first and its output included as the first bytes in the record. This
+//! method encodes the [FileHeader] and [FileFlags] corresponding to the data
+//! stored in the Encoder.
+//!
+//! Block size can be controlled using [Encoder::set_block_size]. Larger blocks may
+//! result in better compression ratios but require more memory to encode and
+//! decode.
+//!
+//! ## Usage
+//!
+//! ### Encoding plain text data
+//!
+//! Create a [Parser](ahda::parser::Parser) on the plaintext input and pass it to Encoder
+//!
+//! ```rust
+//! use ahda::encoder::Encoder;
+//! use ahda::parser::Parser;
+//! use ahda::{decode_from_read, PseudoAln};
+//! use std::io::{Cursor, Seek, Write};
+//!
+//! // Mock inputs that will be store in FileHeader and FileFlags
+//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let name = "sample".to_string();
+//!
+//! // Have this Metagraph input data:
+//! //   3    r7543    chr.fasta:virus.fasta
+//! //   0    r1       virus.fasta
+//! //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+//! //   2    r651903
+//! //
+//! let mut plaintext: Vec<u8> = Vec::new();
+//! plaintext.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+//! plaintext.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+//! plaintext.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+//! plaintext.append(&mut b"2\tr651903\t\n".to_vec());
+//!
+//! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
+//!
+//! // Create a Parser to convert the plain text data to PseudoAln and initialize Encoder on this parser to encode it
+//! let mut parser = Parser::new(&mut input, &targets, &queries, &name).unwrap();
+//! let mut encoder = Encoder::new(&mut parser, &targets, &queries, &name);
+//! encoder.set_block_size(3);
+//!
+//! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+//!
+//! // Encode the file header and flags
+//! let bytes = encoder.encode_header_and_flags().unwrap();
+//! output.write_all(&bytes).unwrap();
+//!
+//! // Iterate over `encoder` to get the 2 encoded blocks
+//! for block in encoder.by_ref() {
+//!     output.write_all(&block).unwrap();
+//! }
+//!
+//! // The alignments can be decoded from `output`
+//! output.rewind();
+//! let (_file_header, _file_flags, alns) = decode_from_read(&mut output).unwrap();
+//!
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) });
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) });
+//! assert_eq!(alns[3], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) });
+//! assert_eq!(alns.len(), 4);
+//! ```
+//!
+//! ### Encoding alignments stored in memory
+//!
+//! Create an iterator over some container storing [PseudoAln](ahda::PseudoAln) and pass it to a new Encoder
+//!
+//! ```rust
+//! use ahda::encoder::Encoder;
+//! use ahda::{decode_from_read, PseudoAln};
+//! use std::io::{Cursor, Seek, Write};
+//!
+//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let name = "sample".to_string();
+//!
+//! let data: Vec<PseudoAln> = vec![
+//!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) },
+//!                                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) },
+//!                                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) },
+//!                                 PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) }
+//!                                ];
+//!
+//! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
+//! let mut encoder = Encoder::new(&mut iter, &targets, &queries, &name);
+//!
+//! // Encode the file header and flags
+//! let bytes = encoder.encode_header_and_flags().unwrap();
+//! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+//! output.write_all(&bytes).unwrap();
+//!
+//! // Iterate over `encoder` to get the 2 encoded blocks
+//! for block in encoder.by_ref() {
+//!     output.write_all(&block).unwrap();
+//! }
+//!
+//! // The alignments can be decoded from `output`
+//! output.rewind();
+//! let (_file_header, _file_flags, alns) = decode_from_read(&mut output).unwrap();
+//!
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) });
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) });
+//! assert_eq!(alns[3], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) });
+//! assert_eq!(alns.len(), 4);
+//! ```
+//!
+
 pub mod pack_roaring;
 
 use crate::PseudoAln;
