@@ -15,6 +15,7 @@ use crate::Format;
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
+use crate::headers::file::build_header_and_flags;
 
 use bifrost::format_bifrost_header;
 
