@@ -37,8 +37,8 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
     records: &'a mut I,
 
-    header: Option<FileHeader>,
-    flags: Option<FileFlags>,
+    header: FileHeader,
+    flags: FileFlags,
 
     sam_header: Option<noodles_sam::Header>,
 
@@ -48,6 +48,28 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 
 impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
+        records: &'a mut I,
+        targets: &[String],
+        queries: &[String],
+        sample_name: &str,
+        format: Format,
+    ) -> Self {
+        let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
+        let sam_header = if format == Format::SAM {
+            Some(sam::build_sam_header(&flags.target_names).unwrap())
+        } else {
+            None
+        };
+
+        Printer{
+            records,
+            header, flags,
+            sam_header, index: 0,
+            format,
+        }
+    }
+
+    pub fn new_from_header_and_flags(
         records: &'a mut I,
         header: FileHeader,
         flags: FileFlags,
@@ -61,7 +83,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
 
         Printer{
             records,
-            header: Some(header), flags: Some(flags),
+            header, flags,
             sam_header, index: 0,
             format,
         }
@@ -78,11 +100,11 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
             Format::Fulgor => None,
             Format::Metagraph => None,
             Format::Bifrost => {
-                format_bifrost_header(&self.flags.as_ref().unwrap().target_names, &mut out).unwrap();
+                format_bifrost_header(&self.flags.target_names, &mut out).unwrap();
                 Some(out)
             },
             Format::SAM => {
-                self.sam_header = Some(build_sam_header(&self.flags.as_ref().unwrap().target_names).unwrap());
+                self.sam_header = Some(build_sam_header(&self.flags.target_names).unwrap());
                 format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
@@ -108,7 +130,7 @@ impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoA
                 Format::Themisto => format_themisto_line(&record, &mut out).unwrap(),
                 Format::Fulgor => format_fulgor_line(&record, &mut out).unwrap(),
                 Format::Metagraph => format_metagraph_line(&record, &mut out).unwrap(),
-                Format::Bifrost => format_bifrost_line(&record, self.header.as_ref().unwrap().n_targets as usize, &mut out).unwrap(),
+                Format::Bifrost => format_bifrost_line(&record, self.header.n_targets as usize, &mut out).unwrap(),
                 Format::SAM => format_sam_line(&record, self.sam_header.as_ref().unwrap(), &mut out).unwrap(),
             }
             self.index += 1;
@@ -155,7 +177,7 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new(&mut data_iter, header, flags, Format::Themisto);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Themisto);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
         }
@@ -215,7 +237,7 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new(&mut data_iter, header, flags, Format::Fulgor);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Fulgor);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
         }
@@ -282,7 +304,7 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new(&mut data_iter, header, flags, Format::Bifrost);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Bifrost);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
         }
@@ -324,7 +346,7 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new(&mut data_iter, header, flags, Format::Metagraph);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Metagraph);
         for bytes in printer.by_ref() {
             cursor.write_all(&bytes).unwrap();
         }
