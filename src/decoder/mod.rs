@@ -12,7 +12,7 @@
 // at your option.
 //
 
-//! Decoder implementations.
+//! Decoder implementations from [Read] and bitmap iterators.
 //!
 //! Contains implementations for two core classes:
 //!
