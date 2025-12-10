@@ -12,6 +12,65 @@
 // at your option.
 //
 
+//! Parser for reading plain text data into memory from [Read].
+//!
+//! Reads in 1 [PseudoAln](ahda::PseudoAln) at a time using next(), in the order
+//! they appear in the input.
+//!
+//! **TODO Implement as described below.**
+//!
+//! The input format is detected automatically based on rules in [guess_format].
+//! Some input formats may be ambiguous, in which case the format needs to be
+//! specified using [new_with_format](Parser::new_with_format).
+//!
+//! If the input format includes header data, this will be consumed by Parser on
+//! when next() is called for the first time.
+//!
+//! ## Usage
+//!
+//! Read in plain text data
+//!
+//! ```rust
+//! use ahda::parser::Parser;
+//! use ahda::{decode_from_read, PseudoAln};
+//! use std::io::{Cursor, Seek, Write};
+//!
+//! // Mock inputs that will be stored in FileHeader and FileFlags
+//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let name = "sample".to_string();
+//!
+//! // Have this plain text:
+//! //   3    r7543    chr.fasta:virus.fasta
+//! //   0    r1       virus.fasta
+//! //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+//! //   2    r651903
+//! //
+//! let mut plaintext: Vec<u8> = Vec::new();
+//! plaintext.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+//! plaintext.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+//! plaintext.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+//! plaintext.append(&mut b"2\tr651903\t\n".to_vec());
+//!
+//! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
+//!
+//! // Create a Parser to convert the plain text data to PseudoAlns
+//! let mut parser = Parser::new(&mut input, &targets, &queries, &name).unwrap();
+//!
+//! let mut alns: Vec<PseudoAln> = Vec::new();
+//!
+//! // Push all records to `alns`
+//! for record in parser.by_ref() {
+//!     alns.push(record);
+//! }
+//!
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) });
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) });
+//! assert_eq!(alns[3], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) });
+//! assert_eq!(alns.len(), 4);
+//! ```
+
 // Format specific implementations
 pub mod bifrost;
 pub mod fulgor;
