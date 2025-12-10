@@ -287,7 +287,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write>(
     let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
     let header = reader.file_header().clone();
     let flags = reader.file_flags().clone();
-    let mut writer = crate::printer::Printer::new(&mut reader, header, flags, format);
+    let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut reader, header, flags, format);
     for record in writer.by_ref() {
         conn_out.write_all(&record)?;
     }
@@ -501,7 +501,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
     let flags = decoder.file_flags().clone();
     for block in decoder {
         let mut block_iter = block.into_iter();
-        let printer = printer::Printer::new(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
+        let printer = printer::Printer::new_from_header_and_flags(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
         for line in printer {
             conn_out.write_all(&line)?;
         }
@@ -603,7 +603,7 @@ pub fn decode_to_write<W: Write>(
     let flags = decoder.file_flags().clone();
     for block in decoder {
         let mut block_iter = block.into_iter();
-        let printer = printer::Printer::new(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
+        let printer = printer::Printer::new_from_header_and_flags(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
         for line in printer {
             conn_out.write_all(&line)?;
         }
@@ -903,7 +903,7 @@ mod tests {
         let format = Format::Metagraph;
 
         let mut tmp = data.into_iter();
-        let mut writer = crate::printer::Printer::new(&mut tmp, header, flags, format);
+        let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut tmp, header, flags, format);
         for record in writer.by_ref() {
             bytes.write(&record).unwrap();
         }
