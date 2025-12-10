@@ -97,6 +97,8 @@
 //! use roaring::RoaringBitmap;
 //!
 //! let input = RoaringBitmap::from([2, 9, 11, 12, 13, 14]);
+//! // `input` could alternatively be any u32 container, eg. a vector: vec![2_u32, 9, 11, 12, 13, 14]
+//!
 //! let file_header = FileHeader { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, ph2: 0, ph3: 0, ph4: 0 };
 //! let file_flags = FileFlags { query_name: "sample".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()] };
 //! let block_header = BlockHeader { num_records: 4, deflated_len: 90, block_len: 28, flags_len: 27, start_idx: 0, placeholder2: 0, placeholder3: 0 };
