@@ -31,6 +31,21 @@
 //!
 //! ## Usage
 //!
+//! ### Command line
+//!
+//! The ahda CLI supports the following subcommands:
+//!   - `ahda cat` concatenate compressed pseudoalignment data.
+//!   - `ahda convert` convert between supported plain text formats.
+//!   - `ahda decode` decompress pseudoalignment data to a supported format.
+//!   - `ahda encode` compress pseudoalignment data from a supported format.
+//!   - `ahda set` perform set operations on compressed pseudoalignment data.
+//!
+//! Note that `encode` needs access to the .fastq input file and the names of
+//! the pseudoalignment targets. These are required to create an encoded record
+//! that can be converted to any of the supported plain text formats, because
+//! the plain text formats contain varying levels of information about the input
+//! data.
+//!
 //! ### Rust API
 //!
 //! The API provides several functions for operating on structs that implement
@@ -52,20 +67,26 @@
 //!
 //! See documentation for the appropriate functions or structs for usage examples.
 //!
-//! ### Command line
+//! ### C++ API
 //!
-//! The ahda CLI supports the following subcommands:
-//!   - `ahda cat` concatenate compressed pseudoalignment data.
-//!   - `ahda convert` convert between supported plain text formats.
-//!   - `ahda decode` decompress pseudoalignment data to a supported format.
-//!   - `ahda encode` compress pseudoalignment data from a supported format.
-//!   - `ahda set` perform set operations on compressed pseudoalignment data.
+//! ahda provides a C++ API for encoding and decoding pseudoalignment data into
+//! memory. The API is available in [cxx_api].
 //!
-//! Note that `encode` needs access to the .fastq input file and the names of
-//! the pseudoalignment targets. These are required to create an encoded record
-//! that can be converted to any of the supported plain text formats, because
-//! the plain text formats contain varying levels of information about the input
-//! data.
+//! Encoding requires converting the pseudoalignment to a flattened form
+//! and obtaining the indexes of the set bits (positive alignments) that should
+//! be included in a bitmap representation.
+//!
+//! The encoding API supports writing either a complete .ahda record or one
+//! block at a time.
+//!
+//! Decoding can be performed by reading the bytes of a full .ahda record into
+//! memory, or by reading in one block at a time. The output from the decoding
+//! API are the indexes of the set bits in the (flattened) bitmap
+//! representation.
+//!
+//! The decoding API also supports reading in the target sequence names, the
+//! query sequence names, and the positions of the query sequences in the
+//! original query input.
 //!
 //! ## File format specification
 //!
