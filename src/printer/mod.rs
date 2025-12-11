@@ -65,7 +65,63 @@
 //! expected.append(&mut b"2\tr651903\t\n".to_vec());
 //!
 //! assert_eq!(output.get_ref(), &expected);
+//! ```
 //!
+//! ### Print encoded PseudoAln records
+//!
+//! Initialize a [Decoder](ahda::decoder::Decoder) on the encoded bytes and pass
+//! this to a Printer to print all records.
+//!
+//! ```rust
+//! use ahda::decoder::Decoder;
+//! use ahda::encoder::Encoder;
+//! use ahda::printer::Printer;
+//! use ahda::{Format, PseudoAln};
+//! use std::io::{Cursor, Seek, Write};
+//!
+//! // Set up some encoded data
+//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let name = "sample".to_string();
+//!
+//! let data: Vec<PseudoAln> = vec![
+//!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) },
+//!                                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) },
+//!                                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) },
+//!                                 PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) }
+//!                                ];
+//!
+//! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
+//! let mut encoder = Encoder::new(&mut iter, &targets, &queries, &name);
+//!
+//! let mut bytes = encoder.encode_header_and_flags().unwrap();
+//! for mut data in encoder.by_ref() {
+//!     bytes.append(&mut data);
+//! }
+//!
+//! // Decode from `bytes` to Metagraph plaintext format
+//! let mut input = Cursor::new(&bytes);
+//! let mut decoder = Decoder::new(&mut input);
+//! let mut printer = Printer::new(&mut decoder, &targets, &queries, &name, Format::Metagraph);
+//!
+//! let mut output: Vec<u8> = Vec::new();
+//! for mut line in printer.by_ref() {
+//!     output.append(&mut line);
+//! }
+//!
+//! // Expect this plain text output
+//! //   0    r1       virus.fasta
+//! //   3    r7543    chr.fasta:virus.fasta
+//! //   4    r16      chr.fasta:plasmid.fasta:virus.fasta
+//! //   2    r651903
+//! //
+//! let mut expected: Vec<u8> = Vec::new();
+//! expected.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
+//! expected.append(&mut b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec());
+//! expected.append(&mut b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec());
+//! expected.append(&mut b"2\tr651903\t\n".to_vec());
+//!
+//! assert_eq!(output, expected);
 //! ```
 //!
 
