@@ -40,11 +40,11 @@
 //! For use cases requiring access to a single record at a time, the following
 //! structs are provided:
 //!
-//!   - [Decoder](ahda::decoder::Decoder): takes a [Read] containing the encoded bytes and decodes them into [PseudoAln].
-//!   - [Encoder](ahda::encoder::Encoder): takes an iterator over [PseudoAln] records and encodes them into a Vec<u8>.
-//!   - [Parser](ahda::parser::Parser): takes a [Read] containing plain text pseudoalignment bytes and converts them into [PseudoAln].
-//!   - [Printer](ahda::printer::Printer): takes an iterator over [PseudoAln] records and formats them into plain text data.
+//!   - [Decoder](decoder::Decoder): takes a [Read] containing the encoded bytes and decodes them into [PseudoAln].
 //!   - [BitmapDecoder](decoder::bitmap::BitmapDecoder): takes an iterator over the indexes of set bits and decodes them into [PseudoAln].
+//!   - [Encoder](encoder::Encoder): takes an iterator over [PseudoAln] records and encodes them into a Vec<u8>.
+//!   - [Parser](parser::Parser): takes a [Read] containing plain text pseudoalignment bytes and converts them into [PseudoAln].
+//!   - [Printer](printer::Printer): takes an iterator over [PseudoAln] records and formats them into plain text data.
 //!
 //! These structs can additionally be chained together to eg. read encoded data
 //! and print it in a plain text format, or to parse plain text data and encode
@@ -88,6 +88,8 @@ use std::io::Read;
 use std::io::Write;
 
 use roaring::bitmap::RoaringBitmap;
+
+pub mod cxx_api;
 
 pub mod headers;
 pub mod decoder;
