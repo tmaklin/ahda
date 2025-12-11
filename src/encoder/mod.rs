@@ -132,6 +132,7 @@
 //! ```
 //!
 
+pub mod bitmap_encoder;
 pub mod pack_roaring;
 
 use crate::PseudoAln;
