@@ -24,10 +24,16 @@ needletail = { version = "0.6", default-features = false, features = ["flate2"] 
 roaring = "0.11"
 stderrlog = "0.6"
 
-# .sam formatting
+## .sam formatting
 bstr = "1.12"
 indexmap = "2.11"
 noodles-sam = "0.78"
+
+## C++ API
+cxx = { version = "1.0" }
+
+[build-dependencies]
+cxx-build = { version = "1.0" }
 
 [profile.release]
 debug = true
