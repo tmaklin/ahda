@@ -71,7 +71,8 @@
 //! // Then, create a Decoder from `output` and retrieve the original data
 //! let mut decoder = Decoder::new(&mut output);
 //!
-//! let alns: Vec<PseudoAln> = decoder.next().unwrap(); // This reads 1 block at a time
+//! let mut alns: Vec<PseudoAln> = Vec::new();
+//! alns.extend(decoder); // Use Iterator to read all alignments from Decoder
 //!
 //! let expected = vec![
 //!                     PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) },
@@ -132,6 +133,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
 
+// TODO Implement IntoIterator for Decoder
+
 pub struct Decoder<'a, R: Read> {
     // Inputs
     conn: &'a mut R,
@@ -142,6 +145,8 @@ pub struct Decoder<'a, R: Read> {
     // Internals
     block_header: Option<BlockHeader>,
     block_flags: Option<BlockFlags>,
+    block: Vec<PseudoAln>,
+    block_index: usize,
 }
 
 impl<'a, R: Read> Decoder<'a, R> {
@@ -156,6 +161,7 @@ impl<'a, R: Read> Decoder<'a, R> {
             conn,
             header, flags,
             block_header: None, block_flags: None,
+            block: Vec::new(), block_index: 0_usize,
         }
     }
 }
@@ -215,14 +221,21 @@ impl<R: Read> Decoder<'_, R> {
     }
 }
 
-// TODO This should return a single pseudoalignment using BitmapDecoder
 impl<R: Read> Iterator for Decoder<'_, R> {
-    type Item = Vec<PseudoAln>;
+    type Item = PseudoAln;
 
     fn next(
         &mut self,
     ) -> Option<Self::Item> {
-        self.next_block()
+        if self.block_index < self.block.len() {
+            self.block_index += 1;
+            let ret = self.block[self.block_index - 1].clone();
+            Some(ret)
+        } else {
+            self.block = self.next_block()?;
+            self.block_index = 0;
+            self.next()
+        }
     }
 }
 
@@ -273,7 +286,35 @@ mod tests {
 
         let mut decoder = Decoder::new(&mut data);
 
-        let mut got = decoder.next().unwrap();
+        for i in 0..expected.len() {
+            let got = decoder.next().unwrap();
+            assert_eq!(got, expected[i]);
+        }
+        assert_eq!(decoder.next(), None);
+    }
+
+    #[test]
+    fn next_block() {
+        use super::Decoder;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut expected = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".to_string()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
+        ];
+        expected.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        let data_bytes: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 103, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 231, 14, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 227, 140, 161, 144, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 119, 206, 152, 61, 75, 226, 179, 210, 107, 211, 228, 212, 132, 148, 164, 52, 70, 134, 146, 247, 91, 214, 102, 51, 48, 48, 0, 0, 206, 10, 209, 169, 83, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let mut decoder = Decoder::new(&mut data);
+
+        let mut got = decoder.next_block().unwrap();
         got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
         assert_eq!(got, expected);
@@ -298,12 +339,10 @@ mod tests {
         let data_bytes: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 81, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 217, 216, 216, 196, 216, 194, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 142, 83, 17, 116, 54, 86, 83, 19, 99, 72, 187, 176, 155, 197, 130, 129, 129, 1, 0, 108, 96, 207, 141, 64, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 216, 216, 202, 216, 220, 234, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 45, 14, 22, 78, 118, 75, 99, 240, 250, 44, 246, 92, 149, 129, 129, 1, 0, 130, 110, 173, 8, 52, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let mut decoder = Decoder::new(&mut data);
+        let decoder = Decoder::new(&mut data);
 
         let mut got: Vec<PseudoAln> = Vec::new();
-        for block in decoder.by_ref() {
-            got.append(&mut block.clone());
-        }
+        got.extend(decoder);
         got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
         assert_eq!(got, expected);
