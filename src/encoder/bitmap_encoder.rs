@@ -34,7 +34,8 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     // Internals
     block_size: usize,
     blocks_written: usize,
-    idx: u32,
+    bits_buffer: Vec<u32>,
+    last_idx: usize,
 }
 
 impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u32> {
@@ -59,8 +60,8 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u32> {
             set_bits,
             header, flags,
             queries: queries.to_vec(),
-            block_size,
-            idx: 0_u32, blocks_written: 0_usize,
+            block_size, blocks_written: 0_usize,
+            bits_buffer: Vec::new(), last_idx: 0_usize,
         }
     }
 }
@@ -94,36 +95,54 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
 impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
     type Item = Vec<u8>;
 
-    // TODO This ignores leading zeros in a block
     fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
-        let mut bit_indexes: Vec<u32> = Vec::new();
-        while (self.idx as usize) < (self.block_size * (self.blocks_written + 1)) {
+        let mut end = false;
+        let end_idx = ((self.blocks_written + 1) * self.block_size).min(self.header.n_queries as usize);
+        loop {
             if let Some(next_idx) = self.set_bits.next() {
-                eprintln!("{:?}", next_idx);
-                bit_indexes.push(next_idx);
-                if next_idx > (self.idx + 1) * self.header.n_targets - 1 {
-                    self.idx += 1;
+                self.bits_buffer.push(next_idx);
+                if next_idx > end_idx as u32 * self.header.n_targets {
+                    break;
                 }
             } else {
+                end = true;
                 break;
             }
         }
 
-        if bit_indexes.is_empty() {
-            None
-        } else {
-            let bitmap = RoaringBitmap::from_iter(bit_indexes.iter());
-            eprintln!("{:?}", bitmap);
-            // Need to include trailing zeros
-            let end_idx = if self.set_bits.next().is_none() {
-                self.header.n_queries
-            } else {
-                self.idx
-            };
+        if !self.bits_buffer.is_empty() && end {
+            let bits = self.bits_buffer.iter();
+            let bitmap = RoaringBitmap::from_iter(bits);
+            self.bits_buffer.clear();
+            let start_idx = self.blocks_written * self.block_size;
+            let block_queries = &self.queries[start_idx..end_idx];
+            let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
             self.blocks_written += 1;
-            Some(pack_block(&self.queries, &(0..end_idx).collect::<Vec<u32>>(), &bitmap).unwrap())
+            self.last_idx = end_idx;
+            Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
+        } else if !self.bits_buffer.is_empty() {
+            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2);
+            let bitmap = RoaringBitmap::from_iter(bits);
+            self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
+            let start_idx = self.blocks_written * self.block_size;
+            let block_queries = &self.queries[start_idx..end_idx];
+            let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
+            self.blocks_written += 1;
+            self.last_idx = end_idx;
+            Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
+        } else if self.last_idx < self.header.n_queries as usize && end {
+            let bitmap = RoaringBitmap::new();
+            let start_idx = self.blocks_written * self.block_size;
+            let block_queries = &self.queries[start_idx..end_idx];
+            let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
+            self.blocks_written += 1;
+            self.last_idx = end_idx;
+            Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
+
+        } else {
+            None
         }
     }
 
@@ -180,9 +199,11 @@ mod tests {
         use crate::PseudoAln;
         use super::BitmapEncoder;
 
+        use crate::decode_from_read;
+
         let data = vec![0_u32, 2, 4, 5, 7];
 
-        let expected = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 81, 0, 0, 0, 20, 0, 0, 0, 36, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 217, 216, 216, 196, 216, 194, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 142, 83, 17, 116, 54, 86, 83, 19, 99, 72, 187, 176, 155, 197, 130, 129, 129, 1, 0, 108, 96, 207, 141, 64, 0, 0, 0, 1, 0, 0, 0, 69, 0, 0, 0, 18, 0, 0, 0, 19, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 26, 24, 24, 217, 216, 216, 202, 216, 220, 234, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 45, 14, 22, 78, 118, 75, 99, 240, 250, 44, 246, 92, 149, 129, 129, 1, 0, 130, 110, 173, 8, 52, 0, 0, 0];
+        let expected = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 72, 0, 0, 0, 20, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 221, 216, 24, 13, 206, 30, 57, 112, 228, 177, 148, 72, 74, 82, 66, 78, 86, 70, 202, 178, 244, 142, 51, 134, 73, 73, 9, 44, 12, 166, 66, 39, 86, 27, 49, 48, 48, 0, 0, 86, 244, 9, 212, 54, 0, 0, 0, 2, 0, 0, 0, 85, 0, 0, 0, 22, 0, 0, 0, 38, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 213, 216, 24, 217, 216, 216, 196, 216, 194, 216, 202, 216, 212, 28, 175, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 53, 14, 118, 246, 102, 78, 174, 83, 17, 44, 14, 22, 78, 86, 83, 75, 99, 144, 109, 179, 60, 99, 195, 192, 192, 0, 0, 99, 234, 9, 73, 68, 0, 0, 0, 1, 0, 0, 0, 58, 0, 0, 0, 8, 0, 0, 0, 17, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 24, 152, 221, 226, 174, 47, 80, 16, 102, 78, 14, 118, 86, 54, 182, 117, 54, 118, 19, 99, 112, 225, 204, 153, 32, 201, 192, 192, 0, 0, 241, 222, 62, 125, 41, 0, 0, 0];
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
@@ -197,7 +218,6 @@ mod tests {
         for block in encoder.by_ref() {
             got.append(&mut block.clone());
         }
-
         assert_eq!(got, expected);
     }
 }
