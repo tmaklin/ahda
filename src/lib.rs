@@ -12,25 +12,65 @@
 // at your option.
 //
 
-//! ahda is a library and a command-line client for converting between
-//! pseudoalignment formats output by different tools and for compressing the
-//! data by up to 1000x compared to plaintext and 100x compared to gzip.
+//! ahda is a library and a command-line client for:
 //!
-//! ahda supports the following three operations:
-//!   - `ahda cat` print input file(s) in another format.
-//!   - `ahda decode` decompress pseudoalignment data to a supported format.
-//!   - `ahda encode` compress pseudoalignment data from a supported format.
+//!   - Converting between plain text pseudoalignment formats output by different tools.
+//!   - Compressing and decompressing plain text pseudoalignment data.
+//!   - Performing set operations on compressed pseudoalignment data.
+//!   - Concatenating compressed pseudoalignment data.
 //!
-//! ahda can read input data from the following formats:
+//! The following plain text formats are supported:
 //!   - [Bifrost](https://github.com/pmelsted/bifrost)
 //!   - [Fulgor](https://github.com/jermp/fulgor)
 //!   - [Metagraph](https://github.com/ratschlab/metagraph)
-//!   - [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf)
+//!   - [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) (input only)
 //!   - [Themisto](https://github.com/algbio/themisto)
 //!
-//! For details on each input format, see [Format]. We welcome contributions
-//! implementing support for new tools but recommend first investigating whether
-//! one of the existing formats fits your needs.
+//! Internally, ahda uses [roaring bitmaps](https://roaringbitmap.org/) to store
+//! the pseudoalignments.
+//!
+//! ## Usage
+//!
+//! ### Rust API
+//!
+//! The API provides several functions for operating on structs that implement
+//! [Read] and/or [Write]. These are meant for use cases where an entire stream
+//! should be processed.
+//!
+//! For use cases requiring access to a single record at a time, the following
+//! structs are provided:
+//!
+//!   - [Decoder](ahda::decoder::Decoder): takes a [Read] containing the encoded bytes and decodes them into [PseudoAln].
+//!   - [Encoder](ahda::encoder::Encoder): takes an iterator over [PseudoAln] records and encodes them into a Vec<u8>.
+//!   - [Parser](ahda::parser::Parser): takes a [Read] containing plain text pseudoalignment bytes and converts them into [PseudoAln].
+//!   - [Printer](ahda::printer::Printer): takes an iterator over [PseudoAln] records and formats them into plain text data.
+//!
+//! These structs can additionally be chained together to eg. read encoded data
+//! and print it in a plain text format, or to parse plain text data and encode
+//! it.
+//!
+//! See documentation for the appropriate functions or structs for usage examples.
+//!
+//! ### Command line
+//!
+//! The ahda CLI supports the following subcommands:
+//!   - `ahda cat` concatenate compressed pseudoalignment data.
+//!   - `ahda convert` convert between supported plain text formats.
+//!   - `ahda decode` decompress pseudoalignment data to a supported format.
+//!   - `ahda encode` compress pseudoalignment data from a supported format.
+//!   - `ahda set` perform set operations on compressed pseudoalignment data.
+//!
+//! Note that `encode` needs access to the .fastq input file and the names of
+//! the pseudoalignment targets. These are required to create an encoded record
+//! that can be converted to any of the supported plain text formats, because
+//! the plain text formats contain varying levels of information about the input
+//! data.
+//!
+//! ## File format specification
+//!
+//! The .ahda file format has the following structure:
+//!
+//! **TODO** Write file format specification
 //!
 
 use headers::file::FileHeader;
