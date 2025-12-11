@@ -112,35 +112,29 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
             }
         }
 
-        if !self.bits_buffer.is_empty() && end {
+        let bitmap: Option<RoaringBitmap> = if !self.bits_buffer.is_empty() && end {
             let bits = self.bits_buffer.iter();
             let bitmap = RoaringBitmap::from_iter(bits);
             self.bits_buffer.clear();
-            let start_idx = self.blocks_written * self.block_size;
-            let block_queries = &self.queries[start_idx..end_idx];
-            let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
-            self.blocks_written += 1;
-            self.last_idx = end_idx;
-            Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
+            Some(bitmap)
         } else if !self.bits_buffer.is_empty() {
             let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2);
             let bitmap = RoaringBitmap::from_iter(bits);
             self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
-            let start_idx = self.blocks_written * self.block_size;
-            let block_queries = &self.queries[start_idx..end_idx];
-            let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
-            self.blocks_written += 1;
-            self.last_idx = end_idx;
-            Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
+            Some(bitmap)
         } else if self.last_idx < self.header.n_queries as usize && end {
-            let bitmap = RoaringBitmap::new();
+            Some(RoaringBitmap::new())
+        } else {
+            None
+        };
+
+        if let Some(bitmap) = bitmap {
             let start_idx = self.blocks_written * self.block_size;
             let block_queries = &self.queries[start_idx..end_idx];
             let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
             self.blocks_written += 1;
             self.last_idx = end_idx;
             Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
-
         } else {
             None
         }
