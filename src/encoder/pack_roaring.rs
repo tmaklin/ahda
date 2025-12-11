@@ -80,25 +80,14 @@ pub fn serialize_roaring(
     Ok(bytes)
 }
 
-pub fn pack_block_roaring(
-    file_header: &FileHeader,
-    records: &[PseudoAln],
+pub fn pack_block(
+    queries: &[String],
+    query_ids: &[u32],
+    bitmap: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
-    let alignments = convert_to_roaring(file_header, records)?;
+    let serialized = serialize_roaring(bitmap)?;
 
-    let serialized = serialize_roaring(&alignments)?;
-
-    let queries: Vec<String> = records.iter().filter_map(|record| {
-        assert!(record.query_name.is_some());
-        record.query_name.clone()
-    }).collect();
-
-    let query_ids: Vec<u32> = records.iter().filter_map(|record| {
-        assert!(record.query_id.is_some());
-        record.query_id
-    }).collect();
-
-    let flags: BlockFlags = BlockFlags{ queries, query_ids };
+    let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec() };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
     let flags_len = block_flags.len() as u32;
@@ -116,17 +105,37 @@ pub fn pack_block_roaring(
     let deflated_len = deflated.len() as u32;
 
     let header = BlockHeader{
-        num_records: records.len() as u32,
+        num_records: queries.len() as u32,
         deflated_len,
         block_len,
         flags_len,
-        start_idx: records.iter().filter_map(|x| x.query_id).min().unwrap(),
+        start_idx: *query_ids.iter().min().unwrap(),
         placeholder2: 0,
         placeholder3: 0,
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
     block.append(&mut deflated);
+
+    Ok(block)
+}
+
+pub fn pack_block_roaring(
+    file_header: &FileHeader,
+    records: &[PseudoAln],
+) -> Result<Vec<u8>, E> {
+    let queries: Vec<String> = records.iter().filter_map(|record| {
+        assert!(record.query_name.is_some());
+        record.query_name.clone()
+    }).collect();
+
+    let query_ids: Vec<u32> = records.iter().filter_map(|record| {
+        assert!(record.query_id.is_some());
+        record.query_id
+    }).collect();
+
+    let bitmap = convert_to_roaring(file_header, records)?;
+    let block = pack_block(&queries, &query_ids, &bitmap)?;
 
     Ok(block)
 }
