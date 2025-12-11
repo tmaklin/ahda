@@ -14,10 +14,15 @@
 
 //! C++ bindings
 
+use crate::decode_from_read_to_roaring;
 use crate::headers::file::encode_header_and_flags;
 use crate::headers::file::build_header_and_flags;
+use crate::headers::file::read_file_header_and_flags;
+use crate::headers::block::read_block_header_and_flags;
 use crate::encoder::bitmap_encoder::BitmapEncoder;
 use crate::encoder::pack_roaring::pack_block;
+
+use std::io::Cursor;
 
 use cxx::CxxString;
 use cxx::CxxVector;
@@ -45,6 +50,22 @@ mod ffi {
             name: &CxxString,
             set_bits: &CxxVector<u32>,
         ) -> Vec<u8>;
+
+        fn decode_bitmap(
+            bytes: &CxxVector<u8>,
+        ) -> Vec<u32>;
+
+        fn decode_target_names(
+            bytes: &CxxVector<u8>,
+        ) -> Vec<String>;
+
+        pub fn decode_query_ids(
+            bytes: &CxxVector<u8>,
+        ) -> Vec<u32>;
+
+        pub fn decode_query_names(
+            bytes: &CxxVector<u8>,
+        ) -> Vec<String>;
 }
 }
 
@@ -93,4 +114,56 @@ pub fn encode_bitmap(
     }
 
     bytes
+}
+
+pub fn decode_bitmap(
+    bytes: &CxxVector<u8>,
+) -> Vec<u32> {
+    let mut cursor = Cursor::new(bytes.as_slice());
+    let (bitmap, _, _, _) = decode_from_read_to_roaring(&mut cursor).unwrap();
+    let set_bits: Vec<u32> = bitmap.iter().collect();
+    set_bits
+}
+
+pub fn decode_target_names(
+    bytes: &CxxVector<u8>,
+) -> Vec<String> {
+    let mut cursor = Cursor::new(bytes.as_slice());
+    let (header, flags) = read_file_header_and_flags(&mut cursor).unwrap();
+    assert_eq!(header.n_targets as usize, flags.target_names.len());
+    flags.target_names
+}
+
+pub fn decode_query_names(
+    bytes: &CxxVector<u8>,
+) -> Vec<String> {
+    let mut cursor = Cursor::new(bytes.as_slice());
+    let (header, _) = read_file_header_and_flags(&mut cursor).unwrap();
+
+    let mut query_names: Vec<String> = Vec::with_capacity(header.n_queries as usize);
+    while let Ok((header, mut flags)) = read_block_header_and_flags(&mut cursor) {
+        assert_eq!(header.num_records as usize, query_names.len());
+        assert_eq!(flags.query_ids.len(), query_names.len());
+        query_names.append(&mut flags.queries);
+        cursor.set_position(cursor.position() + header.block_len as u64);
+    }
+
+    todo!("decoding block header and block flags")
+}
+
+pub fn decode_query_ids(
+    bytes: &CxxVector<u8>,
+) -> Vec<u32> {
+    let mut cursor = Cursor::new(bytes.as_slice());
+    let (header, _) = read_file_header_and_flags(&mut cursor).unwrap();
+
+    let mut query_ids: Vec<u32> = Vec::with_capacity(header.n_queries as usize);
+    while let Ok((header, mut flags)) = read_block_header_and_flags(&mut cursor) {
+        assert_eq!(header.num_records as usize, query_ids.len());
+        assert_eq!(flags.query_ids.len(), query_ids.len());
+        query_ids.append(&mut flags.query_ids);
+        cursor.set_position(cursor.position() + header.block_len as u64);
+    }
+
+    todo!("decoding block header and block flags")
 }
