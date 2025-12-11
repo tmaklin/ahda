@@ -169,23 +169,8 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         sample_name: &str,
         format: Format,
     ) -> Self {
-        if format == Format::SAM {
-            todo!("printing .sam plain text data.")
-        }
-
         let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
-        let sam_header = if format == Format::SAM {
-            Some(sam::build_sam_header(&flags.target_names).unwrap())
-        } else {
-            None
-        };
-
-        Printer{
-            records,
-            header, flags,
-            sam_header, index: 0,
-            format,
-        }
+        Printer::new_from_header_and_flags(records, header, flags, format)
     }
 
     pub fn new_from_header_and_flags(
