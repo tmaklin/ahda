@@ -495,16 +495,13 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let decoder = decoder::Decoder::new(conn_in);
+    let mut decoder = decoder::Decoder::new(conn_in);
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    for block in decoder {
-        let mut block_iter = block.into_iter();
-        let printer = printer::Printer::new_from_header_and_flags(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
-        for line in printer {
-            conn_out.write_all(&line)?;
-        }
+    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone());
+    for line in printer {
+        conn_out.write_all(&line)?;
     }
 
     conn_out.flush()?;
@@ -548,10 +545,7 @@ pub fn decode_from_read<R: Read>(
     let flags = decoder.file_flags().clone();
 
     let mut alns: Vec<PseudoAln> = Vec::with_capacity(header.n_queries as usize);
-    for block in decoder {
-        let block_iter = block.into_iter();
-        alns.extend(block_iter);
-    }
+    alns.extend(decoder);
 
     Ok((header, flags, alns))
 }
@@ -597,16 +591,13 @@ pub fn decode_to_write<W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut tmp = std::io::Cursor::new(&records);
-    let decoder = decoder::Decoder::new(&mut tmp);
+    let mut decoder = decoder::Decoder::new(&mut tmp);
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    for block in decoder {
-        let mut block_iter = block.into_iter();
-        let printer = printer::Printer::new_from_header_and_flags(&mut block_iter, header.clone(), flags.clone(), out_format.clone());
-        for line in printer {
-            conn_out.write_all(&line)?;
-        }
+    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone());
+    for line in printer {
+        conn_out.write_all(&line)?;
     }
 
     conn_out.flush()?;
