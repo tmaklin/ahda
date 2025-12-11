@@ -173,15 +173,10 @@ impl<R: Read> Decoder<'_, R> {
     ) -> &FileFlags {
         &self.flags
     }
-}
 
-// TODO This should return a single pseudoalignment using BitmapDecoder
-impl<R: Read> Iterator for Decoder<'_, R> {
-    type Item = Vec<PseudoAln>;
-
-    fn next(
+    fn next_block(
         &mut self,
-    ) -> Option<Self::Item> {
+    ) -> Option<Vec<PseudoAln>> {
         match read_block_header(self.conn) {
             Ok(block_header) => {
                 let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
@@ -217,6 +212,17 @@ impl<R: Read> Iterator for Decoder<'_, R> {
             },
             _ => None,
         }
+    }
+}
+
+// TODO This should return a single pseudoalignment using BitmapDecoder
+impl<R: Read> Iterator for Decoder<'_, R> {
+    type Item = Vec<PseudoAln>;
+
+    fn next(
+        &mut self,
+    ) -> Option<Self::Item> {
+        self.next_block()
     }
 }
 
