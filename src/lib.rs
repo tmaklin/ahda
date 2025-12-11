@@ -44,6 +44,7 @@
 //!   - [Encoder](ahda::encoder::Encoder): takes an iterator over [PseudoAln] records and encodes them into a Vec<u8>.
 //!   - [Parser](ahda::parser::Parser): takes a [Read] containing plain text pseudoalignment bytes and converts them into [PseudoAln].
 //!   - [Printer](ahda::printer::Printer): takes an iterator over [PseudoAln] records and formats them into plain text data.
+//!   - [BitmapDecoder](decoder::bitmap::BitmapDecoder): takes an iterator over the indexes of set bits and decodes them into [PseudoAln].
 //!
 //! These structs can additionally be chained together to eg. read encoded data
 //! and print it in a plain text format, or to parse plain text data and encode
