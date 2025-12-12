@@ -38,7 +38,7 @@ impl std::fmt::Display for EncodeError {
 impl std::error::Error for EncodeError {}
 
 /// Converts [PseudoAln] records to Roaring bitmaps
-pub fn convert_to_roaring(
+pub fn convert_to_roaring32(
     file_header: &FileHeader,
     records: &[PseudoAln],
 ) -> Result<RoaringBitmap, E> {
@@ -61,7 +61,7 @@ pub fn convert_to_roaring(
     Ok(bits)
 }
 
-pub fn serialize_roaring(
+pub fn serialize_roaring32(
     bits: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
@@ -70,7 +70,7 @@ pub fn serialize_roaring(
     Ok(bytes)
 }
 
-pub fn deserialize_roaring(
+pub fn deserialize_roaring32(
     bytes: &[u8],
 ) -> Result<RoaringBitmap, E> {
     let bitmap_bytes = inflate_bytes(bytes)?;
@@ -78,12 +78,12 @@ pub fn deserialize_roaring(
     Ok(bitmap)
 }
 
-pub fn pack_block_roaring(
+pub fn pack_block_roaring32(
     queries: &[String],
     query_ids: &[u32],
     bitmap: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
-    let mut serialized = serialize_roaring(bitmap)?;
+    let mut serialized = serialize_roaring32(bitmap)?;
 
     let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec() };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
@@ -110,11 +110,11 @@ pub fn pack_block_roaring(
     Ok(block)
 }
 
-pub fn unpack_block_roaring(
+pub fn unpack_block_roaring32(
     bytes: &[u8],
     block_header: &BlockHeader,
 ) -> Result<(RoaringBitmap, BlockFlags), E> {
     let block_flags = decode_block_flags(&bytes[0..(block_header.flags_len as usize)])?;
-    let bitmap = deserialize_roaring(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
+    let bitmap = deserialize_roaring32(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
     Ok((bitmap, block_flags))
 }
