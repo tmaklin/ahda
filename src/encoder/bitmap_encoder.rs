@@ -18,7 +18,7 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use crate::compression::roaring::pack_block;
+use crate::compression::roaring::pack_block_roaring;
 
 use roaring::RoaringBitmap;
 
@@ -139,7 +139,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
             let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
             self.blocks_written += 1;
             self.last_idx = end_idx;
-            Some(pack_block(block_queries, &block_ids, &bitmap).unwrap())
+            Some(pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap())
         } else {
             None
         }

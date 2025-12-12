@@ -139,7 +139,7 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use crate::compression::roaring::pack_records;
+use crate::compression::pack_records;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
