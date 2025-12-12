@@ -19,7 +19,7 @@ use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
 use crate::compression::BitmapType;
-use crate::compression::roaring::pack_block_roaring;
+use crate::compression::roaring32::pack_block_roaring32;
 
 use roaring::RoaringBitmap;
 
@@ -149,7 +149,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
 
         let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
             BitmapType::Roaring32 => {
-                pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap()
+                pack_block_roaring32(block_queries, &block_ids, &bitmap).unwrap()
             },
             BitmapType::Roaring64 => {
                 todo!("BitmapEncoder::next() for RoaringTreemap");
