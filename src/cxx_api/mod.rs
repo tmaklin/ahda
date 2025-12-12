@@ -39,7 +39,7 @@ use crate::headers::file::build_header_and_flags;
 use crate::headers::file::read_file_header_and_flags;
 use crate::headers::block::read_block_header_and_flags;
 use crate::encoder::bitmap_encoder::BitmapEncoder;
-use crate::compression::roaring::pack_block;
+use crate::compression::roaring::pack_block_roaring;
 
 use std::io::Cursor;
 
@@ -112,7 +112,7 @@ pub fn encode_file_header_and_flags(
 
 /// Encode a single .ahda block and its block header and flags.
 ///
-/// Creates a [RoaringBitmap] from the set bit indexes and calls [pack_block] to
+/// Creates a [RoaringBitmap] from the set bit indexes and calls [pack_block_roaring] to
 /// encode the block header, block flags, and block contents.
 ///
 /// The output is a valid block record that can be appended to an .ahda record
@@ -125,7 +125,7 @@ pub fn encode_block(
 ) -> Vec<u8> {
     let bitmap = RoaringBitmap::from_iter(set_bits.iter());
     let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
-    let block = pack_block(&query_names, query_ids.as_slice(), &bitmap);
+    let block = pack_block_roaring(&query_names, query_ids.as_slice(), &bitmap);
     block.unwrap()
 }
 
