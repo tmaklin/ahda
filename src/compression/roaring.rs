@@ -19,13 +19,10 @@ use crate::headers::block::encode_block_header;
 use crate::headers::block::encode_block_flags;
 use crate::headers::block::decode_block_flags;
 
-use std::io::Write;
+use crate::compression::gzwrapper::deflate_bytes;
+use crate::compression::gzwrapper::inflate_bytes;
 
 use roaring::bitmap::RoaringBitmap;
-
-use flate2::write::GzEncoder;
-use flate2::write::GzDecoder;
-use flate2::Compression;
 
 type E = Box<dyn std::error::Error>;
 
@@ -39,16 +36,6 @@ impl std::fmt::Display for EncodeError {
 }
 
 impl std::error::Error for EncodeError {}
-
-fn deflate_bytes(
-    bytes: &[u8],
-) -> Result<Vec<u8>, E> {
-    let mut deflated: Vec<u8> = Vec::with_capacity(bytes.len());
-    let mut encoder = GzEncoder::new(&mut deflated, Compression::default());
-    encoder.write_all(bytes)?;
-    encoder.finish()?;
-    Ok(deflated)
-}
 
 /// Converts [PseudoAln] records to Roaring bitmaps
 pub fn convert_to_roaring(
@@ -134,17 +121,6 @@ pub fn pack_block_roaring(
     let block = pack_block(&queries, &query_ids, &bitmap)?;
 
     Ok(block)
-}
-
-
-fn inflate_bytes(
-    deflated: &[u8],
-) -> Result<Vec<u8>, E> {
-    let mut inflated: Vec<u8> = Vec::new();
-    let mut decoder = GzDecoder::new(&mut inflated);
-    decoder.write_all(deflated)?;
-    decoder.finish()?;
-    Ok(inflated)
 }
 
 pub fn unpack_block_roaring(

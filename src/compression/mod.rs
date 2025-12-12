@@ -12,4 +12,5 @@
 // at your option.
 //
 
+pub mod gzwrapper;
 pub mod roaring;

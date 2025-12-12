@@ -18,7 +18,9 @@ use flate2::Compression;
 
 use std::io::Write;
 
-fn deflate_bytes(
+type E = Box<dyn std::error::Error>;
+
+pub fn deflate_bytes(
     bytes: &[u8],
 ) -> Result<Vec<u8>, E> {
     let mut deflated: Vec<u8> = Vec::with_capacity(bytes.len());
@@ -28,7 +30,7 @@ fn deflate_bytes(
     Ok(deflated)
 }
 
-fn inflate_bytes(
+pub fn inflate_bytes(
     deflated: &[u8],
 ) -> Result<Vec<u8>, E> {
     let mut inflated: Vec<u8> = Vec::new();
