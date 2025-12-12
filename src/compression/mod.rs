@@ -27,8 +27,11 @@ type E = Box<dyn std::error::Error>;
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum BitmapType {
+    /// RoaringBitmap (32-bit address space)
     #[default]
     Roaring32,
+    /// RoaringTreemap (64-bit address space)
+    Roaring64,
 }
 
 
@@ -36,6 +39,7 @@ impl BitmapType {
     fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(BitmapType::Roaring32),
+            1 => Ok(BitmapType::Roaring64),
             _ => panic!("Not a valid BitmapType"),
         }
     }
@@ -60,6 +64,9 @@ pub fn pack_records(
             let bitmap = convert_to_roaring(file_header, records)?;
             pack_block_roaring(&queries, &query_ids, &bitmap)?
         },
+        BitmapType::Roaring64 => {
+            todo!("converting records to a RoaringTreemap");
+        }
     };
 
     Ok(block)
