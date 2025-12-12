@@ -23,8 +23,9 @@ use crate::compression::roaring::pack_block;
 use roaring::RoaringBitmap;
 
 pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u32> {
-    // Inputs
+    // Input iterator
     set_bits: &'a mut I,
+    end: bool,
 
     // These are given as construtor parameters
     header: FileHeader,
@@ -57,7 +58,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u32> {
         let block_size = block_size - 1;
 
         BitmapEncoder{
-            set_bits,
+            set_bits, end: false,
             header, flags,
             queries: queries.to_vec(),
             block_size, blocks_written: 0_usize,
@@ -90,29 +91,10 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
         self.block_size = new_block_size;
     }
 
-}
-
-impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
-    type Item = Vec<u8>;
-
-    fn next(
-        &mut self,
-    ) -> Option<Vec<u8>> {
-        let mut end = false;
-        let end_idx = ((self.blocks_written + 1) * self.block_size).min(self.header.n_queries as usize);
-        loop {
-            if let Some(next_idx) = self.set_bits.next() {
-                self.bits_buffer.push(next_idx);
-                if next_idx > end_idx as u32 * self.header.n_targets {
-                    break;
-                }
-            } else {
-                end = true;
-                break;
-            }
-        }
-
-        let bitmap: Option<RoaringBitmap> = if !self.bits_buffer.is_empty() && end {
+    pub fn build_roaring(
+        &mut self
+    ) -> Option<RoaringBitmap> {
+        if !self.bits_buffer.is_empty() && self.end {
             let bits = self.bits_buffer.iter();
             let bitmap = RoaringBitmap::from_iter(bits);
             self.bits_buffer.clear();
@@ -122,11 +104,34 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
             let bitmap = RoaringBitmap::from_iter(bits);
             self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
             Some(bitmap)
-        } else if self.last_idx < self.header.n_queries as usize && end {
+        } else if self.last_idx < self.header.n_queries as usize && self.end {
             Some(RoaringBitmap::new())
         } else {
             None
-        };
+        }
+    }
+}
+
+impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
+    type Item = Vec<u8>;
+
+    fn next(
+        &mut self,
+    ) -> Option<Vec<u8>> {
+        let end_idx = ((self.blocks_written + 1) * self.block_size).min(self.header.n_queries as usize);
+        loop {
+            if let Some(next_idx) = self.set_bits.next() {
+                self.bits_buffer.push(next_idx);
+                if next_idx > end_idx as u32 * self.header.n_targets {
+                    break;
+                }
+            } else {
+                self.end = true;
+                break;
+            }
+        }
+
+        let bitmap = self.build_roaring();
 
         if let Some(bitmap) = bitmap {
             let start_idx = self.blocks_written * self.block_size;
