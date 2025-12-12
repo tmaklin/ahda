@@ -12,6 +12,7 @@
 // at your option.
 //
 use crate::compression::gzwrapper::deflate_bytes;
+use crate::compression::gzwrapper::inflate_bytes;
 
 use std::io::Read;
 
@@ -116,9 +117,21 @@ pub fn encode_block_flags(
 pub fn decode_block_flags(
     bytes: &[u8],
 ) -> Result<BlockFlags, E> {
-    let flags: BlockFlags = decode_from_slice(bytes, bincode::config::standard())?.0;
+    let bytes = inflate_bytes(bytes)?;
+    let flags: BlockFlags = decode_from_slice(&bytes, bincode::config::standard())?.0;
 
     Ok(flags)
+}
+
+pub fn encode_block_header_and_flags(
+    header: &BlockHeader,
+    flags: &BlockFlags,
+) -> Result<Vec<u8>, E> {
+    let mut bytes = encode_block_header(header)?;
+    let mut flags_bytes = encode_block_flags(flags)?;
+    assert_eq!(header.flags_len, flags_bytes.len() as u32);
+    bytes.append(&mut flags_bytes);
+    Ok(bytes)
 }
 
 #[cfg(test)]
@@ -181,7 +194,7 @@ mod tests {
         use super::BlockFlags;
 
         let expected = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
-        let data: Vec<u8> = vec![3, 1, 97, 1, 98, 1, 99, 3, 1, 0, 2];
+        let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
 
         let got = decode_block_flags(&data).unwrap();
         assert_eq!(got, expected);
@@ -196,7 +209,7 @@ mod tests {
         use std::io::Cursor;
 
         let expected = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
-        let data_bytes: Vec<u8> = vec![3, 1, 97, 1, 98, 1, 99, 3, 1, 0, 2];
+        let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
         let header = BlockHeader{ num_records: 31, deflated_len: 257, block_len: 65511, flags_len: data_bytes.len() as u32, start_idx: 0, placeholder2: 0, placeholder3: 0 };
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
@@ -213,10 +226,10 @@ mod tests {
 
         use std::io::Cursor;
 
-        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 1, 97, 1, 98, 1, 99, 3, 1, 0, 2];
+        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected_header = BlockHeader{ num_records: 31, deflated_len: 257, block_len: 65511, flags_len: 11 as u32, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let expected_header = BlockHeader{ num_records: 31, deflated_len: 257, block_len: 65511, flags_len: 31 as u32, start_idx: 0, placeholder2: 0, placeholder3: 0 };
         let expected_flags = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
 
         let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();

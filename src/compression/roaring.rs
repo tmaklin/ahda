@@ -134,8 +134,7 @@ pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,
 ) -> Result<(RoaringBitmap, BlockFlags), E> {
-    let flags_bytes = inflate_bytes(&bytes[0..(block_header.flags_len as usize)])?;
-    let block_flags = decode_block_flags(&flags_bytes)?;
+    let block_flags = decode_block_flags(&bytes[0..(block_header.flags_len as usize)])?;
     let bitmap = deserialize_roaring(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
     Ok((bitmap, block_flags))
 }
