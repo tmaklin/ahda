@@ -70,6 +70,14 @@ pub fn serialize_roaring(
     Ok(bytes)
 }
 
+pub fn deserialize_roaring(
+    bytes: &[u8],
+) -> Result<RoaringBitmap, E> {
+    let bitmap_bytes = inflate_bytes(bytes)?;
+    let bitmap = RoaringBitmap::deserialize_from(bitmap_bytes.as_slice())?;
+    Ok(bitmap)
+}
+
 pub fn pack_block(
     queries: &[String],
     query_ids: &[u32],
@@ -128,9 +136,6 @@ pub fn unpack_block_roaring(
 ) -> Result<(RoaringBitmap, BlockFlags), E> {
     let flags_bytes = inflate_bytes(&bytes[0..(block_header.flags_len as usize)])?;
     let block_flags = decode_block_flags(&flags_bytes)?;
-
-    let bitmap_bytes = inflate_bytes(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
-    let bitmap = RoaringBitmap::deserialize_from(bitmap_bytes.as_slice())?;
-
+    let bitmap = deserialize_roaring(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
     Ok((bitmap, block_flags))
 }
