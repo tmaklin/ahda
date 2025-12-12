@@ -219,7 +219,7 @@ pub fn decode_query_names(
         cursor.set_position(cursor.position() + header.block_len as u64);
     }
 
-    todo!("decoding block header and block flags")
+    query_names
 }
 
 /// Decodes the query sequence indexes from the block flags in an .ahda record.
@@ -246,5 +246,5 @@ pub fn decode_query_ids(
         cursor.set_position(cursor.position() + header.block_len as u64);
     }
 
-    todo!("decoding block header and block flags")
+    query_ids
 }
