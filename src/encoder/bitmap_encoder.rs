@@ -137,7 +137,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
                 self.build_roaring()
             },
             BitmapType::Roaring64 => {
-                todo!("Decoder::next_block() for RoaringTreemap");
+                todo!("BitmapEncoder::next() for RoaringTreemap");
             }
         };
 
@@ -153,7 +153,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
                     pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap()
                 },
                 BitmapType::Roaring64 => {
-                    todo!("Decoder::next_block() for RoaringTreemap");
+                    todo!("BitmapEncoder::next() for RoaringTreemap");
                 }
             };
             Some(bytes)
