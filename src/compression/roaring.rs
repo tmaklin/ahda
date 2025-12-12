@@ -17,12 +17,14 @@ use crate::headers::block::BlockHeader;
 use crate::headers::file::FileHeader;
 use crate::headers::block::encode_block_header;
 use crate::headers::block::encode_block_flags;
+use crate::headers::block::decode_block_flags;
 
 use std::io::Write;
 
 use roaring::bitmap::RoaringBitmap;
 
 use flate2::write::GzEncoder;
+use flate2::write::GzDecoder;
 use flate2::Compression;
 
 type E = Box<dyn std::error::Error>;
@@ -132,4 +134,28 @@ pub fn pack_block_roaring(
     let block = pack_block(&queries, &query_ids, &bitmap)?;
 
     Ok(block)
+}
+
+
+fn inflate_bytes(
+    deflated: &[u8],
+) -> Result<Vec<u8>, E> {
+    let mut inflated: Vec<u8> = Vec::new();
+    let mut decoder = GzDecoder::new(&mut inflated);
+    decoder.write_all(deflated)?;
+    decoder.finish()?;
+    Ok(inflated)
+}
+
+pub fn unpack_block_roaring(
+    bytes: &[u8],
+    block_header: &BlockHeader,
+) -> Result<(RoaringBitmap, BlockFlags), E> {
+    let flags_bytes = inflate_bytes(&bytes[0..(block_header.flags_len as usize)])?;
+    let block_flags = decode_block_flags(&flags_bytes)?;
+
+    let bitmap_bytes = inflate_bytes(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
+    let bitmap = RoaringBitmap::deserialize_from(bitmap_bytes.as_slice())?;
+
+    Ok((bitmap, block_flags))
 }
