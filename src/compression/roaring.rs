@@ -110,7 +110,7 @@ pub fn pack_block(
     Ok(block)
 }
 
-pub fn pack_block_roaring(
+pub fn pack_records(
     file_header: &FileHeader,
     records: &[PseudoAln],
 ) -> Result<Vec<u8>, E> {

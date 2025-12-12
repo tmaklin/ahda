@@ -139,7 +139,7 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use crate::compression::roaring::pack_block_roaring;
+use crate::compression::roaring::pack_records;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
@@ -225,7 +225,7 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
 
         block_records.sort_by_key(|x| x.query_id.unwrap());
 
-        let out = pack_block_roaring(&self.header, &block_records).unwrap();
+        let out = pack_records(&self.header, &block_records).unwrap();
 
         self.blocks_written += 1;
 
