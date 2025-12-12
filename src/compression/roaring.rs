@@ -110,26 +110,6 @@ pub fn pack_block(
     Ok(block)
 }
 
-pub fn pack_records(
-    file_header: &FileHeader,
-    records: &[PseudoAln],
-) -> Result<Vec<u8>, E> {
-    let queries: Vec<String> = records.iter().filter_map(|record| {
-        assert!(record.query_name.is_some());
-        record.query_name.clone()
-    }).collect();
-
-    let query_ids: Vec<u32> = records.iter().filter_map(|record| {
-        assert!(record.query_id.is_some());
-        record.query_id
-    }).collect();
-
-    let bitmap = convert_to_roaring(file_header, records)?;
-    let block = pack_block(&queries, &query_ids, &bitmap)?;
-
-    Ok(block)
-}
-
 pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,
