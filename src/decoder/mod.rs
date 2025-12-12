@@ -133,6 +133,8 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
 
+type E = Box<dyn std::error::Error>;
+
 // TODO Implement IntoIterator for Decoder
 
 pub struct Decoder<'a, R: Read> {
@@ -168,6 +170,36 @@ impl<'a, R: Read> Decoder<'a, R> {
 
 impl<R: Read> Decoder<'_, R> {
 
+    fn alns_from_roaring32(
+        &mut self,
+        bytes: &[u8],
+    ) -> Result<Vec<PseudoAln>, E> {
+        let (bitmap, block_flags) = unpack_block_roaring32(bytes, self.block_header.as_ref().unwrap())?;
+        let mut name_to_id: HashMap<String, u32> = HashMap::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
+        let mut seen: HashSet<u32> = HashSet::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
+        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
+            name_to_id.insert(name.clone(), *idx);
+        });
+
+        let mut tmp = bitmap.iter();
+        let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
+        let mut alns: Vec<PseudoAln> = Vec::new();
+        for mut record in bitmap_decoder {
+            let query_id = *name_to_id.get(record.query_name.as_ref().unwrap()).unwrap();
+            record.query_id = Some(query_id);
+            seen.insert(query_id);
+            alns.push(record);
+        }
+
+        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
+            if !seen.contains(idx) {
+                alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+            }
+        });
+
+        self.block_flags = Some(block_flags);
+        Ok(alns)
+    }
     pub fn file_header(
         &self,
     ) -> &FileHeader {
@@ -187,39 +219,16 @@ impl<R: Read> Decoder<'_, R> {
             Ok(block_header) => {
                 let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
                 self.conn.read_exact(&mut bytes).unwrap();
-                let (bitmap, block_flags) = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
+                self.block_header = Some(block_header);
+                let alns = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
                     BitmapType::Roaring32 => {
-                        unpack_block_roaring32(&bytes, &block_header).unwrap()
+                        self.alns_from_roaring32(&bytes).unwrap()
                     },
                     BitmapType::Roaring64 => {
                         todo!("Decoder::next_block() for RoaringTreemap");
                     }
                 };
 
-                let mut name_to_id: HashMap<String, u32> = HashMap::with_capacity(block_header.num_records as usize);
-                let mut seen: HashSet<u32> = HashSet::with_capacity(block_header.num_records as usize);
-                block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
-                    name_to_id.insert(name.clone(), *idx);
-                });
-
-                let mut tmp = bitmap.iter();
-                let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), block_header.clone(), block_flags.clone());
-                let mut alns: Vec<PseudoAln> = Vec::new();
-                for mut record in bitmap_decoder {
-                    let query_id = *name_to_id.get(record.query_name.as_ref().unwrap()).unwrap();
-                    record.query_id = Some(query_id);
-                    seen.insert(query_id);
-                    alns.push(record);
-                }
-
-                block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
-                    if !seen.contains(idx) {
-                        alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
-                    }
-                });
-
-                self.block_header = Some(block_header);
-                self.block_flags = Some(block_flags);
 
                 Some(alns)
             },
