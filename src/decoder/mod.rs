@@ -128,6 +128,7 @@ use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use crate::compression::BitmapType;
 use crate::compression::roaring32::unpack_block_roaring32;
+use crate::compression::roaring64::unpack_block_roaring64;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -170,6 +171,8 @@ impl<'a, R: Read> Decoder<'a, R> {
 
 impl<R: Read> Decoder<'_, R> {
 
+    // TODO ugly copy paste in alns_from_roaring32 and alns_from_roaring64
+
     fn alns_from_roaring32(
         &mut self,
         bytes: &[u8],
@@ -200,6 +203,44 @@ impl<R: Read> Decoder<'_, R> {
         self.block_flags = Some(block_flags);
         Ok(alns)
     }
+
+    fn alns_from_roaring64(
+        &mut self,
+        bytes: &[u8],
+    ) -> Result<Vec<PseudoAln>, E> {
+        let (bitmap, block_flags) = unpack_block_roaring64(bytes, self.block_header.as_ref().unwrap())?;
+        let mut name_to_id: HashMap<String, u32> = HashMap::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
+        let mut seen: HashSet<u32> = HashSet::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
+        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
+            name_to_id.insert(name.clone(), *idx);
+        });
+
+        // Just to make this compile
+        let mut tmp32: Vec<u32> = Vec::new();
+        bitmap.iter().for_each(|x| tmp32.push(x.try_into().unwrap()));
+        let mut tmp = tmp32.into_iter();
+
+        todo!("alns_from_roaring64");
+
+        let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
+        let mut alns: Vec<PseudoAln> = Vec::new();
+        for mut record in bitmap_decoder {
+            let query_id = *name_to_id.get(record.query_name.as_ref().unwrap()).unwrap();
+            record.query_id = Some(query_id);
+            seen.insert(query_id);
+            alns.push(record);
+        }
+
+        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
+            if !seen.contains(idx) {
+                alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+            }
+        });
+
+        self.block_flags = Some(block_flags);
+        Ok(alns)
+    }
+
     pub fn file_header(
         &self,
     ) -> &FileHeader {
@@ -225,7 +266,7 @@ impl<R: Read> Decoder<'_, R> {
                         self.alns_from_roaring32(&bytes).unwrap()
                     },
                     BitmapType::Roaring64 => {
-                        todo!("Decoder::next_block() for RoaringTreemap");
+                        self.alns_from_roaring64(&bytes).unwrap()
                     }
                 };
 
