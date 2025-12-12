@@ -276,7 +276,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 
     let new_flags = FileFlags { query_name, target_names };
     let new_flags_bytes = encode_file_flags(&new_flags)?;
-    let new_header = FileHeader { n_targets, n_queries, flags_len: new_flags_bytes.len() as u32, format: 0, ph2: 0, ph3: 0, ph4: 0 };
+    let new_header = FileHeader { n_targets, n_queries, flags_len: new_flags_bytes.len() as u32, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
     let new_header_bytes = encode_file_header(&new_header)?;
     conn_out.write_all(&new_header_bytes)?;
     conn_out.write_all(&new_flags_bytes)?;
@@ -707,12 +707,12 @@ pub fn decode_to_write<W: Write>(
 ///
 /// // Expect these outputs:
 /// //   RoaringBitmap<[2, 9, 11, 12, 13, 14]>
-/// //   FileHeader   { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, ph2: 0, ph3: 0, ph4: 0 }
+/// //   FileHeader   { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 }
 /// //   FileFlags    { query_name: "sample", target_names: ["chr.fasta", "plasmid.fasta", "virus.fasta"] }
 /// //   BlockFlags   { queries: ["r1", "r651903", "r7543", "r16"], query_ids: [0, 2, 3, 4] }
 ///
 /// assert_eq!(bitmap, RoaringBitmap::from([2, 9, 11, 12, 13, 14]));
-/// assert_eq!(file_header, FileHeader{ n_targets: 3, n_queries: 5, flags_len: 44, format: 1, ph2: 0, ph3: 0, ph4: 0 });
+/// assert_eq!(file_header, FileHeader{ n_targets: 3, n_queries: 5, flags_len: 44, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 });
 /// assert_eq!(file_flags, FileFlags{ query_name: "sample".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()] });
 /// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] });
 ///
