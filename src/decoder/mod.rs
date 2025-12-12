@@ -126,6 +126,7 @@ use crate::headers::file::read_file_flags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
+use crate::compression::BitmapType;
 use crate::compression::roaring::unpack_block_roaring;
 
 use std::collections::HashMap;
@@ -186,7 +187,14 @@ impl<R: Read> Decoder<'_, R> {
             Ok(block_header) => {
                 let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
                 self.conn.read_exact(&mut bytes).unwrap();
-                let (bitmap, block_flags) = unpack_block_roaring(&bytes, &block_header).unwrap();
+                let (bitmap, block_flags) = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
+                    BitmapType::Roaring32 => {
+                        unpack_block_roaring(&bytes, &block_header).unwrap()
+                    },
+                    BitmapType::Roaring64 => {
+                        todo!("Decoder::next_block() for RoaringTreemap");
+                    }
+                };
 
                 let mut name_to_id: HashMap<String, u32> = HashMap::with_capacity(block_header.num_records as usize);
                 let mut seen: HashSet<u32> = HashSet::with_capacity(block_header.num_records as usize);

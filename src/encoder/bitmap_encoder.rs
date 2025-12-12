@@ -18,6 +18,7 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
+use crate::compression::BitmapType;
 use crate::compression::roaring::pack_block_roaring;
 
 use roaring::RoaringBitmap;
@@ -131,7 +132,14 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
             }
         }
 
-        let bitmap = self.build_roaring();
+        let bitmap = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
+            BitmapType::Roaring32 => {
+                self.build_roaring()
+            },
+            BitmapType::Roaring64 => {
+                todo!("Decoder::next_block() for RoaringTreemap");
+            }
+        };
 
         if let Some(bitmap) = bitmap {
             let start_idx = self.blocks_written * self.block_size;
@@ -139,7 +147,16 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
             let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
             self.blocks_written += 1;
             self.last_idx = end_idx;
-            Some(pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap())
+
+            let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
+                BitmapType::Roaring32 => {
+                    pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap()
+                },
+                BitmapType::Roaring64 => {
+                    todo!("Decoder::next_block() for RoaringTreemap");
+                }
+            };
+            Some(bytes)
         } else {
             None
         }
