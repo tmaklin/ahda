@@ -14,12 +14,15 @@
 
 pub mod gzwrapper;
 pub mod roaring32;
+pub mod roaring64;
 
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 
 use roaring32::convert_to_roaring32;
 use roaring32::pack_block_roaring32;
+use roaring64::convert_to_roaring64;
+use roaring64::pack_block_roaring64;
 
 type E = Box<dyn std::error::Error>;
 
@@ -65,7 +68,8 @@ pub fn pack_records(
             pack_block_roaring32(&queries, &query_ids, &bitmap)?
         },
         BitmapType::Roaring64 => {
-            todo!("converting records to a RoaringTreemap");
+            let bitmap = convert_to_roaring64(file_header, records)?;
+            pack_block_roaring64(&queries, &query_ids, &bitmap)?
         }
     };
 
