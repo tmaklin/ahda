@@ -85,24 +85,17 @@ pub fn pack_block(
     query_ids: &[u32],
     bitmap: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
-    let serialized = serialize_roaring(bitmap)?;
+    let mut serialized = serialize_roaring(bitmap)?;
+    serialized = deflate_bytes(&serialized)?;
 
     let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec() };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
+    block_flags = deflate_bytes(&block_flags)?;
 
     let flags_len = block_flags.len() as u32;
     let block_len = serialized.len() as u32;
 
-    let mut flags_and_block: Vec<u8> = serialized;
-    flags_and_block.append(&mut block_flags);
-
-    // For some reason running twice is needed here?
-    // Maybe related to window size somehow?
-    //
-    let deflated_1st = deflate_bytes(&flags_and_block)?;
-    let mut deflated = deflate_bytes(&deflated_1st)?;
-
-    let deflated_len = deflated.len() as u32;
+    let deflated_len = flags_len + block_len;
 
     let header = BlockHeader{
         num_records: queries.len() as u32,
@@ -115,7 +108,8 @@ pub fn pack_block(
     };
 
     let mut block: Vec<u8> = encode_block_header(&header)?;
-    block.append(&mut deflated);
+    block.append(&mut block_flags);
+    block.append(&mut serialized);
 
     Ok(block)
 }

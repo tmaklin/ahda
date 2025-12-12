@@ -11,13 +11,10 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
-use crate::PseudoAln;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::decode_block_flags;
-use crate::headers::file::FileFlags;
 
-use std::collections::HashSet;
 use std::io::Write;
 
 use roaring::bitmap::RoaringBitmap;
@@ -40,12 +37,11 @@ pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,
 ) -> Result<(RoaringBitmap, BlockFlags), E> {
-    let inflated_bytes = inflate_bytes(bytes)?;
-    let inflated_bytes = inflate_bytes(&inflated_bytes)?;
+    let flags_bytes = inflate_bytes(&bytes[0..(block_header.flags_len as usize)])?;
+    let block_flags = decode_block_flags(&flags_bytes)?;
 
-    let block_flags = decode_block_flags(&inflated_bytes[(block_header.block_len as usize)..inflated_bytes.len()])?;
+    let bitmap_bytes = inflate_bytes(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
+    let bitmap = RoaringBitmap::deserialize_from(bitmap_bytes.as_slice())?;
 
-    let aln_bits = RoaringBitmap::deserialize_from(&inflated_bytes[0..(block_header.block_len as usize)])?;
-
-    Ok((aln_bits, block_flags))
+    Ok((bitmap, block_flags))
 }
