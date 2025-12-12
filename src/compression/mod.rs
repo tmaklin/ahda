@@ -36,7 +36,7 @@ pub enum BitmapType {
 
 
 impl BitmapType {
-    fn from_u16(val: u16) -> Result<Self, E> {
+    pub fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(BitmapType::Roaring32),
             1 => Ok(BitmapType::Roaring64),
