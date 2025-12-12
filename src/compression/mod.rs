@@ -23,6 +23,24 @@ use roaring::pack_block_roaring;
 
 type E = Box<dyn std::error::Error>;
 
+/// Supported bitmap types for an .ahda record
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum BitmapType {
+    #[default]
+    Roaring32,
+}
+
+
+impl BitmapType {
+    fn from_u16(val: u16) -> Result<Self, E> {
+        match val {
+            0 => Ok(BitmapType::Roaring32),
+            _ => panic!("Not a valid BitmapType"),
+        }
+    }
+}
+
 pub fn pack_records(
     file_header: &FileHeader,
     records: &[PseudoAln],
@@ -37,8 +55,12 @@ pub fn pack_records(
         record.query_id
     }).collect();
 
-    let bitmap = convert_to_roaring(file_header, records)?;
-    let block = pack_block_roaring(&queries, &query_ids, &bitmap)?;
+    let block = match BitmapType::from_u16(file_header.bitmap_type)? {
+        BitmapType::Roaring32 => {
+            let bitmap = convert_to_roaring(file_header, records)?;
+            pack_block_roaring(&queries, &query_ids, &bitmap)?
+        },
+    };
 
     Ok(block)
 }
