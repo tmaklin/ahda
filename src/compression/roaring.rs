@@ -78,7 +78,7 @@ pub fn deserialize_roaring(
     Ok(bitmap)
 }
 
-pub fn pack_block(
+pub fn pack_block_roaring(
     queries: &[String],
     query_ids: &[u32],
     bitmap: &RoaringBitmap,

@@ -19,7 +19,7 @@ use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 
 use roaring::convert_to_roaring;
-use roaring::pack_block;
+use roaring::pack_block_roaring;
 
 type E = Box<dyn std::error::Error>;
 
@@ -38,7 +38,7 @@ pub fn pack_records(
     }).collect();
 
     let bitmap = convert_to_roaring(file_header, records)?;
-    let block = pack_block(&queries, &query_ids, &bitmap)?;
+    let block = pack_block_roaring(&queries, &query_ids, &bitmap)?;
 
     Ok(block)
 }
