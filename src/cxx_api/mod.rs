@@ -39,7 +39,7 @@ use crate::headers::file::build_header_and_flags;
 use crate::headers::file::read_file_header_and_flags;
 use crate::headers::block::read_block_header_and_flags;
 use crate::encoder::bitmap_encoder::BitmapEncoder;
-use crate::encoder::pack_roaring::pack_block;
+use crate::compression::roaring::pack_block;
 
 use std::io::Cursor;
 

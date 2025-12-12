@@ -103,7 +103,7 @@ use headers::file::read_file_header;
 use headers::file::read_file_flags;
 use headers::file::encode_file_header;
 use headers::file::encode_file_flags;
-use decoder::unpack_roaring::unpack_block_roaring;
+use compression::roaring::unpack_block_roaring;
 
 use std::io::Read;
 use std::io::Write;
@@ -112,6 +112,7 @@ use roaring::bitmap::RoaringBitmap;
 
 pub mod cxx_api;
 
+pub mod compression;
 pub mod headers;
 pub mod decoder;
 pub mod encoder;

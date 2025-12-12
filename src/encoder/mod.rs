@@ -133,14 +133,13 @@
 //!
 
 pub mod bitmap_encoder;
-pub mod pack_roaring;
 
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use pack_roaring::pack_block_roaring;
+use crate::compression::roaring::pack_block_roaring;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs

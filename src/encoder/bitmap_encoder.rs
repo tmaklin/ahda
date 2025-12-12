@@ -18,7 +18,7 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use crate::encoder::pack_roaring::pack_block;
+use crate::compression::roaring::pack_block;
 
 use roaring::RoaringBitmap;
 

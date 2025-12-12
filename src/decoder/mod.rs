@@ -117,7 +117,6 @@
 //!
 
 pub mod bitmap;
-pub mod unpack_roaring;
 
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
@@ -127,7 +126,7 @@ use crate::headers::file::read_file_flags;
 use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
-use unpack_roaring::unpack_block_roaring;
+use crate::compression::roaring::unpack_block_roaring;
 
 use std::collections::HashMap;
 use std::collections::HashSet;
