@@ -134,32 +134,28 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
 
         let bitmap = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
             BitmapType::Roaring32 => {
-                self.build_roaring()
+                self.build_roaring()?
             },
             BitmapType::Roaring64 => {
                 todo!("BitmapEncoder::next() for RoaringTreemap");
             }
         };
 
-        if let Some(bitmap) = bitmap {
-            let start_idx = self.blocks_written * self.block_size;
-            let block_queries = &self.queries[start_idx..end_idx];
-            let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
-            self.blocks_written += 1;
-            self.last_idx = end_idx;
+        let start_idx = self.blocks_written * self.block_size;
+        let block_queries = &self.queries[start_idx..end_idx];
+        let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
+        self.blocks_written += 1;
+        self.last_idx = end_idx;
 
-            let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
-                BitmapType::Roaring32 => {
-                    pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap()
-                },
-                BitmapType::Roaring64 => {
-                    todo!("BitmapEncoder::next() for RoaringTreemap");
-                }
-            };
-            Some(bytes)
-        } else {
-            None
-        }
+        let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
+            BitmapType::Roaring32 => {
+                pack_block_roaring(block_queries, &block_ids, &bitmap).unwrap()
+            },
+            BitmapType::Roaring64 => {
+                todo!("BitmapEncoder::next() for RoaringTreemap");
+            }
+        };
+        Some(bytes)
     }
 
 }
