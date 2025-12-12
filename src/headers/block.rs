@@ -11,6 +11,8 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use crate::compression::gzwrapper::deflate_bytes;
+
 use std::io::Read;
 
 use bincode::{Encode, Decode};
@@ -107,6 +109,7 @@ pub fn encode_block_flags(
         bincode::config::standard(),
     )?;
 
+    let bytes = deflate_bytes(&bytes)?;
     Ok(bytes)
 }
 
@@ -166,7 +169,7 @@ mod tests {
         use super::BlockFlags;
 
         let data = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
-        let expected: Vec<u8> = vec![3, 1, 97, 1, 98, 1, 99, 3, 1, 0, 2];
+        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
 
         let got = encode_block_flags(&data).unwrap();
         assert_eq!(got, expected);

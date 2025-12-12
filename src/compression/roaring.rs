@@ -66,6 +66,7 @@ pub fn serialize_roaring(
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
     bits.serialize_into(&mut bytes)?;
+    let bytes = deflate_bytes(&bytes)?;
     Ok(bytes)
 }
 
@@ -75,11 +76,9 @@ pub fn pack_block(
     bitmap: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
     let mut serialized = serialize_roaring(bitmap)?;
-    serialized = deflate_bytes(&serialized)?;
 
     let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec() };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
-    block_flags = deflate_bytes(&block_flags)?;
 
     let flags_len = block_flags.len() as u32;
     let block_len = serialized.len() as u32;
