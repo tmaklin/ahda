@@ -36,61 +36,6 @@ fn inflate_bytes(
     Ok(inflated)
 }
 
-pub fn decode_from_roaring(
-    aln_bits: &RoaringBitmap,
-    file_flags: &FileFlags,
-    header: &BlockHeader,
-    block_flags: &BlockFlags,
-    n_targets: u32,
-) -> Result<Vec<PseudoAln>, E> {
-    let mut alns: Vec<PseudoAln> = Vec::with_capacity(header.num_records as usize);
-
-    let mut prev_query_idx: Option<u32> = None;
-
-    let mut ones: Vec<u32> = Vec::with_capacity(n_targets as usize);
-    let mut query_idx: u32 = 0;
-
-    let mut seen: HashSet<usize> = HashSet::with_capacity(header.num_records as usize);
-
-    aln_bits.iter().for_each(|set_idx| {
-        query_idx = set_idx / n_targets;
-        if prev_query_idx.is_none() {
-            prev_query_idx = Some(query_idx);
-        }
-        let target_idx = set_idx % n_targets;
-
-        if prev_query_idx.unwrap() != query_idx {
-            let name = block_flags.queries[*prev_query_idx.as_ref().unwrap() as usize].to_string();
-            let id = block_flags.query_ids[*prev_query_idx.as_ref().unwrap() as usize];
-            let ones_names: Vec<String> = ones.iter().map(|idx| file_flags.target_names[*idx as usize].clone()).collect();
-            alns.push(PseudoAln{ ones_names: Some(ones_names), query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name) });
-            seen.insert(id as usize);
-            ones.clear();
-
-            ones.push(target_idx);
-            prev_query_idx = Some(query_idx);
-        } else {
-            ones.push(target_idx);
-        }
-    });
-    if prev_query_idx.is_some() {
-        let name = block_flags.queries[query_idx as usize].to_string();
-        let id = block_flags.query_ids[query_idx as usize];
-        let ones_names: Vec<String> = ones.iter().map(|idx| file_flags.target_names[*idx as usize].clone()).collect();
-        alns.push(PseudoAln{ ones_names: Some(ones_names), query_id: Some(id), ones: Some(ones.clone()), query_name: Some(name.to_string()) });
-        seen.insert(id as usize);
-
-        // Push results with no alignments
-        block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
-            if !seen.contains(&(*idx as usize)) {
-                alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
-            }
-        });
-    }
-
-    Ok(alns)
-}
-
 pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,
