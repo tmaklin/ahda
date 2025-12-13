@@ -101,6 +101,7 @@ use headers::block::BlockFlags;
 use headers::block::read_block_header;
 use headers::file::read_file_header;
 use headers::file::read_file_flags;
+use headers::file::build_header_and_flags;
 use headers::file::encode_file_header;
 use headers::file::encode_file_flags;
 use compression::roaring32::unpack_block_roaring32;
@@ -274,9 +275,8 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
         assert_eq!(target_names, flags.target_names);
     });
 
-    let new_flags = FileFlags { query_name, target_names };
+    let (new_header, new_flags) = build_header_and_flags(&target_names, &vec!["".to_string(); n_queries as usize], &query_name)?;
     let new_flags_bytes = encode_file_flags(&new_flags)?;
-    let new_header = FileHeader { n_targets, n_queries, flags_len: new_flags_bytes.len() as u32, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
     let new_header_bytes = encode_file_header(&new_header)?;
     conn_out.write_all(&new_header_bytes)?;
     conn_out.write_all(&new_flags_bytes)?;
@@ -719,6 +719,7 @@ pub fn decode_to_write<W: Write>(
 pub fn decode_from_read_to_roaring<R: Read>(
     conn_in: &mut R,
 ) -> Result<(RoaringBitmap, FileHeader, FileFlags, BlockFlags), E> {
+    // TODO Handle RoaringTreemap
     let mut bitmap_out = RoaringBitmap::new();
     let header = crate::headers::file::read_file_header(conn_in)?;
     let flags = crate::headers::file::read_file_flags(&header, conn_in)?;
