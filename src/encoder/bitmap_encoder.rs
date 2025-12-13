@@ -37,7 +37,6 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     queries: Vec<String>,
 
     // Internals
-    block_size: usize,
     blocks_written: usize,
     bits_buffer: Vec<u64>,
     last_idx: usize,
@@ -54,16 +53,11 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
 
         let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
 
-        // Adjust block size to fit within 32-bit address space
-        let block_size = ((u32::MAX as u64) / header.n_targets as u64).min(65537_u64) as usize;
-        assert!(block_size > 1);
-        let block_size = block_size - 1;
-
         BitmapEncoder{
             set_bits, end: false,
             header, flags,
             queries: queries.to_vec(),
-            block_size, blocks_written: 0_usize,
+            blocks_written: 0_usize,
             bits_buffer: Vec::new(), last_idx: 0_usize,
         }
     }
@@ -88,9 +82,7 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
         &mut self,
         block_size: usize
     ) {
-        let new_block_size = block_size.min(65536_usize);
-        assert!(new_block_size > 1);
-        self.block_size = new_block_size;
+        todo!("set_block_size for BitmapEncoder")
     }
 
     pub fn build_roaring32(
@@ -140,7 +132,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
     fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
-        let end_idx = ((self.blocks_written + 1) * self.block_size).min(self.header.n_queries as usize) as u64;
+        let end_idx = ((self.blocks_written + 1) * self.header.block_size as usize).min(self.header.n_queries as usize) as u64;
         let n_targets = self.header.n_targets as u64;
         loop {
             if let Some(next_idx) = self.set_bits.next() {
@@ -156,7 +148,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
 
         let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
             BitmapType::Roaring32 => {
-                let start_idx = self.blocks_written * self.block_size;
+                let start_idx = self.blocks_written * self.header.block_size as usize;
                 let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
                 self.blocks_written += 1;
                 self.last_idx = end_idx as usize;
@@ -164,7 +156,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
                 pack_block_roaring32(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, &bitmap).unwrap()
             },
             BitmapType::Roaring64 => {
-                let start_idx = self.blocks_written * self.block_size;
+                let start_idx = self.blocks_written * self.header.block_size as usize;
                 let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
                 self.blocks_written += 1;
                 self.last_idx = end_idx as usize;

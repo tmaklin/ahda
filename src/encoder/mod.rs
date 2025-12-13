@@ -145,7 +145,6 @@ use crate::headers::file::FileFlags;
 use crate::headers::file::build_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use crate::compression::BitmapType;
 use crate::compression::pack_records;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
@@ -157,7 +156,6 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     flags: FileFlags,
 
     // Internals
-    block_size: usize,
     blocks_written: usize,
 }
 
@@ -171,15 +169,10 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
         let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
 
-        // Adjust block size to fit within 32-bit address space
-        let block_size = ((u32::MAX as u64) / header.n_targets as u64).min(65537_u64) as usize;
-        assert!(block_size > 1);
-        let block_size = block_size - 1;
-
         Encoder{
             records,
             header, flags,
-            block_size, blocks_written: 0_usize,
+            blocks_written: 0_usize,
         }
     }
 }
@@ -203,9 +196,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         &mut self,
         block_size: usize
     ) {
-        let new_block_size = block_size.min(65536_usize);
-        assert!(new_block_size > 1);
-        self.block_size = new_block_size;
+        todo!("set_block_size for Encoder")
     }
 
 }
@@ -216,11 +207,11 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
     fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
-        let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.block_size);
+        let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.header.block_size as usize);
         for record in self.records.by_ref() {
             // TODO Check that all fields are set?
             block_records.push(record);
-            if block_records.len() == self.block_size {
+            if block_records.len() == self.header.block_size as usize {
                 break;
             }
         }
