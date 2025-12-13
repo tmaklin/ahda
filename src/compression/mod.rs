@@ -46,6 +46,13 @@ impl BitmapType {
             _ => panic!("Not a valid BitmapType"),
         }
     }
+
+    pub fn to_u16(&self) -> Result<u16, E> {
+        match &self {
+            BitmapType::Roaring32 => Ok(0),
+            BitmapType::Roaring64 => Ok(1),
+        }
+    }
 }
 
 pub fn pack_records(
