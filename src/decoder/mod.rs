@@ -105,7 +105,7 @@
 //! let block_header = BlockHeader { num_records: 4, deflated_len: 90, block_len: 28, flags_len: 27, start_idx: 0, placeholder2: 0, placeholder3: 0 };
 //! let block_flags = BlockFlags { queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] };
 //!
-//! let mut bits_iter = input.iter();
+//! let mut bits_iter = input.iter().map(|x| x as u64); // BitmapDecoder expects u64 indices
 //! let mut bitmap_decoder = BitmapDecoder::new(&mut bits_iter, file_header, file_flags, block_header, block_flags);
 //!
 //! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) });
