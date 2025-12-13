@@ -20,8 +20,10 @@ use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
 use crate::compression::BitmapType;
 use crate::compression::roaring32::pack_block_roaring32;
+use crate::compression::roaring64::pack_block_roaring64;
 
 use roaring::RoaringBitmap;
+use roaring::RoaringTreemap;
 
 pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Input iterator
@@ -49,9 +51,11 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     ) -> Self {
         // TODO `set_bits` must be sorted
 
+        let bitmap_size = (targets.len() as u64) * (queries.len() as u64);
+        let bitmap_type = if bitmap_size < u32::MAX as u64 { BitmapType::Roaring32 } else { BitmapType::Roaring64 };
         let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
         let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
-        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, bitmap_type: bitmap_type.to_u16().unwrap(), ph3: 0, ph4: 0 };
 
         // Adjust block size to fit within 32-bit address space
         let block_size = ((u32::MAX as u64) / header.n_targets as u64).min(65537_u64) as usize;
@@ -92,7 +96,7 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
         self.block_size = new_block_size;
     }
 
-    pub fn build_roaring(
+    pub fn build_roaring32(
         &mut self
     ) -> Option<RoaringBitmap> {
         if !self.bits_buffer.is_empty() && self.end {
@@ -111,6 +115,26 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
             None
         }
     }
+
+    pub fn build_roaring64(
+        &mut self
+    ) -> Option<RoaringTreemap> {
+        if !self.bits_buffer.is_empty() && self.end {
+            let bits = self.bits_buffer.iter();
+            let bitmap = RoaringTreemap::from_iter(bits);
+            self.bits_buffer.clear();
+            Some(bitmap)
+        } else if !self.bits_buffer.is_empty() {
+            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2);
+            let bitmap = RoaringTreemap::from_iter(bits);
+            self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
+            Some(bitmap)
+        } else if self.last_idx < self.header.n_queries as usize && self.end {
+            Some(RoaringTreemap::new())
+        } else {
+            None
+        }
+    }
 }
 
 impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
@@ -124,7 +148,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
         loop {
             if let Some(next_idx) = self.set_bits.next() {
                 self.bits_buffer.push(next_idx);
-                if next_idx > end_idx * n_targets as u64 {
+                if next_idx > end_idx * n_targets {
                     break;
                 }
             } else {
@@ -133,29 +157,25 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
             }
         }
 
-        let bitmap = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
-            BitmapType::Roaring32 => {
-                self.build_roaring()?
-            },
-            BitmapType::Roaring64 => {
-                todo!("BitmapEncoder::next() for RoaringTreemap");
-            }
-        };
-
-        let start_idx = self.blocks_written * self.block_size;
-        let block_queries = &self.queries[start_idx..(end_idx.try_into().unwrap())];
-        let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
-        self.blocks_written += 1;
-        self.last_idx = end_idx as usize;
-
         let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
             BitmapType::Roaring32 => {
-                pack_block_roaring32(block_queries, &block_ids, &bitmap).unwrap()
+                let start_idx = self.blocks_written * self.block_size;
+                let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
+                self.blocks_written += 1;
+                self.last_idx = end_idx as usize;
+                let bitmap = self.build_roaring32()?;
+                pack_block_roaring32(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, &bitmap).unwrap()
             },
             BitmapType::Roaring64 => {
-                todo!("BitmapEncoder::next() for RoaringTreemap");
+                let start_idx = self.blocks_written * self.block_size;
+                let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
+                self.blocks_written += 1;
+                self.last_idx = end_idx as usize;
+                let bitmap = self.build_roaring64()?;
+                pack_block_roaring64(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, &bitmap).unwrap()
             }
         };
+
         Some(bytes)
     }
 
