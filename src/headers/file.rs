@@ -11,6 +11,8 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use crate::compression::BitmapType;
+
 use std::io::Read;
 
 use bincode::{Encode, Decode};
@@ -60,9 +62,11 @@ pub fn build_header_and_flags(
     queries: &[String],
     sample: &str,
 ) -> Result<(FileHeader, FileFlags), E> {
+    let bitmap_size = (targets.len() as u64) * (queries.len() as u64);
+    let bitmap_type = if bitmap_size < u32::MAX as u64 { BitmapType::Roaring32 } else { BitmapType::Roaring64 };
     let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample.to_string() };
     let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
-    let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, bitmap_type: 0, ph3: 0, ph4: 0 };
+    let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, bitmap_type: bitmap_type.to_u16().unwrap(), ph3: 0, ph4: 0 };
     Ok((header, flags))
 }
 
