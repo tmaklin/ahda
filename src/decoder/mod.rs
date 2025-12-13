@@ -184,7 +184,7 @@ impl<R: Read> Decoder<'_, R> {
             name_to_id.insert(name.clone(), *idx);
         });
 
-        let mut tmp = bitmap.iter();
+        let mut tmp = bitmap.iter().map(|x| x as u64);
         let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
         let mut alns: Vec<PseudoAln> = Vec::new();
         for mut record in bitmap_decoder {
@@ -215,13 +215,7 @@ impl<R: Read> Decoder<'_, R> {
             name_to_id.insert(name.clone(), *idx);
         });
 
-        // Just to make this compile
-        let mut tmp32: Vec<u32> = Vec::new();
-        bitmap.iter().for_each(|x| tmp32.push(x.try_into().unwrap()));
-        let mut tmp = tmp32.into_iter();
-
-        todo!("alns_from_roaring64");
-
+        let mut tmp = bitmap.iter();
         let bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
         let mut alns: Vec<PseudoAln> = Vec::new();
         for mut record in bitmap_decoder {
