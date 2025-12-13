@@ -29,6 +29,11 @@
 //! result in better compression ratios but require more memory to encode and
 //! decode.
 //!
+//! Encoder will store the pseudoalignment using a
+//! [RoaringBitmap](roaring::RoaringBitmap) if the number of target
+//! sequences times the number of query sequences is less than 2^32. Otherwise,
+//! a [RoaringTreemap](roaring::RoaringTreemap) will be used.
+//!
 //! ## Usage
 //!
 //! ### Encoding plain text data
@@ -139,6 +144,7 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
+use crate::compression::BitmapType;
 use crate::compression::pack_records;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
@@ -161,9 +167,11 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         queries: &[String],
         sample_name: &str,
     ) -> Self {
+        let bitmap_size = (targets.len() as u64) * (queries.len() as u64);
+        let bitmap_type = if bitmap_size < u32::MAX as u64 { BitmapType::Roaring32 } else { BitmapType::Roaring64 };
         let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample_name.to_string() };
         let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
-        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u32, format: 1_u16, bitmap_type: bitmap_type.to_u16().unwrap(), ph3: 0, ph4: 0 };
 
         // Adjust block size to fit within 32-bit address space
         let block_size = ((u32::MAX as u64) / header.n_targets as u64).min(65537_u64) as usize;
