@@ -20,10 +20,11 @@
 //!   [Read] and returns blocks of [PseudoAln] records when [next] is called.
 //!
 //! - [BitmapDecoder](bitmap::BitmapDecoder): decodes a [PseudoAln] record from
-//!   any struct that returns u32 indexes of aligned bits in a flattened
+//!   any struct that returns u64 indexes of aligned bits in a flattened
 //!   pseudoalignment. Currently, the intended use case is with
-//!   [RoaringBitmap](roaring::RoaringBitmap) but in principle works with other
-//!   structs that implement a similar iterator.
+//!   [RoaringBitmap](roaring::RoaringBitmap) or
+//!   [RoaringTreemap](roaring::RoaringTreemap) but in principle works with
+//!   other structs that implement a similar iterator.
 //!
 //! Internally, Decoder reads in a single block at a time and uses BitmapDecoder
 //! to retrieve the alignments.
