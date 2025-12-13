@@ -39,7 +39,8 @@ pub struct FileHeader {
     pub format: u16,
     /// Bitmap type stored in this file, see [BitmapType](crate::compression::BitmapType) for details.
     pub bitmap_type: u16,
-    pub ph3: u32,
+    /// Block size (number of [PseudoAln] records) used to encode this file.
+    pub block_size: u32,
     pub ph4: u64,
 }
 
@@ -62,11 +63,27 @@ pub fn build_header_and_flags(
     queries: &[String],
     sample: &str,
 ) -> Result<(FileHeader, FileFlags), E> {
-    let bitmap_size = (targets.len() as u64) * (queries.len() as u64);
+    let n_targets = targets.len() as u64;
+    // Check if bitmap fits in 32-bit address space and adjust accordingly
+    let bitmap_size = n_targets * (queries.len() as u64);
     let bitmap_type = if bitmap_size < u32::MAX as u64 { BitmapType::Roaring32 } else { BitmapType::Roaring64 };
+
+    // Adjust block size to fit within 32-bit address space if using RoaringBitmaps
+    let block_size: u32 = match bitmap_type {
+        BitmapType::Roaring32 => {
+            let mut block_size = ((u32::MAX as u64) / n_targets).min(65537_u64) as u32;
+            block_size = if block_size == 1 { 2 } else { block_size - 1 };
+            block_size
+        },
+        BitmapType::Roaring64 => {
+            262144_u32
+        },
+    };
+
     let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample.to_string() };
     let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
-    let header = FileHeader{ n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u64, format: 1_u16, bitmap_type: bitmap_type.to_u16().unwrap(), ph3: 0, ph4: 0 };
+    let header = FileHeader{ n_targets: n_targets as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u64, format: 1_u16, bitmap_type: bitmap_type.to_u16().unwrap(), block_size, ph4: 0 };
+
     Ok((header, flags))
 }
 
@@ -166,7 +183,7 @@ mod tests {
 
         let expected_flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
         let nbytes = encode_file_flags(&expected_flags).unwrap().len();
-        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
 
         let (got_header, got_flags) = build_header_and_flags(&targets, &queries, &sample).unwrap();
 
@@ -187,7 +204,7 @@ mod tests {
 
         let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
         let nbytes = encode_file_flags(&flags).unwrap().len();
-        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
 
         let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
 
@@ -209,7 +226,7 @@ mod tests {
 
         let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
         let nbytes = encode_file_flags(&flags).unwrap().len();
-        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
 
         let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -242,7 +259,7 @@ mod tests {
 
         let data: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
 
         let got = decode_file_header(&data).unwrap();
 
@@ -276,7 +293,7 @@ mod tests {
         let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
 
         let got = read_file_header(&mut data).unwrap();
 
@@ -294,7 +311,7 @@ mod tests {
         let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let sample = "sample";
 
-        let header = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let header = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
         let data_bytes: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99, 3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
@@ -318,7 +335,7 @@ mod tests {
         let sample = "sample";
 
         let expected_flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
-        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, ph3: 0_u32, ph4: 0_u64 };
+        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
 
         let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
