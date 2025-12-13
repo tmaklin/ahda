@@ -42,7 +42,7 @@ pub fn convert_to_roaring64(
     file_header: &FileHeader,
     records: &[PseudoAln],
 ) -> Result<RoaringTreemap, E> {
-    let n_targets: usize = file_header.n_targets as usize;
+    let n_targets: u64 = file_header.n_targets as u64;
     let mut bits: RoaringTreemap = RoaringTreemap::new();
 
     for record in records.iter() {
@@ -50,9 +50,9 @@ pub fn convert_to_roaring64(
             return Err(Box::new(EncodeError{}))
         }
         let ones = record.ones.as_ref().unwrap();
-        let idx = *record.query_id.as_ref().unwrap();
-        ones.iter().for_each(|bit_idx| {
-            let index = idx as u64 * n_targets as u64 + *bit_idx as u64;
+        let idx = *record.query_id.as_ref().unwrap() as u64;
+        ones.iter().map(|x| *x as u64).for_each(|bit_idx| {
+            let index = idx * n_targets + bit_idx;
             bits.insert(index);
         });
     }
