@@ -19,10 +19,10 @@ use crate::headers::block::BlockFlags;
 
 use std::collections::HashMap;
 
-pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u32> {
+pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Inputs
     bits_iter: &'a mut I,
-    index: Option<u32>,
+    index: Option<u64>,
 
     file_header: FileHeader,
     file_flags: FileFlags,
@@ -30,7 +30,7 @@ pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     id_to_name: HashMap<u32, String>,
 }
 
-impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u32> {
+impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u64> {
     pub fn new(
         bits_iter: &'a mut I,
         file_header: FileHeader,
@@ -51,7 +51,7 @@ impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u32> {
     }
 }
 
-impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
+impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u64>{
     type Item = PseudoAln;
 
     fn next(
@@ -61,26 +61,27 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u32>{
         let mut names: Vec<String> = Vec::with_capacity(self.file_header.n_targets as usize);
         let mut query_id: Option<u32> = None;
 
+        let n_targets: u64 = self.file_header.n_targets as u64;
         if self.index.is_some() {
-            let query_idx = self.index.as_ref().unwrap() / self.file_header.n_targets;
-            let target_idx = self.index.as_ref().unwrap() % self.file_header.n_targets;
-            ones.push(target_idx);
+            let query_idx = self.index.as_ref().unwrap() / n_targets;
+            let target_idx = self.index.as_ref().unwrap() % n_targets;
+            ones.push(target_idx as u32);
             names.push(self.file_flags.target_names[target_idx as usize].clone());
-            query_id = Some(query_idx);
+            query_id = Some(query_idx as u32);
             self.index = None;
         }
 
         for idx in self.bits_iter.by_ref() {
             self.index = Some(idx);
-            let query_idx = self.index.as_ref().unwrap() / self.file_header.n_targets;
-            if query_id.is_some() && query_idx != *query_id.as_ref().unwrap() {
+            let query_idx = self.index.as_ref().unwrap() / n_targets;
+            if query_id.is_some() && query_idx as u32 != *query_id.as_ref().unwrap() {
                 break;
             }
-            let target_idx = self.index.as_ref().unwrap() % self.file_header.n_targets;
+            let target_idx = self.index.as_ref().unwrap() % n_targets;
             self.index = None;
-            ones.push(target_idx);
+            ones.push(target_idx as u32);
             names.push(self.file_flags.target_names[target_idx as usize].clone());
-            query_id = Some(query_idx);
+            query_id = Some(query_idx as u32);
         }
 
         if let Some(query_idx) = query_id {
@@ -135,7 +136,7 @@ mod tests {
         let block_header = BlockHeader { num_records: 0, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
 
-        let mut tmp = data.iter();
+        let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
@@ -177,7 +178,7 @@ mod tests {
         let block_header = BlockHeader { num_records: 0, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
 
-        let mut tmp = data.iter();
+        let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
@@ -218,7 +219,7 @@ mod tests {
         let block_header = BlockHeader { num_records: 0, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
 
-        let mut tmp = data.iter();
+        let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
@@ -258,7 +259,7 @@ mod tests {
         let block_header = BlockHeader { num_records: 0, deflated_len: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
 
-        let mut tmp = data.iter();
+        let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
