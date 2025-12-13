@@ -23,7 +23,7 @@ use crate::compression::roaring32::pack_block_roaring32;
 
 use roaring::RoaringBitmap;
 
-pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u32> {
+pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Input iterator
     set_bits: &'a mut I,
     end: bool,
@@ -36,11 +36,11 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u32> {
     // Internals
     block_size: usize,
     blocks_written: usize,
-    bits_buffer: Vec<u32>,
+    bits_buffer: Vec<u64>,
     last_idx: usize,
 }
 
-impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u32> {
+impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     pub fn new(
         set_bits: &'a mut I,
         targets: &[String],
@@ -68,7 +68,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u32> {
     }
 }
 
-impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
+impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
     pub fn encode_header_and_flags(
         &mut self,
     ) -> Option<Vec<u8>> {
@@ -96,12 +96,12 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
         &mut self
     ) -> Option<RoaringBitmap> {
         if !self.bits_buffer.is_empty() && self.end {
-            let bits = self.bits_buffer.iter();
+            let bits = self.bits_buffer.iter().map(|x| *x as u32);
             let bitmap = RoaringBitmap::from_iter(bits);
             self.bits_buffer.clear();
             Some(bitmap)
         } else if !self.bits_buffer.is_empty() {
-            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2);
+            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2).map(|x| *x as u32);
             let bitmap = RoaringBitmap::from_iter(bits);
             self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
             Some(bitmap)
@@ -113,17 +113,18 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
     }
 }
 
-impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> {
+impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
     type Item = Vec<u8>;
 
     fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
-        let end_idx = ((self.blocks_written + 1) * self.block_size).min(self.header.n_queries as usize);
+        let end_idx = ((self.blocks_written + 1) * self.block_size).min(self.header.n_queries as usize) as u64;
+        let n_targets = self.header.n_targets as u64;
         loop {
             if let Some(next_idx) = self.set_bits.next() {
                 self.bits_buffer.push(next_idx);
-                if next_idx > end_idx as u32 * self.header.n_targets {
+                if next_idx > end_idx * n_targets as u64 {
                     break;
                 }
             } else {
@@ -142,10 +143,10 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u32> 
         };
 
         let start_idx = self.blocks_written * self.block_size;
-        let block_queries = &self.queries[start_idx..end_idx];
+        let block_queries = &self.queries[start_idx..(end_idx.try_into().unwrap())];
         let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
         self.blocks_written += 1;
-        self.last_idx = end_idx;
+        self.last_idx = end_idx as usize;
 
         let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
             BitmapType::Roaring32 => {
@@ -167,7 +168,7 @@ mod tests {
     fn encode_header_and_flags() {
         use super::BitmapEncoder;
 
-        let data = vec![0_u32, 2, 4, 5, 7];
+        let data = vec![0_u64, 2, 4, 5, 7];
 
         let expected = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
 
@@ -187,7 +188,7 @@ mod tests {
     fn next() {
         use super::BitmapEncoder;
 
-        let data = vec![0_u32, 2, 4, 5, 7];
+        let data = vec![0_u64, 2, 4, 5, 7];
 
         let expected = vec![5, 0, 0, 0, 103, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
@@ -208,7 +209,7 @@ mod tests {
     fn encode_three_blocks_with_next() {
         use super::BitmapEncoder;
 
-        let data = vec![0_u32, 2, 4, 5, 7];
+        let data = vec![0_u64, 2, 4, 5, 7];
 
         let expected: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 74, 0, 0, 0, 34, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 49, 48, 2, 0, 190, 252, 200, 192, 30, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 88, 0, 0, 0, 39, 0, 0, 0, 49, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 98, 98, 6, 0, 10, 60, 125, 12, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 22, 6, 86, 6, 118, 6, 0, 163, 60, 183, 5, 22, 0, 0, 0, 1, 0, 0, 0, 61, 0, 0, 0, 24, 0, 0, 0, 37, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 228, 117, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 52, 99, 100, 1, 0, 105, 171, 165, 101, 17, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 0, 3, 0, 142, 53, 76, 217, 8, 0, 0, 0];
 
