@@ -148,7 +148,7 @@ pub fn encode_bitmap(
     let target_names: Vec<String> = targets.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
     let query_name: String = name.as_bytes().iter().map(|x| *x as char).collect::<String>();
 
-    let mut set_bits_iter = set_bits.as_slice().iter().cloned();
+    let mut set_bits_iter = set_bits.as_slice().iter().map(|x| *x as u64);
     let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_names, &query_name);
 
     let mut bytes: Vec<u8> = encoder.encode_header_and_flags().unwrap();
