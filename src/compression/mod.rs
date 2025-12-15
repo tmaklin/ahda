@@ -47,10 +47,14 @@ impl BitmapType {
         }
     }
 
-    pub fn to_u16(&self) -> Result<u16, E> {
+    pub fn to_u16(&self) -> u16 {
         match &self {
-            BitmapType::Roaring32 => Ok(0),
-            BitmapType::Roaring64 => Ok(1),
+            BitmapType::Roaring32 => 0,
+            BitmapType::Roaring64 => 1,
+        }
+    }
+}
+
 /// Supported compression methods for [FileFlags](crate::headers::file::FileFlags) and [BlockFlags](crate::headers::block::BlockFlags).
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
