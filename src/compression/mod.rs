@@ -51,6 +51,31 @@ impl BitmapType {
         match &self {
             BitmapType::Roaring32 => Ok(0),
             BitmapType::Roaring64 => Ok(1),
+/// Supported compression methods for [FileFlags](crate::headers::file::FileFlags) and [BlockFlags](crate::headers::block::BlockFlags).
+#[non_exhaustive]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum MetadataCompression {
+    /// [bincode::config::standard]
+    #[default]
+    BincodeStandard,
+    /// Gz with flate2
+    Flate2,
+}
+
+
+impl MetadataCompression {
+    pub fn from_u8(val: u8) -> Result<Self, E> {
+        match val {
+            0 => Ok(MetadataCompression::BincodeStandard),
+            1 => Ok(MetadataCompression::Flate2),
+            _ => panic!("Not a valid MetadataCompression"),
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        match &self {
+            MetadataCompression::BincodeStandard => 0,
+            MetadataCompression::Flate2 => 1,
         }
     }
 }
