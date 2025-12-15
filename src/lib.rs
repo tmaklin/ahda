@@ -122,6 +122,34 @@ pub mod printer;
 
 type E = Box<dyn std::error::Error>;
 
+/// Ahda file format version
+///
+/// A new variant must be added when breaking changes are introduced.
+///
+/// Breaking changes should be avoided whenever possible.
+///
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum AhdaVersion {
+    #[default]
+    V0_1_0,
+}
+
+impl AhdaVersion {
+    pub fn from_u8(val: u8) -> Result<Self, E> {
+        match val {
+            0 => Ok(AhdaVersion::V0_1_0),
+            _ => panic!("Not a valid AhdaVersion"),
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        match &self {
+            AhdaVersion::V0_1_0 => 0,
+        }
+    }
+}
+
+
 /// Supported plain text formats.
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
