@@ -11,7 +11,9 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+use crate::AhdaVersion;
 use crate::compression::BitmapType;
+use crate::compression::MetadataCompression;
 
 use std::io::Read;
 
@@ -23,25 +25,43 @@ type E = Box<dyn std::error::Error>;
 
 // File header for encoded data
 //
-// Always the first 32 bytes at the beginning of a .ahda v0.x file.
+// Always the first 32 bytes at the beginning of a .ahda file.
 //
 // Must always conform to this format.
 //
 #[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct FileHeader {
-    /// Number of alignment targets.
+    /// Ahda header, consists of 32 ASCII bytes spelling "ahda".
+    ///
+    /// First four bytes can be used to check that a binary record is an ahda record.
+    /// Next two bytes can be used to check which version of ahda was used to generate this file.
+    pub ahda_header: [u8; 6], // = [97, 104, 100, 97, ...];
+
+    /// File format version, indicates (in)compatible versions of the file format.
+    pub file_format: u8,
+
+    /// Compression method used for [FileFlags], see [MetadataCompression](crate::compression::MetadataCompression).
+    pub metadata_compression: u8,
+
+    /// Fields that must be present for records in this file, see [Format](crate::Format) for details.
+    ///
+    /// This indicates the fields of [PseudoAln] that must be decodable from all blocks.
+    pub fields_present: u16,
+
+    /// Number of alignment targets, this must match the length of `target_names` in [FileFlags].
     pub n_targets: u32,
-    /// Number of query sequences (0 if unknown).
+
+    /// Number of query sequences, this must be greater or equal to the sum of all `num_records` in crate::headers::block::[BlockFlags].
     pub n_queries: u32,
-    /// Number of bytes in [FileFlags].
-    pub flags_len: u64,
-    /// Input format, see [Format](crate::Format) for details.
-    pub format: u16,
-    /// Bitmap type stored in this file, see [BitmapType](crate::compression::BitmapType) for details.
+
+    /// Bitmap type used to encode blocks in this file, see [BitmapType](crate::compression::BitmapType) for details.
     pub bitmap_type: u16,
-    /// Block size (number of [PseudoAln] records) used to encode this file.
+
+    /// Block size (number of [PseudoAln] records) used to encode blocks in this file. Actual number of records per block may be different.
     pub block_size: u32,
-    pub ph4: u64,
+
+    /// Number of bytes in [FileFlags] that follow the header bytes.
+    pub flags_len: u64,
 }
 
 /// Data shared with all blocks
@@ -50,28 +70,76 @@ pub struct FileHeader {
 ///
 /// Contents may differ between implementations.
 ///
+#[non_exhaustive]
 #[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct FileFlags {
     /// Query file basename
-    pub query_name: String,
+    pub query_name: Option<String>,
     /// Name and index of target sequences
-    pub target_names: Vec<String>,
+    pub target_names: Option<Vec<String>>,
+}
+pub fn build_ahda_header() -> [u8; 6] {
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    let mut header = [97_u8, 104, 100, 97, 0, 0];
+    let version: u16 = match VERSION {
+        "0.1.0" => 0,
+        _ => u16::MAX,
+    };
+    let version_bytes: [u8; 2] = version.to_le_bytes();
+    header[4] = version_bytes[0];
+    header[5] = version_bytes[1];
+    header
 }
 
-pub fn build_header_and_flags(
+#[derive(Debug, Clone)]
+pub struct AhdaHeaderError;
+
+impl std::fmt::Display for AhdaHeaderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "bytes do not start with a valid ahda file header")
+    }
+}
+
+impl std::error::Error for AhdaHeaderError {};
+
+pub fn check_ahda_header(
+    bytes: [u8; 6],
+) -> Result<String, E> {
+    let mut is_ahda = true;
+    is_ahda &= bytes[0] == 97;
+    is_ahda &= bytes[1] == 104;
+    is_ahda &= bytes[2] == 100;
+    is_ahda &= bytes[3] == 97;
+
+    let version_bytes: [u8; 2] = [bytes[4], bytes[5]];
+    let version: u16 = u16::from_le_bytes(version_bytes);
+    let version_str: String = match version {
+        0 => "0.1.0".to_string(),
+        _ => "".to_string(),
+    };
+
+    if is_ahda {
+        Ok(version_str)
+    } else {
+        Err(Box::new(AhdaHeaderError))
+    }
+}
+
+pub fn build_file_header_and_flags(
     targets: &[String],
-    queries: &[String],
-    sample: &str,
+    n_queries: usize,
+    query_name: &str,
+    flags_compression: &MetadataCompression,
 ) -> Result<(FileHeader, FileFlags), E> {
-    let n_targets = targets.len() as u64;
     // Check if bitmap fits in 32-bit address space and adjust accordingly
-    let bitmap_size = n_targets * (queries.len() as u64);
+    let n_targets = targets.len();
+    let bitmap_size = (n_targets as u64) * (n_queries as u64);
     let bitmap_type = if bitmap_size < u32::MAX as u64 { BitmapType::Roaring32 } else { BitmapType::Roaring64 };
 
     // Adjust block size to fit within 32-bit address space if using RoaringBitmaps
     let block_size: u32 = match bitmap_type {
         BitmapType::Roaring32 => {
-            let mut block_size = ((u32::MAX as u64) / n_targets).min(65537_u64) as u32;
+            let mut block_size = ((u32::MAX as u64) / (n_targets as u64)).min(65537_u64) as u32;
             block_size = if block_size == 1 { 2 } else { block_size - 1 };
             block_size
         },
@@ -80,20 +148,45 @@ pub fn build_header_and_flags(
         },
     };
 
-    let flags = FileFlags{ target_names: targets.to_vec(), query_name: sample.to_string() };
-    let flags_bytes = crate::headers::file::encode_file_flags(&flags).unwrap();
-    let header = FileHeader{ n_targets: n_targets as u32, n_queries: queries.len() as u32, flags_len: flags_bytes.len() as u64, format: 1_u16, bitmap_type: bitmap_type.to_u16().unwrap(), block_size, ph4: 0 };
+    let flags = FileFlags{ target_names: Some(targets.to_vec()), query_name: Some(query_name.to_string()) };
+    let flags_bytes = encode_file_flags(&flags, &flags_compression).unwrap();
+
+    let header = FileHeader{
+        ahda_header: build_ahda_header(),
+        file_format: AhdaVersion::V0_1_0.to_u8(),
+        metadata_compression: flags_compression.to_u8(),
+        fields_present: 0,
+        n_targets: n_targets as u32,
+        n_queries: n_queries as u32,
+        bitmap_type: bitmap_type.to_u16(),
+        block_size,
+        flags_len: flags_bytes.len() as u64,
+    };
 
     Ok((header, flags))
 }
 
-pub fn encode_header_and_flags(
-    header: &FileHeader,
+pub fn encode_file_header_and_flags(
+    header: &mut FileHeader,
     flags: &FileFlags,
 ) -> Result<Vec<u8>, E> {
+    // TODO set fields_present in header based on flags
+    let mut flags_bytes: Vec<u8> = encode_file_flags(flags, &MetadataCompression::from_u8(header.metadata_compression)?)?;
+    let flags_len: u64 = flags_bytes.len() as u64;
+    header.flags_len = flags_len;
+
     let mut bytes: Vec<u8> = encode_file_header(header)?;
-    bytes.append(&mut encode_file_flags(flags)?);
+    bytes.append(&mut flags_bytes);
     Ok(bytes)
+}
+
+pub fn decode_file_header_and_flags(
+    bytes: &[u8],
+) -> Result<(FileHeader, FileFlags), E> {
+    let header = decode_file_header(&bytes[0..32])?;
+    assert!(bytes.len() >= 32 + header.flags_len as usize);
+    let flags = decode_file_flags(&bytes[32..(header.flags_len as usize)], &MetadataCompression::from_u8(header.metadata_compression)?)?;
+    Ok((header, flags))
 }
 
 pub fn encode_file_header(
@@ -112,6 +205,15 @@ pub fn encode_file_header(
 pub fn decode_file_header(
     header_bytes: &[u8],
 ) -> Result<FileHeader, E> {
+    assert_eq!(header_bytes.len(), 32);
+    let mut bytes_start: [u8; 6] = [0; 6];
+    bytes_start[0] = header_bytes[0];
+    bytes_start[1] = header_bytes[1];
+    bytes_start[2] = header_bytes[2];
+    bytes_start[3] = header_bytes[3];
+    bytes_start[4] = header_bytes[4];
+    bytes_start[5] = header_bytes[5];
+    let _ = check_ahda_header(bytes_start)?;
     Ok(decode_from_slice(header_bytes, bincode::config::standard().with_fixed_int_encoding())?.0)
 }
 
@@ -129,8 +231,8 @@ pub fn read_file_flags<R: Read>(
     conn: &mut R,
 ) -> Result<FileFlags, E> {
     let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
-    conn.read_exact(&mut flags_bytes).unwrap();
-    let res = decode_file_flags(&flags_bytes).unwrap();
+    conn.read_exact(&mut flags_bytes)?;
+    let res = decode_file_flags(&flags_bytes, &MetadataCompression::from_u8(header.metadata_compression)?)?;
     Ok(res)
 }
 
@@ -144,25 +246,41 @@ pub fn read_file_header_and_flags<R: Read>(
 
 pub fn encode_file_flags(
     flags: &FileFlags,
+    compression: &MetadataCompression
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
 
-    let _ = encode_into_std_write(
-        flags,
-        &mut bytes,
-        bincode::config::standard(),
-    )?;
+    match compression {
+        MetadataCompression::BincodeStandard => {
+            let _ = encode_into_std_write(
+                flags,
+                &mut bytes,
+                bincode::config::standard(),
+            )?;
+        },
+        MetadataCompression::Flate2 => {
+            todo!("flate2 encoding for FileFlags")
+        },
+    }
 
     Ok(bytes)
 }
 
 pub fn decode_file_flags(
     bytes: &[u8],
+    compression: &MetadataCompression
 ) -> Result<FileFlags, E> {
-    let flags = decode_from_slice(
-        bytes,
-        bincode::config::standard(),
-    )?.0;
+    let flags = match compression {
+        MetadataCompression::BincodeStandard => {
+            decode_from_slice(
+                bytes,
+                bincode::config::standard(),
+            )?.0
+        },
+        MetadataCompression::Flate2 => {
+            todo!("flate2 decoding for FileFlags")
+        },
+    };
 
     Ok(flags)
 }
