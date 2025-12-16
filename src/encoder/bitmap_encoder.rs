@@ -16,10 +16,11 @@
 
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
-use crate::headers::file::build_header_and_flags;
+use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
 use crate::compression::BitmapType;
+use crate::compression::MetadataCompression;
 use crate::compression::roaring32::pack_block_roaring32;
 use crate::compression::roaring64::pack_block_roaring64;
 
@@ -51,7 +52,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     ) -> Self {
         // TODO `set_bits` must be sorted
 
-        let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
+        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
 
         BitmapEncoder{
             set_bits, end: false,
@@ -64,11 +65,11 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
 }
 
 impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
-    pub fn encode_header_and_flags(
+    pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Option<Vec<u8>> {
-        // TODO Replace unwraps in `encode_header_and_flags`
-        let mut flags_bytes = encode_file_flags(&self.flags).unwrap();
+        // TODO Replace unwraps in `encode_file_header_and_flags`
+        let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression).unwrap()).unwrap();
         let mut header_bytes = encode_file_header(&self.header).unwrap();
 
         let mut out: Vec<u8> = Vec::new();
@@ -174,7 +175,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
 mod tests {
 
     #[test]
-    fn encode_header_and_flags() {
+    fn encode_file_header_and_flags() {
         use super::BitmapEncoder;
 
         let data = vec![0_u64, 2, 4, 5, 7];
@@ -188,7 +189,7 @@ mod tests {
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
 
-        let got = encoder.encode_header_and_flags().unwrap();
+        let got = encoder.encode_file_header_and_flags().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -231,7 +232,7 @@ mod tests {
         encoder.set_block_size(2);
 
         let mut got: Vec<u8> = Vec::new();
-        got.append(&mut encoder.encode_header_and_flags().unwrap());
+        got.append(&mut encoder.encode_file_header_and_flags().unwrap());
         for block in encoder.by_ref() {
             got.append(&mut block.clone());
         }

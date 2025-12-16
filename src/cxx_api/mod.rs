@@ -34,11 +34,11 @@
 //!
 
 use crate::decode_from_read_to_roaring;
-use crate::headers::file::encode_header_and_flags;
-use crate::headers::file::build_header_and_flags;
+use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::read_file_header_and_flags;
 use crate::headers::block::read_block_header_and_flags;
 use crate::encoder::bitmap_encoder::BitmapEncoder;
+use crate::compression::MetadataCompression;
 use crate::compression::roaring32::pack_block_roaring32;
 
 use std::io::Cursor;
@@ -53,8 +53,8 @@ mod ffi {
     extern "Rust" {
         fn encode_file_header_and_flags(
             targets: &CxxVector<CxxString>,
-            queries: &CxxVector<CxxString>,
             name: &CxxString,
+            n_queries: u32,
         ) -> Vec<u8>;
 
         fn encode_block(
@@ -90,22 +90,21 @@ mod ffi {
 
 /// Encode the file header and file flags bytes.
 ///
-/// Calls [build_header_and_flags] on the input data and then creates the
-/// encoded data by calling [encode_header_and_flags].
+/// Calls [build_file_header_and_flags] on the input data and then creates the
+/// encoded data by calling [encode_file_header_and_flags].
 ///
 /// The output bytes should always be written at the start of the .ahda record.
 ///
 pub fn encode_file_header_and_flags(
     targets: &CxxVector<CxxString>,
-    queries: &CxxVector<CxxString>,
     name: &CxxString,
+    n_queries: u32,
 ) -> Vec<u8> {
-    let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
     let target_names: Vec<String> = targets.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
     let query_name: String = name.as_bytes().iter().map(|x| *x as char).collect::<String>();
 
-    let (header, flags) = build_header_and_flags(&target_names, &query_names, &query_name).unwrap();
-    let bytes: Vec<u8> = encode_header_and_flags(&header, &flags).unwrap();
+    let (mut header, flags) = build_file_header_and_flags(&target_names, n_queries.try_into().unwrap(), &query_name, &MetadataCompression::default()).unwrap();
+    let bytes: Vec<u8> = crate::headers::file::encode_file_header_and_flags(&mut header, &flags).unwrap();
 
     bytes
 }
@@ -151,7 +150,7 @@ pub fn encode_bitmap(
     let mut set_bits_iter = set_bits.as_slice().iter().map(|x| *x as u64);
     let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_names, &query_name);
 
-    let mut bytes: Vec<u8> = encoder.encode_header_and_flags().unwrap();
+    let mut bytes: Vec<u8> = encoder.encode_file_header_and_flags().unwrap();
     for mut block in encoder.by_ref() {
         bytes.append(&mut block);
     }
@@ -192,8 +191,8 @@ pub fn decode_target_names(
 ) -> Vec<String> {
     let mut cursor = Cursor::new(bytes.as_slice());
     let (header, flags) = read_file_header_and_flags(&mut cursor).unwrap();
-    assert_eq!(header.n_targets as usize, flags.target_names.len());
-    flags.target_names
+    assert_eq!(header.n_targets as usize, flags.target_names.as_ref().unwrap().len());
+    flags.target_names.unwrap()
 }
 
 /// Decodes the query sequence names from the block flags in an .ahda record.

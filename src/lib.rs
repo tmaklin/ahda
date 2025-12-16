@@ -101,9 +101,10 @@ use headers::block::BlockFlags;
 use headers::block::read_block_header;
 use headers::file::read_file_header;
 use headers::file::read_file_flags;
-use headers::file::build_header_and_flags;
+use headers::file::build_file_header_and_flags;
 use headers::file::encode_file_header;
 use headers::file::encode_file_flags;
+use compression::MetadataCompression;
 use compression::roaring32::unpack_block_roaring32;
 
 use std::io::Read;
@@ -303,8 +304,8 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
         assert_eq!(target_names, flags.target_names);
     });
 
-    let (new_header, new_flags) = build_header_and_flags(&target_names, &vec!["".to_string(); n_queries as usize], &query_name)?;
-    let new_flags_bytes = encode_file_flags(&new_flags)?;
+    let (new_header, new_flags) = build_file_header_and_flags(target_names.as_ref().unwrap(), n_queries as usize, query_name.as_ref().unwrap(), &MetadataCompression::default())?;
+    let new_flags_bytes = encode_file_flags(&new_flags, &MetadataCompression::from_u8(new_header.metadata_compression)?)?;
     let new_header_bytes = encode_file_header(&new_header)?;
     conn_out.write_all(&new_header_bytes)?;
     conn_out.write_all(&new_flags_bytes)?;
@@ -432,7 +433,7 @@ pub fn encode_to_write<W: Write>(
     let mut records_iter = records.iter().cloned();
     let mut encoder = encoder::Encoder::new(&mut records_iter, targets, queries, sample_name);
 
-    let bytes = encoder.encode_header_and_flags().unwrap();
+    let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
         conn_out.write_all(&block)?;
@@ -487,7 +488,7 @@ pub fn encode_from_read<R: Read>(
     let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
     let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
-    let mut bytes = encoder.encode_header_and_flags().unwrap();
+    let mut bytes = encoder.encode_file_header_and_flags().unwrap();
     for mut block in encoder.by_ref() {
         bytes.append(&mut block);
     }
@@ -542,7 +543,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write>(
     let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
     let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
 
-    let bytes = encoder.encode_header_and_flags().unwrap();
+    let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
         conn_out.write_all(&block)?;
@@ -959,7 +960,7 @@ mod tests {
     fn encode_from_read() {
         use super::encode_from_read;
 
-        use super::headers::file::build_header_and_flags;
+        use super::headers::file::build_file_header_and_flags;
 
         use crate::PseudoAln;
         use crate::Format;
@@ -984,7 +985,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_name ="ERR4035126".to_string();
 
-        let (header, flags) = build_header_and_flags(&targets, &queries, &query_name).unwrap();
+        let (header, flags) = build_file_header_and_flags(&targets, &queries, &query_name).unwrap();
         let format = Format::Metagraph;
 
         let mut tmp = data.into_iter();
@@ -1024,7 +1025,7 @@ mod tests {
     #[test]
     fn decode_from_read() {
         use super::decode_from_read;
-        use super::headers::file::build_header_and_flags;
+        use super::headers::file::build_file_header_and_flags;
         use crate::PseudoAln;
 
         use std::io::Cursor;
@@ -1037,7 +1038,7 @@ mod tests {
             PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
         ];
         expected_alns.sort_by_key(|x| *x.query_id.as_ref().unwrap());
-        let (expected_header, expected_flags) = build_header_and_flags(&vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()], &vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()], &"ERR4035126".to_string()).unwrap();
+        let (expected_header, expected_flags) = build_file_header_and_flags(&vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()], &vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()], &"ERR4035126".to_string()).unwrap();
 
         let data: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 103, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);
@@ -1094,7 +1095,7 @@ mod tests {
     #[test]
     fn decode_from_read_to_roaring() {
         use super::decode_from_read_to_roaring;
-        use super::headers::file::build_header_and_flags;
+        use super::headers::file::build_file_header_and_flags;
         use super::headers::block::BlockFlags;
 
         use std::io::Cursor;
@@ -1112,7 +1113,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
         let expected_block_flags = BlockFlags { queries: queries.clone(), query_ids };
-        let (expected_header, expected_flags) = build_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
+        let (expected_header, expected_flags) = build_file_header_and_flags(&targets, &queries, &"ERR4035126".to_string()).unwrap();
 
         let data: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 103, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);

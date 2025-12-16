@@ -89,6 +89,8 @@ use crate::parser::metagraph::read_metagraph;
 use crate::parser::sam::read_sam;
 use crate::parser::themisto::read_themisto;
 
+use crate::compression::MetadataCompression;
+
 use std::collections::HashMap;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -144,7 +146,7 @@ impl<'a, R: Read> Parser<'a, R> {
             target_to_pos.insert(target.clone(), idx);
         });
 
-        let (header, flags) = crate::headers::file::build_header_and_flags(targets, queries, sample_name)?;
+        let (header, flags) = crate::headers::file::build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default())?;
 
         let mut reader = BufReader::new(conn);
         let mut buf = Cursor::new(Vec::<u8>::new());
@@ -291,7 +293,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
         if record.ones.is_some() {
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
                 Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                    self.flags.target_names[*target_idx as usize].clone()
+                    self.flags.target_names.as_ref().unwrap()[*target_idx as usize].clone()
                 }).collect::<Vec<String>>())};
         }
         if record.ones_names.is_some() {

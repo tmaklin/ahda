@@ -20,7 +20,7 @@
 //! Calling next on Encoder will return a single block consisting of encoded
 //! bytes representing all records in the block.
 //!
-//! To create a valid .ahda record, [Encoder::encode_header_and_flags] should be
+//! To create a valid .ahda record, [Encoder::encode_file_header_and_flags] should be
 //! called first and its output included as the first bytes in the record. This
 //! method encodes the [FileHeader] and [FileFlags] corresponding to the data
 //! stored in the Encoder.
@@ -73,7 +73,7 @@
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 //!
 //! // Encode the file header and flags
-//! let bytes = encoder.encode_header_and_flags().unwrap();
+//! let bytes = encoder.encode_file_header_and_flags().unwrap();
 //! output.write_all(&bytes).unwrap();
 //!
 //! // Iterate over `encoder` to get the 2 encoded blocks
@@ -116,7 +116,7 @@
 //! let mut encoder = Encoder::new(&mut iter, &targets, &queries, &name);
 //!
 //! // Encode the file header and flags
-//! let bytes = encoder.encode_header_and_flags().unwrap();
+//! let bytes = encoder.encode_file_header_and_flags().unwrap();
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 //! output.write_all(&bytes).unwrap();
 //!
@@ -142,9 +142,10 @@ pub mod bitmap_encoder;
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
-use crate::headers::file::build_header_and_flags;
+use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
+use crate::compression::MetadataCompression;
 use crate::compression::pack_records;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
@@ -167,7 +168,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         sample_name: &str,
     ) -> Self {
 
-        let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
+        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
 
         Encoder{
             records,
@@ -178,11 +179,11 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
-    pub fn encode_header_and_flags(
+    pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Option<Vec<u8>> {
-        // TODO Replace unwraps in `encode_header_and_flags`
-        let mut flags_bytes = encode_file_flags(&self.flags).unwrap();
+        // TODO Replace unwraps in `encode_file_header_and_flags`
+        let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression).unwrap()).unwrap();
         let mut header_bytes = encode_file_header(&self.header).unwrap();
 
         let mut out: Vec<u8> = Vec::new();
@@ -235,7 +236,7 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
 mod tests {
 
     #[test]
-    fn encode_header_and_flags() {
+    fn encode_file_header_and_flags() {
         use crate::PseudoAln;
         use super::Encoder;
 
@@ -256,7 +257,7 @@ mod tests {
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
 
-        let got = encoder.encode_header_and_flags().unwrap();
+        let got = encoder.encode_file_header_and_flags().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -314,7 +315,7 @@ mod tests {
         encoder.set_block_size(2);
 
         let mut got: Vec<u8> = Vec::new();
-        got.append(&mut encoder.encode_header_and_flags().unwrap());
+        got.append(&mut encoder.encode_file_header_and_flags().unwrap());
         for block in encoder.by_ref() {
             got.append(&mut block.clone());
         }

@@ -94,7 +94,7 @@
 //! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
 //! let mut encoder = Encoder::new(&mut iter, &targets, &queries, &name);
 //!
-//! let mut bytes = encoder.encode_header_and_flags().unwrap();
+//! let mut bytes = encoder.encode_file_header_and_flags().unwrap();
 //! for mut data in encoder.by_ref() {
 //!     bytes.append(&mut data);
 //! }
@@ -129,7 +129,8 @@ use crate::Format;
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
-use crate::headers::file::build_header_and_flags;
+use crate::headers::file::build_file_header_and_flags;
+use crate::compression::MetadataCompression;
 
 use bifrost::format_bifrost_header;
 
@@ -169,7 +170,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         sample_name: &str,
         format: Format,
     ) -> Self {
-        let (header, flags) = build_header_and_flags(targets, queries, sample_name).unwrap();
+        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
         Printer::new_from_header_and_flags(records, header, flags, format)
     }
 
@@ -184,7 +185,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         }
 
         let sam_header = if format == Format::SAM {
-            Some(sam::build_sam_header(&flags.target_names).unwrap())
+            Some(sam::build_sam_header(flags.target_names.as_ref().unwrap()).unwrap())
         } else {
             None
         };
@@ -208,11 +209,11 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
             Format::Fulgor => None,
             Format::Metagraph => None,
             Format::Bifrost => {
-                format_bifrost_header(&self.flags.target_names, &mut out).unwrap();
+                format_bifrost_header(self.flags.target_names.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
             Format::SAM => {
-                self.sam_header = Some(build_sam_header(&self.flags.target_names).unwrap());
+                self.sam_header = Some(build_sam_header(self.flags.target_names.as_ref().unwrap()).unwrap());
                 format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
