@@ -100,7 +100,7 @@ impl std::fmt::Display for AhdaHeaderError {
     }
 }
 
-impl std::error::Error for AhdaHeaderError {};
+impl std::error::Error for AhdaHeaderError {}
 
 pub fn check_ahda_header(
     bytes: [u8; 6],
@@ -149,7 +149,7 @@ pub fn build_file_header_and_flags(
     };
 
     let flags = FileFlags{ target_names: Some(targets.to_vec()), query_name: Some(query_name.to_string()) };
-    let flags_bytes = encode_file_flags(&flags, &flags_compression).unwrap();
+    let flags_bytes = encode_file_flags(&flags, flags_compression).unwrap();
 
     let header = FileHeader{
         ahda_header: build_ahda_header(),
