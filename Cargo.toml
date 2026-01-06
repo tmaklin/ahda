@@ -7,8 +7,8 @@ authors = [
 ]
 description = "Pseudoalignment compression and conversion between formats."
 readme = "README.md"
-homepage = "https://github.com/tmaklin/ahda"
-repository = "https://github.com/tmaklin/ahda"
+## homepage = "https://docs.rs/ahda"
+repository = "https://codeberg.org/themaklin/ahda"
 license = "MIT OR Apache-2.0"
 
 [[bin]]
