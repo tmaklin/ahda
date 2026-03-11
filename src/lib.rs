@@ -104,13 +104,15 @@ use headers::file::read_file_flags;
 use headers::file::build_file_header_and_flags;
 use headers::file::encode_file_header;
 use headers::file::encode_file_flags;
+use compression::BitmapType;
 use compression::MetadataCompression;
 use compression::roaring32::unpack_block_roaring32;
+use compression::roaring64::unpack_block_roaring64;
 
 use std::io::Read;
 use std::io::Write;
 
-use roaring::bitmap::RoaringBitmap;
+use roaring::treemap::RoaringTreemap;
 
 pub mod cxx_api;
 
@@ -747,9 +749,8 @@ pub fn decode_to_write<W: Write>(
 ///
 pub fn decode_from_read_to_roaring<R: Read>(
     conn_in: &mut R,
-) -> Result<(RoaringBitmap, FileHeader, FileFlags, BlockFlags), E> {
-    // TODO Handle RoaringTreemap
-    let mut bitmap_out = RoaringBitmap::new();
+) -> Result<(RoaringTreemap, FileHeader, FileFlags, BlockFlags), E> {
+    let mut bitmap_out = RoaringTreemap::new();
     let header = crate::headers::file::read_file_header(conn_in)?;
     let flags = crate::headers::file::read_file_flags(&header, conn_in)?;
 
@@ -760,7 +761,15 @@ pub fn decode_from_read_to_roaring<R: Read>(
         let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
         conn_in.read_exact(&mut block_bytes)?;
 
-        let (bitmap, mut block_flags) = unpack_block_roaring32(&block_bytes, &block_header)?;
+        let (bitmap, mut block_flags) = match BitmapType::from_u16(header.bitmap_type)? {
+            BitmapType::Roaring32 => {
+                let (bitmap, block_flags) = unpack_block_roaring32(&block_bytes, &block_header)?;
+                (RoaringTreemap::from_bitmaps([(0, bitmap)]), block_flags)
+            },
+            BitmapType::Roaring64 => {
+                unpack_block_roaring64(&block_bytes, &block_header)?
+            },
+        };
 
         queries.append(&mut block_flags.queries);
         query_ids.append(&mut block_flags.query_ids);
@@ -838,7 +847,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 pub fn decode_from_read_into_roaring<R: Read>(
     conn_in: &mut R,
     merge_op: &MergeOp,
-    bitmap_out: &mut RoaringBitmap,
+    bitmap_out: &mut RoaringTreemap,
 ) -> Result<(), E> {
     match merge_op {
         MergeOp::Intersection => {
@@ -854,7 +863,15 @@ pub fn decode_from_read_into_roaring<R: Read>(
                 let mut block_bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
                 conn_in.read_exact(&mut block_bytes)?;
 
-                let (bitmap_b, _) = unpack_block_roaring32(&block_bytes, &block_header)?;
+                let bitmap_b = match BitmapType::from_u16(header.bitmap_type)? {
+                    BitmapType::Roaring32 => {
+                        let (bitmap, _) = unpack_block_roaring32(&block_bytes, &block_header)?;
+                        RoaringTreemap::from_bitmaps([(0, bitmap)])
+                    },
+                    BitmapType::Roaring64 => {
+                        unpack_block_roaring64(&block_bytes, &block_header)?.0
+                    },
+                };
 
                 match merge_op {
                     MergeOp::Union => {
@@ -866,7 +883,9 @@ pub fn decode_from_read_into_roaring<R: Read>(
                     MergeOp::Diff => {
                         *bitmap_out -= bitmap_b;
                     },
-                    _ => panic!("This shouldn't happen"),
+                    MergeOp::Intersection => {
+                        todo!("Implement MergeOp::Intersection");
+                    }
                 }
             }
         },
