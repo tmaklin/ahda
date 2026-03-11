@@ -884,7 +884,7 @@ pub fn decode_from_read_into_roaring<R: Read>(
                         *bitmap_out -= bitmap_b;
                     },
                     MergeOp::Intersection => {
-                        todo!("Implement MergeOp::Intersection");
+                        panic!("MergeOp::Intersection cannot be performed block-wise.");
                     }
                 }
             }
