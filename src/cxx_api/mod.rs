@@ -23,13 +23,17 @@
 //! format, meaning that the pseudoalignments bits of a single query sequence
 //! are stored contiguously in memory.
 //!
-//! Currently, the API only supports a 32-bit address space, meaning that the
-//! supported size of the input alignment is `num_queries * num_targets < 2^32`.
+//! If called via [encode_bitmap], the API will automatically determine whether
+//! to use a 32-bit or 64-bit address space.
 //!
-//! **TODO** Support a larger address space.
+//! If called via [encode_block32], the API will use a 32-bit address space
+//! regardless of the input size. This implies a maximum size of `num_queries *
+//! num_targets < 2^32` for the input alignment.
+//!
+//! If called via [encode_block64], the API will use a 64-bit address space.
+//! This can fit a `num_queries * num_targets < 2^64` input alignment.
 //!
 //! ## Usage
-//!
 //! **TODO** Usage examples for the C++ API.
 //!
 
@@ -40,12 +44,14 @@ use crate::headers::block::read_block_header_and_flags;
 use crate::encoder::bitmap_encoder::BitmapEncoder;
 use crate::compression::MetadataCompression;
 use crate::compression::roaring32::pack_block_roaring32;
+use crate::compression::roaring64::pack_block_roaring64;
 
 use std::io::Cursor;
 
 use cxx::CxxString;
 use cxx::CxxVector;
 use roaring::RoaringBitmap;
+use roaring::RoaringTreemap;
 
 #[cxx::bridge(namespace = "ahda")]
 mod ffi {
@@ -57,17 +63,23 @@ mod ffi {
             n_queries: u32,
         ) -> Vec<u8>;
 
-        fn encode_block(
+        fn encode_block32(
             queries: &CxxVector<CxxString>,
             query_ids: &CxxVector<u32>,
             set_bits: &CxxVector<u32>,
+        ) -> Vec<u8>;
+
+        fn encode_block64(
+            queries: &CxxVector<CxxString>,
+            query_ids: &CxxVector<u32>,
+            set_bits: &CxxVector<u64>,
         ) -> Vec<u8>;
 
         fn encode_bitmap(
             targets: &CxxVector<CxxString>,
             queries: &CxxVector<CxxString>,
             name: &CxxString,
-            set_bits: &CxxVector<u32>,
+            set_bits: &CxxVector<u64>,
         ) -> Vec<u8>;
 
         fn decode_bitmap(
@@ -109,15 +121,15 @@ pub fn encode_file_header_and_flags(
     bytes
 }
 
-/// Encode a single .ahda block and its block header and flags.
+/// Encode a single .ahda block and its block header and flags in 32-bit address space.
 ///
-/// Creates a [RoaringBitmap] from the set bit indexes and calls [pack_block_roaring] to
+/// Creates a [RoaringBitmap] from the set bit indexes and calls [pack_block_roaring32] to
 /// encode the block header, block flags, and block contents.
 ///
 /// The output is a valid block record that can be appended to an .ahda record
 /// containing the corresponding file header and flags.
 ///
-pub fn encode_block(
+pub fn encode_block32(
     queries: &CxxVector<CxxString>,
     query_ids: &CxxVector<u32>,
     set_bits: &CxxVector<u32>,
@@ -125,6 +137,25 @@ pub fn encode_block(
     let bitmap = RoaringBitmap::from_iter(set_bits.iter());
     let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
     let block = pack_block_roaring32(&query_names, query_ids.as_slice(), &bitmap);
+    block.unwrap()
+}
+
+/// Encode a single .ahda block and its block header and flags in 64-bit address space.
+///
+/// Creates a [RoaringTreemap] from the set bit indexes and calls [pack_block_roaring64] to
+/// encode the block header, block flags, and block contents.
+///
+/// The output is a valid block record that can be appended to an .ahda record
+/// containing the corresponding file header and flags.
+///
+pub fn encode_block64(
+    queries: &CxxVector<CxxString>,
+    query_ids: &CxxVector<u32>,
+    set_bits: &CxxVector<u64>,
+) -> Vec<u8> {
+    let bitmap = RoaringTreemap::from_iter(set_bits.iter());
+    let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
+    let block = pack_block_roaring64(&query_names, query_ids.as_slice(), &bitmap);
     block.unwrap()
 }
 
@@ -141,13 +172,13 @@ pub fn encode_bitmap(
     targets: &CxxVector<CxxString>,
     queries: &CxxVector<CxxString>,
     name: &CxxString,
-    set_bits: &CxxVector<u32>,
+    set_bits: &CxxVector<u64>,
 ) -> Vec<u8> {
     let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
     let target_names: Vec<String> = targets.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
     let query_name: String = name.as_bytes().iter().map(|x| *x as char).collect::<String>();
 
-    let mut set_bits_iter = set_bits.as_slice().iter().map(|x| *x as u64);
+    let mut set_bits_iter = set_bits.as_slice().iter().cloned();
     let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_names, &query_name);
 
     let mut bytes: Vec<u8> = encoder.encode_file_header_and_flags().unwrap();
