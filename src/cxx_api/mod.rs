@@ -72,7 +72,7 @@ mod ffi {
 
         fn decode_bitmap(
             bytes: &CxxVector<u8>,
-        ) -> Vec<u32>;
+        ) -> Vec<u64>;
 
         fn decode_target_names(
             bytes: &CxxVector<u8>,
@@ -170,10 +170,10 @@ pub fn encode_bitmap(
 ///
 pub fn decode_bitmap(
     bytes: &CxxVector<u8>,
-) -> Vec<u32> {
+) -> Vec<u64> {
     let mut cursor = Cursor::new(bytes.as_slice());
     let (bitmap, _, _, _) = decode_from_read_to_roaring(&mut cursor).unwrap();
-    let set_bits: Vec<u32> = bitmap.iter().collect();
+    let set_bits: Vec<u64> = bitmap.iter().collect();
     set_bits
 }
 
