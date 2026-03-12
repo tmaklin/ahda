@@ -12,6 +12,8 @@
 // at your option.
 //
 
+//! Flate2 wrapper.
+
 use flate2::write::GzEncoder;
 use flate2::write::GzDecoder;
 use flate2::Compression;

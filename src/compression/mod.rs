@@ -12,6 +12,28 @@
 // at your option.
 //
 
+//! Wrappers for supported bitmap and metadata compression schemes.
+//!
+//! ## Bitmap compression schemes
+//! Currently supported:
+//! - Roaring bitmap
+//! - Roaring treemap
+//!
+//! New schemes should implement functions to perform the following:
+//! - Convert a [PseudoAln] array to the bitmap representation.
+//! - Serialize the bitmap representation to bytes (u8).
+//! - Deserialize bytes (u8) to the bitmap representation.
+//! - Serialize the bitmap representation to a valid .ahda block record (u8 bytes).
+//! - Deserialize a valid .ahda block record (u8 bytes) to the bitmap representation.
+//!
+//! ## Metadata compression schemes
+//! Currently supported:
+//! - Flate2
+//!
+//! New schemes should implement the following:
+//! - Compress bytes (u8).
+//! - Decompress bytes (u8).
+
 pub mod gzwrapper;
 pub mod roaring32;
 pub mod roaring64;
@@ -84,6 +106,7 @@ impl MetadataCompression {
     }
 }
 
+/// Compress a block of [PseudoAln] records.
 pub fn pack_records(
     file_header: &FileHeader,
     records: &[PseudoAln],

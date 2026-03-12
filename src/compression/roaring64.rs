@@ -11,6 +11,9 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Roaring treemap wrapper (64-bit address space).
+
 use crate::PseudoAln;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
