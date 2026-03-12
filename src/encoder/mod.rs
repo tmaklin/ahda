@@ -145,8 +145,11 @@ use crate::headers::file::FileFlags;
 use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
+use crate::compression::BitmapType;
 use crate::compression::MetadataCompression;
 use crate::compression::pack_records;
+
+type E = Box<dyn std::error::Error>;
 
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
@@ -196,8 +199,20 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     pub fn set_block_size(
         &mut self,
         block_size: usize
-    ) {
-        todo!("set_block_size for Encoder")
+    ) -> Result<(), E> {
+        let new_block_size: u32 = match BitmapType::from_u16(self.header.bitmap_type)? {
+            BitmapType::Roaring32 => {
+                if block_size as u64 > 65537_u64 {
+                    todo!("Error if block_size exceeds bitmap capacity")
+                }
+                block_size.try_into()?
+            },
+            BitmapType::Roaring64 => {
+                block_size.try_into()?
+            },
+        };
+        self.header.block_size = new_block_size.max(2);
+        Ok(())
     }
 
 }
