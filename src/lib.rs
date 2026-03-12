@@ -114,6 +114,7 @@ use std::io::Write;
 
 use roaring::treemap::RoaringTreemap;
 
+#[cfg(feature = "cxxbridge")]
 pub mod cxx_api;
 
 pub mod compression;
