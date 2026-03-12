@@ -103,7 +103,7 @@ pub fn format_sam_header<W: std::io::Write>(
     conn: &mut W,
 ) -> Result<(), E> {
     let mut writer = noodles_sam::io::Writer::new(Vec::new());
-    writer.write_header(&header)?;
+    writer.write_header(header)?;
     conn.write_all(writer.get_ref())?;
     Ok(())
 }
