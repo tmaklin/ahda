@@ -27,6 +27,8 @@ use crate::compression::roaring64::pack_block_roaring64;
 use roaring::RoaringBitmap;
 use roaring::RoaringTreemap;
 
+type E = Box<dyn std::error::Error>;
+
 pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Input iterator
     set_bits: &'a mut I,
@@ -82,8 +84,20 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
     pub fn set_block_size(
         &mut self,
         block_size: usize
-    ) {
-        todo!("set_block_size for BitmapEncoder")
+    ) -> Result<(), E> {
+        let new_block_size: u32 = match BitmapType::from_u16(self.header.bitmap_type)? {
+            BitmapType::Roaring32 => {
+                if block_size as u64 > 65537_u64 {
+                    todo!("Error if block_size exceeds bitmap capacity")
+                }
+                block_size.try_into()?
+            },
+            BitmapType::Roaring64 => {
+                block_size.try_into()?
+            },
+        };
+        self.header.block_size = new_block_size.max(2);
+        Ok(())
     }
 
     pub fn build_roaring32(
