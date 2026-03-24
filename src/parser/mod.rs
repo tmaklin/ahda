@@ -121,7 +121,7 @@ impl std::fmt::Display for AmbiguousInputFormatErr {
 
 impl std::error::Error for AmbiguousInputFormatErr {}
 
-/// [guess_format] was interrupted before reading in the expected data.
+/// Plaintext data is not in the expected format.
 #[derive(Debug, Clone)]
 pub struct CorruptedInputErr;
 
@@ -196,20 +196,20 @@ impl<R: Read> Parser<'_, R> {
     /// Returns None if the header has already been consumed by calling [next].
     pub fn read_header(
         &mut self,
-    ) -> Option<Vec<String>> {
+    ) -> Result<Option<Vec<String>>, E> {
         if self.buf.get_ref().is_empty() {
-            return None
+            return Err(Box::new(AmbiguousInputFormatErr{}))
         }
         match self.format {
-            Format::Themisto => None,
-            Format::Fulgor => None,
-            Format::Metagraph => None,
+            Format::Themisto => Ok(None),
+            Format::Fulgor => Ok(None),
+            Format::Metagraph => Ok(None),
             Format::Bifrost => {
                 let separator: char = '\t';
                 let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
                 let mut records = contents.split(separator);
                 // Consume `query_name`
-                records.next().unwrap();
+                records.next().ok_or(CorruptedInputErr{})?;
                 let mut target_names: Vec<String> = Vec::new();
                 for record in records {
                     target_names.push(record.to_string());
@@ -218,14 +218,13 @@ impl<R: Read> Parser<'_, R> {
                 target_names[n_targets - 1].pop();
                 self.buf.get_mut().clear();
 
-                Some(target_names)
+                Ok(Some(target_names))
             }
             Format::SAM => {
-                // TODO Error if the header is misformatted
                 let mut header_contents = Cursor::new(self.buf.get_mut().clone());
                 let mut next_line: Cursor<Vec<u8>> = Cursor::new(Vec::new());
                 loop {
-                    self.reader.read_until(b'\n', next_line.get_mut()).unwrap();
+                    self.reader.read_until(b'\n', next_line.get_mut())?;
                     if next_line.get_ref().is_empty() {
                         break;
                     }
@@ -236,10 +235,10 @@ impl<R: Read> Parser<'_, R> {
                         break;
                     }
                 }
-                let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut header_contents).unwrap();
-                let header = reader.read_header().unwrap();
+                let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut header_contents)?;
+                let header = reader.read_header()?;
                 let target_names: Vec<String> = header.reference_sequences().iter().map(|x| x.0.to_string()).collect();
-                Some(target_names)
+                Ok(Some(target_names))
             },
         }
     }
@@ -515,7 +514,7 @@ mod tests {
         let sample_name = "ERR4035126";
         let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
-        let got: Vec<String> = reader.read_header().unwrap();
+        let got: Vec<String> = reader.read_header().unwrap().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -540,7 +539,7 @@ mod tests {
         let sample_name = "ERR4035126";
         let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
-        let got: Vec<String> = reader.read_header().unwrap();
+        let got: Vec<String> = reader.read_header().unwrap().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -593,7 +592,7 @@ mod tests {
         let sample_name = "ERR4035126";
         let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
 
-        let got_header: Vec<String> = reader.read_header().unwrap();
+        let got_header: Vec<String> = reader.read_header().unwrap().unwrap();
         assert_eq!(got_header, expected_header);
 
         let got_aln: PseudoAln = reader.next().unwrap();
