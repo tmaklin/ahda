@@ -111,7 +111,7 @@
 //!                                bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
 //!                                block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
 //!                                flags_len: 44_u64,
-//!                              });
+//!                              };
 //! let mut file_flags = FileFlags::default();
 //! file_flags.query_name = Some("sample".to_string());
 //! file_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
