@@ -739,7 +739,17 @@ pub fn decode_to_write<W: Write>(
 ///
 /// // Expect these outputs:
 /// //   RoaringTreemap<[2, 9, 11, 12, 13, 14]>
-/// //   FileHeader   { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 }
+/// // FileHeader{
+/// //                                    n_targets: 3_u32,
+/// //                                   n_queries: 5_u32,
+/// //                                   ahda_header: ahda::headers::file::build_ahda_header(),
+/// //                                   file_format: ahda::AhdaVersion::V0_1_0.to_u8(),
+/// //                                   metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
+/// //                                   fields_present: 0,
+/// //                                   bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
+/// //                                   block_size: 65536_u32,
+/// //                                   flags_len: 46_u64,
+/// //                                 }
 /// //   FileFlags    { query_name: Some("sample"), target_names: Some(vec!["chr.fasta", "plasmid.fasta", "virus.fasta"]) }
 /// //   BlockFlags   { queries: ["r1", "r651903", "r7543", "r16"], query_ids: [0, 2, 3, 4] }
 ///
@@ -752,8 +762,8 @@ pub fn decode_to_write<W: Write>(
 ///                                      metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
 ///                                      fields_present: 0,
 ///                                      bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
-///                                      block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
-///                                      flags_len: 44_u64,
+///                                      block_size: 65536_u32,
+///                                      flags_len: 46_u64,
 ///                                    });
 /// let mut expected_flags = FileFlags::default();
 /// expected_flags.query_name = Some("sample".to_string());
