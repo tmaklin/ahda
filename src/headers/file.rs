@@ -422,18 +422,18 @@ mod tests {
         use super::decode_file_header;
         use super::FileHeader;
 
-        let data: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0];
 
         let expected = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaVersion::V0_1_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
-            n_targets: 7_u32,
-            n_queries: 3_u32,
+            n_targets: 3_u32,
+            n_queries: 5_u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
             block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
-            flags_len: 489_u64,
+            flags_len: 16_u64,
         };
 
         let got = decode_file_header(&data).unwrap();
@@ -450,7 +450,7 @@ mod tests {
         let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let sample = "sample";
 
-        let data: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let data: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
 
         let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
 
@@ -470,7 +470,7 @@ mod tests {
 
         use std::io::Cursor;
 
-        let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let expected = FileHeader {
@@ -478,11 +478,11 @@ mod tests {
             file_format: AhdaVersion::V0_1_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
-            n_targets: 7_u32,
-            n_queries: 3_u32,
+            n_targets: 3_u32,
+            n_queries: 5_u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
-            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
-            flags_len: 489_u64,
+            block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
+            flags_len: 16_u64,
         };
 
         let got = read_file_header(&mut data).unwrap();
@@ -510,13 +510,13 @@ mod tests {
             file_format: AhdaVersion::V0_1_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
-            n_targets: 7_u32,
-            n_queries: 3_u32,
+            n_targets: 3_u32,
+            n_queries: 5_u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
-            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
-            flags_len: 489_u64,
+            block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
+            flags_len: 16_u64,
         };
-        let data_bytes: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99, 3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let data_bytes: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
@@ -548,14 +548,14 @@ mod tests {
             file_format: AhdaVersion::V0_1_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
-            n_targets: 7_u32,
+            n_targets: targets.len() as u32,
             n_queries: queries.len() as u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
-            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
-            flags_len: 489_u64,
+            block_size: ((u32::MAX as u64) / (targets.len() as u64)).min(65537_u64) as u32,
+            flags_len: 16_u64,
         };
 
-        let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0, 1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let (got_header, got_flags) = read_file_header_and_flags(&mut data).unwrap();
