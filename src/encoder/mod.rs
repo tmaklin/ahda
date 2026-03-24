@@ -202,9 +202,10 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         let new_block_size: u32 = match BitmapType::from_u16(self.header.bitmap_type)? {
             BitmapType::Roaring32 => {
                 if block_size as u64 > 65537_u64 {
-                    todo!("Error if block_size exceeds bitmap capacity")
+                    65536_u32
+                } else {
+                    block_size.try_into()?
                 }
-                block_size.try_into()?
             },
             BitmapType::Roaring64 => {
                 block_size.try_into()?
