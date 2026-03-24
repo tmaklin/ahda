@@ -281,13 +281,27 @@ mod tests {
     #[test]
     fn file_header_and_file_flags() {
         use super::Decoder;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use crate::headers::file::build_ahda_header;
         use crate::headers::file::FileFlags;
         use crate::headers::file::FileHeader;
 
         use std::io::Cursor;
 
-        let expected_header = FileHeader { n_targets: 2, n_queries: 5, flags_len: 36, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 };
-        let expected_flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()] };
+        let expected_flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let expected_header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 2_u32,
+            n_queries: 5_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (2_u64)).min(65537_u64) as u32,
+            flags_len: 36_u64,
+        };
 
         let data_bytes: Vec<u8> = vec![2, 0, 0, 0, 5, 0, 0, 0, 36, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 102, 0, 0, 0, 26, 0, 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 147, 239, 230, 96, 0, 131, 255, 155, 141, 18, 18, 18, 82, 24, 24, 197, 216, 24, 13, 206, 30, 57, 112, 232, 192, 169, 3, 39, 15, 156, 122, 44, 37, 146, 146, 148, 144, 147, 149, 145, 178, 44, 189, 229, 140, 161, 136, 203, 163, 25, 51, 165, 162, 164, 36, 62, 43, 121, 207, 254, 168, 252, 241, 140, 175, 111, 79, 164, 164, 228, 140, 136, 25, 140, 102, 251, 13, 119, 102, 51, 48, 48, 0, 0, 158, 168, 250, 0, 82, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
