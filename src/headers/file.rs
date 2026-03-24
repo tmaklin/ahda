@@ -71,7 +71,7 @@ pub struct FileHeader {
 /// Contents may differ between implementations.
 ///
 #[non_exhaustive]
-#[derive(Clone, Debug, Decode, Encode, PartialEq)]
+#[derive(Clone, Debug, Decode, Default, Encode, PartialEq)]
 pub struct FileFlags {
     /// Query file basename
     pub query_name: Option<String>,
