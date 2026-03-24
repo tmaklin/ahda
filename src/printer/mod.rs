@@ -262,6 +262,10 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use crate::headers::file::build_ahda_header;
 
         use std::io::Cursor;
         use std::io::Write;
@@ -274,8 +278,19 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: Some(1),   ones: Some(vec![4, 2, 9, 7]), ..Default::default()},
         ];
 
-        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
-        let header = FileHeader { n_targets: 2, n_queries: 5, flags_len: 0, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 2_u32,
+            n_queries: 5_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (2_u64)).min(65537_u64) as u32,
+            flags_len: 0_u64,
+        };
+
         let expected: Vec<u8> = vec![b"128 0 7 11 3\n".to_vec(),
                                      b"7 3 2 1 0\n".to_vec(),
                                      b"8\n".to_vec(),
@@ -304,6 +319,10 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use crate::headers::file::build_ahda_header;
 
         use std::io::Cursor;
         use std::io::Write;
@@ -325,8 +344,18 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".to_string()) },
         ];
 
-        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
-        let header = FileHeader { n_targets: 2, n_queries: 14, flags_len: 0, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 2_u32,
+            n_queries: 14_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (14_u64)).min(65537_u64) as u32,
+            flags_len: 0_u64,
+        };
 
         let mut expected: Vec<u8> = b"ERR4035126.4996\t0\n".to_vec();
         expected.append(&mut b"ERR4035126.1262953\t1\t0\n".to_vec());
@@ -364,6 +393,10 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use crate::headers::file::build_ahda_header;
 
         use std::io::Cursor;
         use std::io::Write;
@@ -388,8 +421,18 @@ mod tests {
             PseudoAln{ query_name: Some("ERR4035126.824748".to_string()), ones: Some(vec![0]), ones_names: None, query_id: None },
         ];
 
-        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
-        let header = FileHeader { n_targets: 2, n_queries: 17, flags_len: 0, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 2_u32,
+            n_queries: 17_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (17_u64)).min(65537_u64) as u32,
+            flags_len: 0_u64,
+        };
 
         let mut expected: Vec<u8> = b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
         expected.append(&mut b"ERR4035126.724962\t0\t0\n".to_vec());
@@ -431,6 +474,10 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use crate::headers::file::build_ahda_header;
 
         use std::io::Cursor;
         use std::io::Write;
@@ -443,8 +490,18 @@ mod tests {
             PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: Some(vec![]), query_name: Some("ERR4035126.7543".to_string()) },
         ];
 
-        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()] };
-        let header = FileHeader { n_targets: 2, n_queries: 5, flags_len: 0, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 2_u32,
+            n_queries: 5_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
+            flags_len: 0_u64,
+        };
 
         let mut expected: Vec<u8> = b"3\tERR4035126.2\tchr.fasta\n".to_vec();
         expected.append(&mut b"2\tERR4035126.1\tchr.fasta\n".to_vec());
@@ -472,6 +529,10 @@ mod tests {
         use crate::Format;
         use crate::FileFlags;
         use crate::FileHeader;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use crate::headers::file::build_ahda_header;
         use std::io::Cursor;
         use std::io::Write;
 
@@ -495,8 +556,18 @@ mod tests {
             PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
         ];
 
-        let flags = FileFlags { query_name: "ERR4035126".to_string(), target_names: vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()] };
-        let header = FileHeader { n_targets: 2, n_queries: 15, flags_len: 0, format: 0, bitmap_type: 0, ph3: 0, ph4: 0 };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 2_u32,
+            n_queries: 15_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (15_u64)).min(65537_u64) as u32,
+            flags_len: 0_u64,
+        };
 
         let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();
         expected.append(&mut b"@SQ\tSN:OZ038621.1\tLN:1\n".to_vec());
