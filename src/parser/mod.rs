@@ -17,8 +17,6 @@
 //! Reads in 1 [PseudoAln](ahda::PseudoAln) at a time using next(), in the order
 //! they appear in the input.
 //!
-//! **TODO Implement as described below.**
-//!
 //! The input format is detected automatically based on rules in [guess_format].
 //! Some input formats may be ambiguous, in which case the format needs to be
 //! specified using [new_with_format](Parser::new_with_format).
