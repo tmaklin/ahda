@@ -289,8 +289,12 @@ pub fn decode_file_flags(
 mod tests {
 
     #[test]
-    fn build_header_and_flags() {
-        use super::build_header_and_flags;
+    fn build_file_header_and_flags() {
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
+        use super::build_file_header_and_flags;
         use super::encode_file_flags;
         use super::FileHeader;
         use super::FileFlags;
@@ -299,20 +303,34 @@ mod tests {
         let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
         let sample = "sample";
 
-        let expected_flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
-        let nbytes = encode_file_flags(&expected_flags).unwrap().len();
-        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let expected_flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let nbytes = encode_file_flags(&expected_flags, &MetadataCompression::default()).unwrap().len();
+        let expected_header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: targets.len() as u32,
+            n_queries: queries.len() as u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (targets.len() as u64)).min(65537_u64) as u32,
+            flags_len: nbytes as u64,
+        };
 
-        let (got_header, got_flags) = build_header_and_flags(&targets, &queries, &sample).unwrap();
+        let (got_header, got_flags) = build_file_header_and_flags(&targets, queries.len(), &sample, &MetadataCompression::default()).unwrap();
 
         assert_eq!(got_header, expected_header);
         assert_eq!(got_flags, expected_flags);
     }
 
     #[test]
-    fn encode_header_and_flags() {
-        use super::encode_header_and_flags;
+    fn encode_file_header_and_flags() {
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
         use super::encode_file_flags;
+        use super::encode_file_header_and_flags;
         use super::FileHeader;
         use super::FileFlags;
 
@@ -320,21 +338,35 @@ mod tests {
         let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
-        let nbytes = encode_file_flags(&flags).unwrap().len();
-        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
+        let mut header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: targets.len() as u32,
+            n_queries: queries.len() as u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (targets.len() as u64)).min(65537_u64) as u32,
+            flags_len: nbytes as u64,
+        };
 
         let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
 
-        let got = encode_header_and_flags(&header, &flags).unwrap();
+        let got = encode_file_header_and_flags(&mut header, &flags).unwrap();
 
         assert_eq!(got, expected);
     }
 
     #[test]
     fn encode_file_header() {
-        use super::encode_file_header;
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
         use super::encode_file_flags;
+        use super::encode_file_header;
         use super::FileHeader;
         use super::FileFlags;
 
@@ -342,9 +374,19 @@ mod tests {
         let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
-        let nbytes = encode_file_flags(&flags).unwrap().len();
-        let header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: nbytes as u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
+        let mut header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: targets.len() as u32,
+            n_queries: queries.len() as u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (targets.len() as u64)).min(65537_u64) as u32,
+            flags_len: nbytes as u64,
+        };
 
         let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -355,29 +397,44 @@ mod tests {
 
     #[test]
     fn encode_file_flags() {
+        use crate::compression::MetadataCompression;
         use super::encode_file_flags;
         use super::FileFlags;
 
         let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
 
         let expected: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
 
-        let got = encode_file_flags(&flags).unwrap();
+        let got = encode_file_flags(&flags, &MetadataCompression::default()).unwrap();
 
         assert_eq!(got, expected);
     }
 
     #[test]
     fn decode_file_header() {
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
         use super::decode_file_header;
         use super::FileHeader;
 
         let data: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let expected = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 7_u32,
+            n_queries: 3_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
+            flags_len: 489_u64,
+        };
 
         let got = decode_file_header(&data).unwrap();
 
@@ -386,6 +443,7 @@ mod tests {
 
     #[test]
     fn decode_file_flags() {
+        use crate::compression::MetadataCompression;
         use super::decode_file_flags;
         use super::FileFlags;
 
@@ -394,15 +452,19 @@ mod tests {
 
         let data: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
 
-        let expected = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
 
-        let got = decode_file_flags(&data).unwrap();
+        let got = decode_file_flags(&data, &MetadataCompression::default()).unwrap();
 
         assert_eq!(got, expected);
     }
 
     #[test]
     fn read_file_header() {
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
         use super::read_file_header;
         use super::FileHeader;
 
@@ -411,7 +473,17 @@ mod tests {
         let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let expected = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 7_u32,
+            n_queries: 3_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
+            flags_len: 489_u64,
+        };
 
         let got = read_file_header(&mut data).unwrap();
 
@@ -420,6 +492,10 @@ mod tests {
 
     #[test]
     fn read_file_flags() {
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
         use super::read_file_flags;
         use super::FileHeader;
         use super::FileFlags;
@@ -429,11 +505,21 @@ mod tests {
         let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
         let sample = "sample";
 
-        let header = FileHeader { n_targets: 3_u32, n_queries: 5_u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 7_u32,
+            n_queries: 3_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
+            flags_len: 489_u64,
+        };
         let data_bytes: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99, 3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
+        let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
 
         let got = read_file_flags(&header, &mut data).unwrap();
 
@@ -442,6 +528,10 @@ mod tests {
 
     #[test]
     fn read_file_header_and_flags() {
+        use crate::AhdaVersion;
+        use crate::compression::MetadataCompression;
+        use crate::compression::BitmapType;
+        use super::build_ahda_header;
         use super::read_file_header_and_flags;
         use super::FileHeader;
         use super::FileFlags;
@@ -452,8 +542,18 @@ mod tests {
         let queries = vec!["1".to_string(), "2".to_string(), "3".to_string(), "4".to_string(), "5".to_string()];
         let sample = "sample";
 
-        let expected_flags = FileFlags { query_name: sample.to_string(), target_names: targets.clone() };
-        let expected_header = FileHeader { n_targets: targets.len() as u32, n_queries: queries.len() as u32, flags_len: 14_u64, format: 1_u16, bitmap_type: 0_u16, block_size: 0_u32, ph4: 0_u64 };
+        let expected_flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let expected_header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaVersion::V0_1_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: 0,
+            n_targets: 7_u32,
+            n_queries: 3_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
+            flags_len: 489_u64,
+        };
 
         let data_bytes: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
