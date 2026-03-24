@@ -99,16 +99,41 @@ use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
 
+/// [guess_format] could not guess the input format.
 #[derive(Debug, Clone)]
-pub struct UnrecognizedInputFormat;
+pub struct UnrecognizedInputFormatErr;
 
-impl std::fmt::Display for UnrecognizedInputFormat {
+impl std::fmt::Display for UnrecognizedInputFormatErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Unrecognized input format")
     }
 }
 
-impl std::error::Error for UnrecognizedInputFormat {}
+impl std::error::Error for UnrecognizedInputFormatErr {}
+
+/// [guess_format] found a valid input format but could not confirm it with certainty.
+#[derive(Debug, Clone)]
+pub struct AmbiguousInputFormatErr;
+
+impl std::fmt::Display for AmbiguousInputFormatErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Unrecognized input format")
+    }
+}
+
+impl std::error::Error for AmbiguousInputFormatErr {}
+
+/// [guess_format] was interrupted before reading in the expected data.
+#[derive(Debug, Clone)]
+pub struct CorruptedInputErr;
+
+impl std::fmt::Display for CorruptedInputErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Unrecognized input format")
+    }
+}
+
+impl std::error::Error for CorruptedInputErr {}
 
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
@@ -153,16 +178,13 @@ impl<'a, R: Read> Parser<'a, R> {
 
         reader.read_until(b'\n', buf.get_mut())?;
 
-        if let Some(format) = guess_format(buf.get_ref()) {
-            Ok(Self {
-                reader, buf, format,
-                query_to_pos, pos_to_query, target_to_pos,
-                header, flags,
-            })
-        } else {
-            Err(Box::new(UnrecognizedInputFormat{}))
-        }
+        let format = guess_format(buf.get_ref())?;
 
+        Ok(Self {
+            reader, buf, format,
+            query_to_pos, pos_to_query, target_to_pos,
+            header, flags,
+        })
     }
 
 }
@@ -308,10 +330,28 @@ impl<R: Read> Iterator for Parser<'_, R> {
     }
 }
 
-// TODO This should return ambiguous format error if the format is fulgor && maybe_metagraph
+/// Guess the input format from plaintext bytes
+///
+/// Supports:
+/// - SAM
+/// - Themisto
+/// - Bifrost
+/// - Fulgor
+/// - Metagraph
+///
+/// ## Errors
+/// ### [CorruptedInputErr]
+/// Input bytes do not contain the expected data.
+///
+/// ### [AmbiguousInputFormatErr]
+/// Input format is either fulgor or metagraph but cannot be inferred with certainty.
+///
+/// ### [UnrecognizedInputFormatErr]
+/// Could not infer input format.
+///
 pub fn guess_format(
     bytes: &[u8],
-) -> Option<Format> {
+) -> Result<Format, E> {
     let first_line: Vec<u8> = if bytes.contains(&b'\n') {
         let linebreak = bytes.iter().position(|x| *x == b'\n').unwrap();
         bytes[0..linebreak].to_vec()
@@ -322,43 +362,43 @@ pub fn guess_format(
     if bytes.len() > 2 {
         let sam: bool = bytes[0] == b'@' && bytes[1] == b'H' && bytes[2] == b'D';
         if sam {
-            return Some(Format::SAM)
+            return Ok(Format::SAM)
         }
     }
 
     let not_themisto: bool = first_line.contains(&b'\t');
     if !not_themisto {
-        return Some(Format::Themisto)
+        return Ok(Format::Themisto)
     }
 
     let line = first_line.clone().iter().map(|x| *x as char).collect::<String>();
     let mut records = line.split('\t');
 
-    let first_record = records.next()?;
+    let first_record = records.next().ok_or(CorruptedInputErr{})?;
     let bifrost: bool = first_record == "query_name";
     if bifrost {
-        return Some(Format::Bifrost)
+        return Ok(Format::Bifrost)
     }
 
     let maybe_metagraph: bool = first_record.parse::<u32>().is_ok();
 
-    let next = records.next()?;
+    let next = records.next().ok_or(CorruptedInputErr{})?;
 
     let fulgor: bool = next.parse::<u32>().is_ok();
 
     if fulgor && maybe_metagraph {
-        return None
+        return Err(Box::new(AmbiguousInputFormatErr{}))
     }
 
     if fulgor {
-        return Some(Format::Fulgor)
+        return Ok(Format::Fulgor)
     }
 
     if maybe_metagraph {
-        return Some(Format::Metagraph)
+        return Ok(Format::Metagraph)
     }
 
-    None
+    Err(Box::new(UnrecognizedInputFormatErr{}))
 }
 
 // Tests
