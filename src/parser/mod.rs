@@ -155,8 +155,6 @@ impl<'a, R: Read> Parser<'a, R> {
         sample_name: &str,
     ) -> Result<Self, E> {
 
-        // TODO Don't add keys twice to a hashmap if present
-
         let mut query_to_pos: HashMap<String, usize> = HashMap::new();
         let mut pos_to_query: HashMap<usize, String> = HashMap::new();
         queries.iter().enumerate().for_each(|(idx, query)| {
