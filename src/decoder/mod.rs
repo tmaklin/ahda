@@ -101,8 +101,20 @@
 //! let input = RoaringBitmap::from([2, 9, 11, 12, 13, 14]);
 //! // `input` could alternatively be any u32 container, eg. a vector: vec![2_u32, 9, 11, 12, 13, 14]
 //!
-//! let file_header = FileHeader { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 };
-//! let file_flags = FileFlags { query_name: "sample".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()] };
+//! let file_header = FileHeader{
+//!                                n_targets: 3_u32,
+//!                                n_queries: 5_u32,
+//!                                ahda_header: ahda::headers::file::build_ahda_header(),
+//!                                file_format: ahda::AhdaVersion::V0_1_0.to_u8(),
+//!                                metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
+//!                                fields_present: 0,
+//!                                bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
+//!                                block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
+//!                                flags_len: 44_u64,
+//!                              });
+//! let mut file_flags = FileFlags::default();
+//! file_flags.query_name = Some("sample".to_string());
+//! file_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
 //! let block_header = BlockHeader { num_records: 4, deflated_len: 90, block_len: 28, flags_len: 27, start_idx: 0, placeholder2: 0, placeholder3: 0 };
 //! let block_flags = BlockFlags { queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] };
 //!

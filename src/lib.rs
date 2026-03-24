@@ -714,7 +714,7 @@ pub fn decode_to_write<W: Write>(
 /// use ahda::Format;
 /// use ahda::headers::file::{FileHeader, FileFlags};
 /// use ahda::headers::block::{BlockHeader, BlockFlags};
-/// use roaring::RoaringBitmap;
+/// use roaring::RoaringTreemap;
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
@@ -738,14 +738,27 @@ pub fn decode_to_write<W: Write>(
 /// let (bitmap, file_header, file_flags, block_flags) = decode_from_read_to_roaring(&mut input).unwrap();
 ///
 /// // Expect these outputs:
-/// //   RoaringBitmap<[2, 9, 11, 12, 13, 14]>
+/// //   RoaringTreemap<[2, 9, 11, 12, 13, 14]>
 /// //   FileHeader   { n_targets: 3, n_queries: 5, flags_len: 44, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 }
-/// //   FileFlags    { query_name: "sample", target_names: ["chr.fasta", "plasmid.fasta", "virus.fasta"] }
+/// //   FileFlags    { query_name: Some("sample"), target_names: Some(vec!["chr.fasta", "plasmid.fasta", "virus.fasta"]) }
 /// //   BlockFlags   { queries: ["r1", "r651903", "r7543", "r16"], query_ids: [0, 2, 3, 4] }
 ///
-/// assert_eq!(bitmap, RoaringBitmap::from([2, 9, 11, 12, 13, 14]));
-/// assert_eq!(file_header, FileHeader{ n_targets: 3, n_queries: 5, flags_len: 44, format: 1, bitmap_type: 0, ph3: 0, ph4: 0 });
-/// assert_eq!(file_flags, FileFlags{ query_name: "sample".to_string(), target_names: vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()] });
+/// assert_eq!(bitmap, RoaringTreemap::from([2, 9, 11, 12, 13, 14]));
+/// assert_eq!(file_header, FileHeader{
+///                                      n_targets: 3_u32,
+///                                      n_queries: 5_u32,
+///                                      ahda_header: ahda::headers::file::build_ahda_header(),
+///                                      file_format: ahda::AhdaVersion::V0_1_0.to_u8(),
+///                                      metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
+///                                      fields_present: 0,
+///                                      bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
+///                                      block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
+///                                      flags_len: 44_u64,
+///                                    });
+/// let mut expected_flags = FileFlags::default();
+/// expected_flags.query_name = Some("sample".to_string());
+/// expected_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
+/// assert_eq!(file_flags, expected_flags);
 /// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] });
 ///
 pub fn decode_from_read_to_roaring<R: Read>(
@@ -796,7 +809,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// ```rust
 /// use ahda::{decode_from_read_into_roaring, decode_from_read_to_roaring, encode_from_read_to_write};
 /// use ahda::MergeOp;
-/// use roaring::RoaringBitmap;
+/// use roaring::RoaringTreemap;
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
@@ -843,7 +856,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// // ...ie the alignment in the intersection is:
 /// //     0    r1    virus.fasta
 ///
-/// assert_eq!(bitmap, RoaringBitmap::from([2]));
+/// assert_eq!(bitmap, RoaringTreemap::from([2]));
 ///
 pub fn decode_from_read_into_roaring<R: Read>(
     conn_in: &mut R,
