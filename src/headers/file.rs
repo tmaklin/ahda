@@ -313,7 +313,7 @@ mod tests {
             n_targets: targets.len() as u32,
             n_queries: queries.len() as u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
-            block_size: ((u32::MAX as u64) / (targets.len() as u64)).min(65537_u64) as u32,
+            block_size: ((u32::MAX as u64) / (targets.len() as u64)).min(65536_u64) as u32,
             flags_len: nbytes as u64,
         };
 
@@ -352,7 +352,7 @@ mod tests {
             flags_len: nbytes as u64,
         };
 
-        let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0, 1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
 
         let got = encode_file_header_and_flags(&mut header, &flags).unwrap();
 
@@ -388,7 +388,7 @@ mod tests {
             flags_len: nbytes as u64,
         };
 
-        let expected: Vec<u8> = vec![3, 0, 0, 0, 5, 0, 0, 0, 14, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0];
 
         let got = encode_file_header(&header).unwrap();
 
@@ -406,7 +406,7 @@ mod tests {
 
         let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
 
-        let expected: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+        let expected: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
 
         let got = encode_file_flags(&flags, &MetadataCompression::default()).unwrap();
 
