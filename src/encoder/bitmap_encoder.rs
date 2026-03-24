@@ -69,16 +69,15 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
 impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
     pub fn encode_file_header_and_flags(
         &mut self,
-    ) -> Option<Vec<u8>> {
-        // TODO Replace unwraps in `encode_file_header_and_flags`
-        let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression).unwrap()).unwrap();
-        let mut header_bytes = encode_file_header(&self.header).unwrap();
+    ) -> Result<Vec<u8>, E> {
+        let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression)?)?;
+        let mut header_bytes = encode_file_header(&self.header)?;
 
         let mut out: Vec<u8> = Vec::new();
         out.append(&mut header_bytes);
         out.append(&mut flags_bytes);
 
-        Some(out)
+        Ok(out)
     }
 
     pub fn set_block_size(
