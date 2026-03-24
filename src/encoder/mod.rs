@@ -298,7 +298,7 @@ mod tests {
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
-        encoder.set_block_size(1000);
+        encoder.set_block_size(1000).unwrap();
 
         let got = encoder.next().unwrap();
 
@@ -327,7 +327,7 @@ mod tests {
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
-        encoder.set_block_size(2);
+        encoder.set_block_size(2).unwrap();
 
         let mut got: Vec<u8> = Vec::new();
         got.append(&mut encoder.encode_file_header_and_flags().unwrap());

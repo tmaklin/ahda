@@ -376,7 +376,7 @@ mod tests {
 
         let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
-        let mut header = FileHeader {
+        let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaVersion::V0_1_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
@@ -549,7 +549,7 @@ mod tests {
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 7_u32,
-            n_queries: 3_u32,
+            n_queries: queries.len() as u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
             block_size: ((u32::MAX as u64) / (7_u64)).min(65537_u64) as u32,
             flags_len: 489_u64,
