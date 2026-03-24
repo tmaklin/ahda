@@ -52,7 +52,6 @@ pub fn read_bifrost<R: Read>(
 
     let read_name_bytes = records.next().ok_or(CorruptedInputErr)?;
 
-    // TODO this comparison doesn't work for some reason
     if read_name_bytes == "query_name" {
         return Err(Box::new(BifrostHeaderNotConsumedError{}))
     }
