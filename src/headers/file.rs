@@ -20,6 +20,8 @@ use std::io::Read;
 use bincode::{Encode, Decode};
 use bincode::encode_into_std_write;
 use bincode::decode_from_slice;
+use crate::compression::gzwrapper::deflate_bytes;
+use crate::compression::gzwrapper::inflate_bytes;
 
 type E = Box<dyn std::error::Error>;
 
@@ -259,7 +261,12 @@ pub fn encode_file_flags(
             )?;
         },
         MetadataCompression::Flate2 => {
-            todo!("flate2 encoding for FileFlags")
+            let _ = encode_into_std_write(
+                flags,
+                &mut bytes,
+                bincode::config::standard(),
+            )?;
+            bytes = deflate_bytes(&bytes)?;
         },
     }
 
@@ -278,7 +285,11 @@ pub fn decode_file_flags(
             )?.0
         },
         MetadataCompression::Flate2 => {
-            todo!("flate2 decoding for FileFlags")
+            let inflated = inflate_bytes(bytes)?;
+            decode_from_slice(
+                &inflated,
+                bincode::config::standard(),
+            )?.0
         },
     };
 
@@ -396,7 +407,7 @@ mod tests {
     }
 
     #[test]
-    fn encode_file_flags() {
+    fn encode_file_flags_default() {
         use crate::compression::MetadataCompression;
         use super::encode_file_flags;
         use super::FileFlags;
@@ -409,6 +420,24 @@ mod tests {
         let expected: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
 
         let got = encode_file_flags(&flags, &MetadataCompression::default()).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn encode_file_flags_flate2() {
+        use crate::compression::MetadataCompression;
+        use super::encode_file_flags;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let sample = "sample";
+
+        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+
+        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 43, 78, 204, 45, 200, 73, 101, 100, 102, 76, 100, 76, 98, 76, 6, 0, 160, 106, 177, 28, 16, 0, 0, 0];
+
+        let got = encode_file_flags(&flags, &MetadataCompression::Flate2).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -442,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn decode_file_flags() {
+    fn decode_file_flags_default() {
         use crate::compression::MetadataCompression;
         use super::decode_file_flags;
         use super::FileFlags;
@@ -455,6 +484,24 @@ mod tests {
         let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
 
         let got = decode_file_flags(&data, &MetadataCompression::default()).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn decode_file_flags_flate2() {
+        use crate::compression::MetadataCompression;
+        use super::decode_file_flags;
+        use super::FileFlags;
+
+        let targets = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let sample = "sample";
+
+        let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 43, 78, 204, 45, 200, 73, 101, 100, 102, 76, 100, 76, 98, 76, 6, 0, 160, 106, 177, 28, 16, 0, 0, 0];
+
+        let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+
+        let got = decode_file_flags(&data, &MetadataCompression::Flate2).unwrap();
 
         assert_eq!(got, expected);
     }
