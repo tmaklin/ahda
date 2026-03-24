@@ -14,6 +14,7 @@
 use std::io::Read;
 
 use crate::PseudoAln;
+use super::CorruptedInputErr;
 
 type E = Box<dyn std::error::Error>;
 
@@ -32,8 +33,8 @@ pub fn read_fulgor<R: Read>(
 
     let mut records = contents.split(separator);
 
-    let read_name_bytes = records.next().unwrap(); // TODO error if none
-    let _ = records.next().unwrap(); // TODO error if none
+    let read_name_bytes = records.next().ok_or(CorruptedInputErr{})?;
+    let _ = records.next().ok_or(CorruptedInputErr)?;
 
     let query_name = read_name_bytes.chars().collect::<String>();
     let mut ones: Vec<u32> = Vec::new();

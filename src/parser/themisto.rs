@@ -14,6 +14,7 @@
 use std::io::Read;
 
 use crate::PseudoAln;
+use super::CorruptedInputErr;
 
 type E = Box<dyn std::error::Error>;
 
@@ -32,7 +33,7 @@ pub fn read_themisto<R: Read>(
 
     let mut records = contents.split(separator);
 
-    let id_bytes = records.next().unwrap(); // TODO handle empty input
+    let id_bytes = records.next().ok_or(CorruptedInputErr)?;
     let read_id = id_bytes.parse::<u32>()?;
 
     let mut ones: Vec<u32> = Vec::new();

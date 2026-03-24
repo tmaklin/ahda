@@ -14,6 +14,7 @@
 use std::io::Read;
 
 use crate::PseudoAln;
+use super::CorruptedInputErr;
 
 type E = Box<dyn std::error::Error>;
 
@@ -49,7 +50,7 @@ pub fn read_bifrost<R: Read>(
 
     let mut records = contents.split(separator);
 
-    let read_name_bytes = records.next().unwrap(); // TODO error if none
+    let read_name_bytes = records.next().ok_or(CorruptedInputErr)?;
 
     // TODO this comparison doesn't work for some reason
     if read_name_bytes == "query_name" {
