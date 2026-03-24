@@ -290,6 +290,15 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conns: &mut [R],
     conn_out: &mut W,
 ) -> Result<(), E> {
+    // TODO Handle queries that are present in multiple input files.
+    //
+    // Currently will consider each query a new query even if it was present in
+    // one of the earlier inputs. This results in duplicated queries. Ideally,
+    // these should be merged if the duplicated entry is an empty alignment. If
+    // the duplicated entry is not empty, should either fail with an error, or
+    // alternatively we need to implement a primary/secondary alignment flag
+    // somewhere.
+
     let headers_flags = conns.iter_mut().map(|conn_in| {
         let header = read_file_header(conn_in).unwrap();
         let flags = read_file_flags(&header, conn_in).unwrap();
