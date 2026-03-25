@@ -91,7 +91,7 @@ pub fn pack_block_roaring32(
     let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec() };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
-    let flags_len = block_flags.len() as u32;
+    let flags_len = block_flags.len() as u64;
     let block_len = serialized.len() as u32;
 
     let header = BlockHeader{
@@ -116,6 +116,6 @@ pub fn unpack_block_roaring32(
     block_header: &BlockHeader,
 ) -> Result<(RoaringBitmap, BlockFlags), E> {
     let block_flags = decode_block_flags(&bytes[0..(block_header.flags_len as usize)])?;
-    let bitmap = deserialize_roaring32(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len) as usize)])?;
+    let bitmap = deserialize_roaring32(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len as u64).try_into()?)])?;
     Ok((bitmap, block_flags))
 }

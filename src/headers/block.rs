@@ -42,13 +42,13 @@ pub struct BlockHeader {
     pub block_len: u32,
 
     /// Number of bytes in [BlockFlags] that follow the header bytes.
-    pub flags_len: u32,
+    pub flags_len: u64,
 
     /// Placeholder
-    pub placeholder4: u32,
+    pub placeholder4: u16,
 
     /// Placeholder
-    pub placeholder2: u32,
+    pub placeholder2: u16,
 
     /// Placeholder
     pub placeholder3: u64,
@@ -143,7 +143,7 @@ pub fn encode_block_header_and_flags(
 ) -> Result<Vec<u8>, E> {
     let mut bytes = encode_block_header(header)?;
     let mut flags_bytes = encode_block_flags(flags)?;
-    assert_eq!(header.flags_len, flags_bytes.len() as u32);
+    assert_eq!(header.flags_len, flags_bytes.len() as u64);
     bytes.append(&mut flags_bytes);
     Ok(bytes)
 }
@@ -224,7 +224,7 @@ mod tests {
 
         let expected = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
         let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
-        let header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: data_bytes.len() as u32, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
+        let header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: data_bytes.len() as u64, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let got = read_block_flags(&header, &mut data).unwrap();
@@ -243,7 +243,7 @@ mod tests {
         let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected_header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 31 as u32, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
+        let expected_header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 31, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let expected_flags = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
 
         let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();
