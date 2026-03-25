@@ -25,6 +25,9 @@ use crate::headers::block::decode_block_flags;
 use crate::compression::gzwrapper::deflate_bytes;
 use crate::compression::gzwrapper::inflate_bytes;
 
+use super::BitmapType;
+use super::MetadataCompression;
+
 use roaring::bitmap::RoaringBitmap;
 
 type E = Box<dyn std::error::Error>;
@@ -98,6 +101,8 @@ pub fn pack_block_roaring32(
         num_records: queries.len() as u32,
         block_len,
         flags_len,
+        bitmap_type: BitmapType::Roaring32.to_u16(),
+        metadata_compression: MetadataCompression::default().to_u8(),
         placeholder4: 0,
         placeholder1: 0,
         placeholder2: 0,
