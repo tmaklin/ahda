@@ -33,7 +33,7 @@ type E = Box<dyn std::error::Error>;
 //
 #[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct FileHeader {
-    /// Ahda header, consists of 32 ASCII bytes spelling "ahda".
+    /// Ahda header, consists of four ASCII bytes spelling "ahda" and two bytes specifying the version.
     ///
     /// First four bytes can be used to check that a binary record is an ahda record.
     /// Next two bytes can be used to check which version of ahda was used to generate this file.
