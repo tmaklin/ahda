@@ -57,6 +57,10 @@ pub struct FileHeader {
     pub n_queries: u32,
 
     /// Bitmap type used to encode blocks in this file, see [BitmapType](crate::compression::BitmapType) for details.
+    ///
+    /// The address space of the file bitmap type must be large enough to store
+    /// data from all blocks in this file. The block bitmap types may differ
+    /// from the file bitmap type.
     pub bitmap_type: u16,
 
     /// Block size (number of [PseudoAln] records) used to encode blocks in this file. Actual number of records per block may be different.
