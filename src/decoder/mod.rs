@@ -105,7 +105,7 @@
 //!                                n_targets: 3_u32,
 //!                                n_queries: 5_u32,
 //!                                ahda_header: ahda::headers::file::build_ahda_header(),
-//!                                file_format: ahda::AhdaVersion::V0_1_0.to_u8(),
+//!                                file_format: ahda::AhdaFormatVersion::V1_0_0.to_u8(),
 //!                                metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
 //!                                fields_present: 0,
 //!                                bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
@@ -294,7 +294,7 @@ mod tests {
     #[test]
     fn file_header_and_file_flags() {
         use super::Decoder;
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use crate::headers::file::build_ahda_header;
@@ -306,7 +306,7 @@ mod tests {
         let expected_flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]) };
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 2_u32,

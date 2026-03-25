@@ -126,11 +126,28 @@ pub mod printer;
 
 type E = Box<dyn std::error::Error>;
 
-/// Ahda file format version
+
+#[derive(Debug, Clone)]
+pub struct AhdaVersionErr;
+impl std::fmt::Display for AhdaVersionErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Not a valid AhdaVersion")
+    }
+}
+impl std::error::Error for AhdaVersionErr {}
+
+#[derive(Debug, Clone)]
+pub struct AhdaFormatVersionErr;
+impl std::fmt::Display for AhdaFormatVersionErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Not a valid AhdaVersion")
+    }
+}
+impl std::error::Error for AhdaFormatVersionErr {}
+
+/// Ahda library version
 ///
-/// A new variant must be added when breaking changes are introduced.
-///
-/// Breaking changes should be avoided whenever possible.
+/// A new variant must be added when the release version is incremented.
 ///
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum AhdaVersion {
@@ -139,16 +156,54 @@ pub enum AhdaVersion {
 }
 
 impl AhdaVersion {
-    pub fn from_u8(val: u8) -> Result<Self, E> {
+    pub fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(AhdaVersion::V0_1_0),
-            _ => panic!("Not a valid AhdaVersion"),
+            _ => Err(Box::new(AhdaVersionErr)),
+        }
+    }
+
+    pub fn to_u16(&self) -> u16 {
+        match &self {
+            AhdaVersion::V0_1_0 => 0,
+        }
+    }
+}
+
+impl std::str::FromStr for AhdaVersion {
+    type Err = AhdaVersionErr;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "0.1.0" => Ok(Self::V0_1_0),
+            _ => Err(AhdaVersionErr{}),
+
+        }
+    }
+}
+
+/// Ahda file format version
+///
+/// A new variant must be added when breaking changes are introduced.
+///
+/// Breaking changes should be avoided whenever possible.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum AhdaFormatVersion {
+    #[default]
+    V1_0_0,
+}
+
+impl AhdaFormatVersion {
+    pub fn from_u8(val: u8) -> Result<Self, E> {
+        match val {
+            0 => Ok(AhdaFormatVersion::V1_0_0),
+            _ => Err(Box::new(AhdaFormatVersionErr)),
         }
     }
 
     pub fn to_u8(&self) -> u8 {
         match &self {
-            AhdaVersion::V0_1_0 => 0,
+            AhdaFormatVersion::V1_0_0 => 0,
         }
     }
 }
@@ -752,7 +807,7 @@ pub fn decode_to_write<W: Write>(
 /// //                                    n_targets: 3_u32,
 /// //                                   n_queries: 5_u32,
 /// //                                   ahda_header: ahda::headers::file::build_ahda_header(),
-/// //                                   file_format: ahda::AhdaVersion::V0_1_0.to_u8(),
+/// //                                   file_format: ahda::AhdaFormatVersion::V1_0_0.to_u8(),
 /// //                                   metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
 /// //                                   fields_present: 0,
 /// //                                   bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
@@ -767,7 +822,7 @@ pub fn decode_to_write<W: Write>(
 ///                                      n_targets: 3_u32,
 ///                                      n_queries: 5_u32,
 ///                                      ahda_header: ahda::headers::file::build_ahda_header(),
-///                                      file_format: ahda::AhdaVersion::V0_1_0.to_u8(),
+///                                      file_format: ahda::AhdaFormatVersion::V1_0_0.to_u8(),
 ///                                      metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
 ///                                      fields_present: 0,
 ///                                      bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),

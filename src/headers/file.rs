@@ -12,6 +12,7 @@
 // at your option.
 //
 use crate::AhdaVersion;
+use crate::AhdaFormatVersion;
 use crate::compression::BitmapType;
 use crate::compression::MetadataCompression;
 
@@ -89,10 +90,7 @@ pub struct FileFlags {
 pub fn build_ahda_header() -> [u8; 6] {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     let mut header = [97_u8, 104, 100, 97, 0, 0];
-    let version: u16 = match VERSION {
-        "0.1.0" => 0,
-        _ => u16::MAX,
-    };
+    let version: u16 = VERSION.parse::<AhdaVersion>().unwrap().to_u16();
     let version_bytes: [u8; 2] = version.to_le_bytes();
     header[4] = version_bytes[0];
     header[5] = version_bytes[1];
@@ -161,7 +159,7 @@ pub fn build_file_header_and_flags(
 
     let header = FileHeader{
         ahda_header: build_ahda_header(),
-        file_format: AhdaVersion::V0_1_0.to_u8(),
+        file_format: AhdaFormatVersion::V1_0_0.to_u8(),
         metadata_compression: flags_compression.to_u8(),
         fields_present: 0,
         n_targets: n_targets as u32,
@@ -307,7 +305,7 @@ mod tests {
 
     #[test]
     fn build_file_header_and_flags() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -324,7 +322,7 @@ mod tests {
         let nbytes = encode_file_flags(&expected_flags, &MetadataCompression::default()).unwrap().len();
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
@@ -342,7 +340,7 @@ mod tests {
 
     #[test]
     fn encode_file_header_and_flags() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -359,7 +357,7 @@ mod tests {
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
         let mut header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
@@ -378,7 +376,7 @@ mod tests {
 
     #[test]
     fn encode_file_header() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -395,7 +393,7 @@ mod tests {
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
@@ -450,7 +448,7 @@ mod tests {
 
     #[test]
     fn decode_file_header() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -461,7 +459,7 @@ mod tests {
 
         let expected = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 3_u32,
@@ -514,7 +512,7 @@ mod tests {
 
     #[test]
     fn read_file_header() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -528,7 +526,7 @@ mod tests {
 
         let expected = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 3_u32,
@@ -545,7 +543,7 @@ mod tests {
 
     #[test]
     fn read_file_flags() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -560,7 +558,7 @@ mod tests {
 
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 3_u32,
@@ -581,7 +579,7 @@ mod tests {
 
     #[test]
     fn read_file_header_and_flags() {
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use super::build_ahda_header;
@@ -598,7 +596,7 @@ mod tests {
         let expected_flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,

@@ -262,7 +262,7 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use crate::headers::file::build_ahda_header;
@@ -281,7 +281,7 @@ mod tests {
         let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 2_u32,
@@ -319,7 +319,7 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use crate::headers::file::build_ahda_header;
@@ -347,7 +347,7 @@ mod tests {
         let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 2_u32,
@@ -393,7 +393,7 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use crate::headers::file::build_ahda_header;
@@ -424,7 +424,7 @@ mod tests {
         let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 2_u32,
@@ -474,7 +474,7 @@ mod tests {
         use crate::FileFlags;
         use crate::FileHeader;
         use crate::PseudoAln;
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use crate::headers::file::build_ahda_header;
@@ -493,7 +493,7 @@ mod tests {
         let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 2_u32,
@@ -529,7 +529,7 @@ mod tests {
         use crate::Format;
         use crate::FileFlags;
         use crate::FileHeader;
-        use crate::AhdaVersion;
+        use crate::AhdaFormatVersion;
         use crate::compression::MetadataCompression;
         use crate::compression::BitmapType;
         use crate::headers::file::build_ahda_header;
@@ -559,7 +559,7 @@ mod tests {
         let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
-            file_format: AhdaVersion::V0_1_0.to_u8(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
             n_targets: 2_u32,
