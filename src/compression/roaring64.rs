@@ -102,7 +102,7 @@ pub fn pack_block_roaring64(
         flags_len,
         bitmap_type: BitmapType::Roaring32.to_u16(),
         metadata_compression: MetadataCompression::default().to_u8(),
-        placeholder4: 0,
+        fields_present: 0,
         placeholder1: 0,
         placeholder2: 0,
         placeholder3: 0,

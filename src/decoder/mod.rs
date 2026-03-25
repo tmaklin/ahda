@@ -115,7 +115,7 @@
 //! let mut file_flags = FileFlags::default();
 //! file_flags.query_name = Some("sample".to_string());
 //! file_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
-//! let block_header = BlockHeader { num_records: 4, placeholder1: 90, block_len: 28, flags_len: 27, placeholder4: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
+//! let block_header = BlockHeader { num_records: 4, placeholder1: 90, block_len: 28, flags_len: 27, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
 //! let block_flags = BlockFlags { queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] };
 //!
 //! let mut bits_iter = input.iter().map(|x| x as u64); // BitmapDecoder expects u64 indices

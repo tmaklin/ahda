@@ -45,9 +45,11 @@ pub struct FileHeader {
     /// Compression method used for [FileFlags], see [MetadataCompression](crate::compression::MetadataCompression).
     pub metadata_compression: u8,
 
-    /// Fields that must be present for records in this file, see [Format](crate::Format) for details.
+    /// Fields of [BlockFlags] that must be present for all blocks in this file,
+    /// see [Format](crate::Format) for details.
     ///
-    /// This indicates the fields of [PseudoAln] that must be decodable from all blocks.
+    /// Every block must contain the fields specified here. Blocks may include
+    /// additional fields.
     pub fields_present: u16,
 
     /// Number of alignment targets, this must match the length of `target_names` in [FileFlags].
