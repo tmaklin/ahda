@@ -94,14 +94,12 @@ pub fn pack_block_roaring32(
     let flags_len = block_flags.len() as u32;
     let block_len = serialized.len() as u32;
 
-    let deflated_len = flags_len + block_len;
-
     let header = BlockHeader{
         num_records: queries.len() as u32,
-        deflated_len,
         block_len,
         flags_len,
         start_idx: *query_ids.iter().min().unwrap(),
+        placeholder1: 0,
         placeholder2: 0,
         placeholder3: 0,
     };

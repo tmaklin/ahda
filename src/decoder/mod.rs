@@ -115,7 +115,7 @@
 //! let mut file_flags = FileFlags::default();
 //! file_flags.query_name = Some("sample".to_string());
 //! file_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
-//! let block_header = BlockHeader { num_records: 4, deflated_len: 90, block_len: 28, flags_len: 27, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+//! let block_header = BlockHeader { num_records: 4, placeholder1: 90, block_len: 28, flags_len: 27, start_idx: 0, placeholder2: 0, placeholder3: 0 };
 //! let block_flags = BlockFlags { queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] };
 //!
 //! let mut bits_iter = input.iter().map(|x| x as u64); // BitmapDecoder expects u64 indices
@@ -249,7 +249,8 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Option<Vec<PseudoAln>> {
         match read_block_header(self.conn) {
             Ok(block_header) => {
-                let mut bytes: Vec<u8> = vec![0; block_header.deflated_len as usize];
+                let deflated_len: usize = ((block_header.flags_len as u64) + (block_header.block_len as u64)).try_into().unwrap();
+                let mut bytes: Vec<u8> = vec![0; deflated_len];
                 self.conn.read_exact(&mut bytes).unwrap();
                 self.block_header = Some(block_header);
                 let alns = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
