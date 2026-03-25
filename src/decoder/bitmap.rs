@@ -134,7 +134,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string()];
         let query_ids = vec![0, 1, 2, 3];
         let block_flags = BlockFlags { queries: queries.clone(), query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
@@ -177,7 +177,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
         let block_flags = BlockFlags { queries: queries.clone(), query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
@@ -219,7 +219,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
         let block_flags = BlockFlags { queries: queries.clone(), query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
@@ -260,7 +260,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
         let block_flags = BlockFlags { queries: queries.clone(), query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);

@@ -44,8 +44,8 @@ pub struct BlockHeader {
     /// Number of bytes in [BlockFlags] that follow the header bytes.
     pub flags_len: u32,
 
-    /// Index of the first query stored in this block
-    pub start_idx: u32,
+    /// Placeholder
+    pub placeholder4: u32,
 
     /// Placeholder
     pub placeholder2: u32,
@@ -156,7 +156,7 @@ mod tests {
         use super::encode_block_header;
         use super::BlockHeader;
 
-        let data = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 921, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let data = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 921, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let expected: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 153, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
         let got = encode_block_header(&data).unwrap();
@@ -168,7 +168,7 @@ mod tests {
         use super::decode_block_header;
         use super::BlockHeader;
 
-        let expected = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 921, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let expected = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 921, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let data: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 153, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
         let got = decode_block_header(&data).unwrap();
@@ -182,7 +182,7 @@ mod tests {
 
         use std::io::Cursor;
 
-        let expected = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 921, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let expected = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 921, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 153, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
@@ -224,7 +224,7 @@ mod tests {
 
         let expected = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
         let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
-        let header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: data_bytes.len() as u32, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: data_bytes.len() as u32, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let got = read_block_flags(&header, &mut data).unwrap();
@@ -243,7 +243,7 @@ mod tests {
         let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 1, 1, 0, 0, 231, 255, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected_header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 31 as u32, start_idx: 0, placeholder2: 0, placeholder3: 0 };
+        let expected_header = BlockHeader{ num_records: 31, placeholder1: 257, block_len: 65511, flags_len: 31 as u32, placeholder4: 0, placeholder2: 0, placeholder3: 0 };
         let expected_flags = BlockFlags{ queries: vec!["a".to_string(), "b".to_string(), "c".to_string()], query_ids: vec![1, 0, 2] };
 
         let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();
