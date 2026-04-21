@@ -257,7 +257,7 @@ mod tests {
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
         encoder.set_block_size(1000).unwrap();
 
-        let got = encoder.next().unwrap();
+        let _ = encoder.next().unwrap();
         let got = encoder.next().unwrap();
 
         assert!(got.is_err());
@@ -294,8 +294,6 @@ mod tests {
 
         let data = vec![0_u64, 7, 2, 5, 4];
 
-        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 49, 48, 2, 0, 190, 252, 200, 192, 30, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 40, 205, 194, 0, 0, 207, 21, 220, 40, 22, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 98, 98, 6, 0, 10, 60, 125, 12, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 86, 6, 118, 6, 0, 242, 32, 178, 210, 20, 0, 0, 0];
-
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_name ="ERR4035126".to_string();
@@ -304,9 +302,8 @@ mod tests {
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
         encoder.set_block_size(2).unwrap();
 
-        let mut i = 0;
-        let mut blocks_iter = encoder.by_ref();
-        let got = blocks_iter.next().unwrap();
+        let blocks_iter = encoder.by_ref();
+        let _ = blocks_iter.next().unwrap();
         let got = blocks_iter.next().unwrap();
         assert!(got.is_err());
     }

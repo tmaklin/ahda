@@ -247,7 +247,7 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Option<Vec<PseudoAln>> {
         match read_block_header(self.conn) {
             Ok(block_header) => {
-                let deflated_len: usize = ((block_header.flags_len as u64) + (block_header.block_len as u64)).try_into().unwrap();
+                let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into().unwrap();
                 let mut bytes: Vec<u8> = vec![0; deflated_len];
                 self.conn.read_exact(&mut bytes).unwrap();
                 self.block_header = Some(block_header);

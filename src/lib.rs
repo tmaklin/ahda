@@ -846,7 +846,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
     let mut query_ids: Vec<u32> = Vec::new();
 
     while let Ok(block_header) = read_block_header(conn_in) {
-        let deflated_len: usize = ((block_header.flags_len as u64) + (block_header.block_len as u64)).try_into()?;
+        let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into()?;
         let mut block_bytes: Vec<u8> = vec![0; deflated_len];
         conn_in.read_exact(&mut block_bytes)?;
 
@@ -949,7 +949,7 @@ pub fn decode_from_read_into_roaring<R: Read>(
             let _ = crate::headers::file::read_file_flags(&header, conn_in)?;
 
             while let Ok(block_header) = read_block_header(conn_in) {
-                let deflated_len: usize = ((block_header.flags_len as u64) + (block_header.block_len as u64)).try_into()?;
+                let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into()?;
                 let mut block_bytes: Vec<u8> = vec![0; deflated_len];
                 conn_in.read_exact(&mut block_bytes)?;
 
