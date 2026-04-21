@@ -149,8 +149,6 @@ use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
 
-// TODO Implement IntoIterator for Decoder
-
 pub struct Decoder<'a, R: Read> {
     // Inputs
     conn: &'a mut R,
