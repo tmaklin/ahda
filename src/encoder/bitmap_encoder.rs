@@ -29,6 +29,15 @@ use roaring::RoaringTreemap;
 
 type E = Box<dyn std::error::Error>;
 
+#[derive(Debug, Clone)]
+pub struct SetBitsIteratorNotSortedErr;
+impl std::fmt::Display for SetBitsIteratorNotSortedErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "`set_bits` iterator given to BitmapEncoder::new() (argument #1) must be sorted.")
+    }
+}
+impl std::error::Error for SetBitsIteratorNotSortedErr {}
+
 pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Input iterator
     set_bits: &'a mut I,
@@ -43,6 +52,7 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     blocks_written: usize,
     bits_buffer: Vec<u64>,
     last_idx: usize,
+    prev_idx: u64,
 }
 
 impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
@@ -52,8 +62,6 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         queries: &[String],
         sample_name: &str,
     ) -> Self {
-        // TODO `set_bits` must be sorted
-
         let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
 
         BitmapEncoder{
@@ -62,6 +70,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
             queries: queries.to_vec(),
             blocks_written: 0_usize,
             bits_buffer: Vec::new(), last_idx: 0_usize,
+            prev_idx: 0,
         }
     }
 }
@@ -109,9 +118,9 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
             self.bits_buffer.clear();
             Some(bitmap)
         } else if !self.bits_buffer.is_empty() {
-            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2).map(|x| *x as u32);
+            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 1).map(|x| *x as u32);
             let bitmap = RoaringBitmap::from_iter(bits);
-            self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
+            self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 1)..self.bits_buffer.len()].to_vec();
             Some(bitmap)
         } else if self.last_idx < self.header.n_queries as usize && self.end {
             Some(RoaringBitmap::new())
@@ -129,9 +138,9 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
             self.bits_buffer.clear();
             Some(bitmap)
         } else if !self.bits_buffer.is_empty() {
-            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 2);
+            let bits = self.bits_buffer.iter().take(self.bits_buffer.len() - 1);
             let bitmap = RoaringTreemap::from_iter(bits);
-            self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 2)..self.bits_buffer.len()].to_vec();
+            self.bits_buffer = self.bits_buffer[(self.bits_buffer.len() - 1)..self.bits_buffer.len()].to_vec();
             Some(bitmap)
         } else if self.last_idx < self.header.n_queries as usize && self.end {
             Some(RoaringTreemap::new())
@@ -142,15 +151,20 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
 }
 
 impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
-    type Item = Vec<u8>;
+    type Item = Result<Vec<u8>, E>;
 
     fn next(
         &mut self,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<Result<Vec<u8>, E>> {
         let end_idx = ((self.blocks_written + 1) * self.header.block_size as usize).min(self.header.n_queries as usize) as u64;
         let n_targets = self.header.n_targets as u64;
         loop {
             if let Some(next_idx) = self.set_bits.next() {
+                if next_idx < self.prev_idx {
+                    return Some(Err(Box::new(SetBitsIteratorNotSortedErr{})))
+                }
+                self.prev_idx = next_idx;
+
                 self.bits_buffer.push(next_idx);
                 if next_idx > end_idx * n_targets {
                     break;
@@ -180,7 +194,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
             }
         };
 
-        Some(bytes)
+        Some(Ok(bytes))
     }
 
 }
@@ -224,18 +238,16 @@ mod tests {
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
         encoder.set_block_size(1000).unwrap();
 
-        let got = encoder.next().unwrap();
+        let got = encoder.next().unwrap().expect("Ok");
 
         assert_eq!(got, expected);
     }
 
     #[test]
-    fn next_on_shuffled_bits() {
+    fn next_errors_on_shuffled_bits() {
         use super::BitmapEncoder;
 
         let data = vec![7_u64, 0, 2, 5, 4];
-
-        let expected = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
@@ -246,8 +258,9 @@ mod tests {
         encoder.set_block_size(1000).unwrap();
 
         let got = encoder.next().unwrap();
+        let got = encoder.next().unwrap();
 
-        assert_eq!(got, expected);
+        assert!(got.is_err());
     }
 
     #[test]
@@ -256,7 +269,7 @@ mod tests {
 
         let data = vec![0_u64, 2, 4, 5, 7];
 
-        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 49, 48, 2, 0, 190, 252, 200, 192, 30, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 98, 98, 6, 0, 10, 60, 125, 12, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 22, 6, 86, 6, 118, 6, 0, 163, 60, 183, 5, 22, 0, 0, 0];
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 49, 48, 2, 0, 190, 252, 200, 192, 30, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 40, 205, 194, 0, 0, 207, 21, 220, 40, 22, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 98, 98, 6, 0, 10, 60, 125, 12, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 86, 6, 118, 6, 0, 242, 32, 178, 210, 20, 0, 0, 0];
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
@@ -269,7 +282,7 @@ mod tests {
         let mut got: Vec<u8> = Vec::new();
         got.append(&mut encoder.encode_file_header_and_flags().unwrap());
         for block in encoder.by_ref() {
-            got.append(&mut block.clone());
+            got.append(&mut block.unwrap().clone());
         }
 
         assert_eq!(got, expected);
@@ -279,9 +292,9 @@ mod tests {
     fn encode_three_blocks_with_next_on_shuffled_bits() {
         use super::BitmapEncoder;
 
-        let data = vec![7_u64, 0, 2, 5, 4];
+        let data = vec![0_u64, 7, 2, 5, 4];
 
-        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 49, 48, 2, 0, 190, 252, 200, 192, 30, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 39, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 98, 98, 6, 0, 10, 60, 125, 12, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 22, 6, 86, 6, 118, 6, 0, 163, 60, 183, 5, 22, 0, 0, 0];
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 49, 48, 2, 0, 190, 252, 200, 192, 30, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 40, 205, 194, 0, 0, 207, 21, 220, 40, 22, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 98, 98, 6, 0, 10, 60, 125, 12, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 86, 6, 118, 6, 0, 242, 32, 178, 210, 20, 0, 0, 0];
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
@@ -291,12 +304,10 @@ mod tests {
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
         encoder.set_block_size(2).unwrap();
 
-        let mut got: Vec<u8> = Vec::new();
-        got.append(&mut encoder.encode_file_header_and_flags().unwrap());
-        for block in encoder.by_ref() {
-            got.append(&mut block.clone());
-        }
-
-        assert_eq!(got, expected);
+        let mut i = 0;
+        let mut blocks_iter = encoder.by_ref();
+        let got = blocks_iter.next().unwrap();
+        let got = blocks_iter.next().unwrap();
+        assert!(got.is_err());
     }
 }
