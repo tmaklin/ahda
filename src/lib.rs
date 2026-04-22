@@ -871,7 +871,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
     let queries: Vec<String> = both.iter().map(|x| x.1.to_string()).collect();
     let query_ids: Vec<u32> = both.iter().map(|x| x.0).collect();
 
-    Ok((bitmap_out, header, flags, BlockFlags{ queries, query_ids }))
+    Ok((bitmap_out, header, flags, BlockFlags{ queries, query_ids, ..BlockFlags::default() }))
 }
 
 /// Merge bitmap from Read to an existing bitmap with Union
@@ -1249,7 +1249,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
-        let expected_block_flags = BlockFlags { queries: queries.clone(), query_ids };
+        let expected_block_flags = BlockFlags { queries: queries.clone(), query_ids, ..BlockFlags::default() };
         let (expected_header, expected_flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
         let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];

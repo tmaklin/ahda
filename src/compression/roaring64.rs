@@ -90,7 +90,7 @@ pub fn pack_block_roaring64(
 ) -> Result<Vec<u8>, E> {
     let mut serialized = serialize_roaring64(bitmap)?;
 
-    let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec() };
+    let flags: BlockFlags = BlockFlags{ queries: queries.to_vec(), query_ids: query_ids.to_vec(), ..BlockFlags::default() };
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
     let flags_len = block_flags.len() as u64;

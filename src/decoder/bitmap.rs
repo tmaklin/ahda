@@ -133,7 +133,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string()];
         let query_ids = vec![0, 1, 2, 3];
-        let block_flags = BlockFlags { queries: queries.clone(), query_ids };
+        let block_flags = BlockFlags { queries: queries.clone(), query_ids, ..BlockFlags::default() };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
@@ -176,7 +176,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
-        let block_flags = BlockFlags { queries: queries.clone(), query_ids };
+        let block_flags = BlockFlags { queries: queries.clone(), query_ids, ..BlockFlags::default() };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
@@ -218,7 +218,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
-        let block_flags = BlockFlags { queries: queries.clone(), query_ids };
+        let block_flags = BlockFlags { queries: queries.clone(), query_ids, ..BlockFlags::default() };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
@@ -259,7 +259,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
         let query_ids = vec![0, 1, 2, 3, 4];
-        let block_flags = BlockFlags { queries: queries.clone(), query_ids };
+        let block_flags = BlockFlags { queries: queries.clone(), query_ids, ..BlockFlags::default() };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
 
