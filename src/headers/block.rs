@@ -22,13 +22,6 @@ use bincode::decode_from_slice;
 
 type E = Box<dyn std::error::Error>;
 
-// TODO Store information about what kind of bitmap is serialized in the block
-//
-// This could be used to change the bitmap implementation later without breaking
-// backwards compatibility of the file format, or to optimize the storage
-// further by using different compression schemes for inputs with different
-// distributions.
-//
 /// Block header for encoded data
 #[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct BlockHeader {
