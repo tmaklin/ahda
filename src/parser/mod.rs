@@ -89,8 +89,8 @@ use crate::parser::themisto::read_themisto;
 
 use crate::compression::MetadataCompression;
 
-use std::collections::HashMap;
 use indexmap::IndexMap;
+use indexmap::IndexSet;
 
 use std::io::BufRead;
 use std::io::BufReader;
@@ -141,7 +141,7 @@ pub struct Parser<'a, R: Read> {
     pub format: Format,
 
     query_to_pos: IndexMap<String, usize>,
-    target_to_pos: HashMap<String, usize>,
+    target_to_pos: IndexSet<String>,
 
     header: FileHeader,
     flags: FileFlags,
@@ -161,10 +161,8 @@ impl<'a, R: Read> Parser<'a, R> {
             query_to_pos.insert(query.clone(), idx);
         });
 
-        let mut target_to_pos: HashMap<String, usize> = HashMap::new();
-        targets.iter().enumerate().for_each(|(idx, target)| {
-            target_to_pos.insert(target.clone(), idx);
-        });
+        let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
+        targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
 
         let (header, flags) = crate::headers::file::build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default())?;
 
@@ -318,7 +316,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
         if record.ones_names.is_some() {
             record.ones = Some(
                 record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                    *self.target_to_pos.get(&target_name.clone()).unwrap() as u32
+                    self.target_to_pos.get_index_of(target_name).unwrap() as u32
                 }).collect::<Vec<u32>>()
             );
         }
