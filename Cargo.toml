@@ -29,7 +29,7 @@ stderrlog = "0.6"
 
 ## .sam formatting
 bstr = "1.12"
-indexmap = "2.11"
+indexmap = "2.14"
 noodles-sam = "0.78"
 
 ## C++ API
