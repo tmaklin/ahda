@@ -90,6 +90,8 @@ use crate::parser::themisto::read_themisto;
 use crate::compression::MetadataCompression;
 
 use std::collections::HashMap;
+use indexmap::IndexMap;
+
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Cursor;
@@ -138,8 +140,7 @@ pub struct Parser<'a, R: Read> {
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: HashMap<String, usize>,
-    pos_to_query: HashMap<usize, String>,
+    query_to_pos: IndexMap<String, usize>,
     target_to_pos: HashMap<String, usize>,
 
     header: FileHeader,
@@ -155,11 +156,9 @@ impl<'a, R: Read> Parser<'a, R> {
         sample_name: &str,
     ) -> Result<Self, E> {
 
-        let mut query_to_pos: HashMap<String, usize> = HashMap::new();
-        let mut pos_to_query: HashMap<usize, String> = HashMap::new();
+        let mut query_to_pos: IndexMap<String, usize> = IndexMap::new();
         queries.iter().enumerate().for_each(|(idx, query)| {
             query_to_pos.insert(query.clone(), idx);
-            pos_to_query.insert(idx, query.clone());
         });
 
         let mut target_to_pos: HashMap<String, usize> = HashMap::new();
@@ -178,7 +177,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
         Ok(Self {
             reader, buf, format,
-            query_to_pos, pos_to_query, target_to_pos,
+            query_to_pos, target_to_pos,
             header, flags,
         })
     }
@@ -306,10 +305,13 @@ impl<R: Read> Iterator for Parser<'_, R> {
 
         let mut record = record?;
         record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
-        record.query_name = if record.query_name.is_some() { record.query_name } else { Some(self.pos_to_query.get(&(record.query_id.unwrap() as usize)).unwrap().clone()) };
+        record.query_name = if record.query_name.is_some() { record.query_name } else {
+            Some(self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().0.clone())
+        };
         if record.ones.is_some() {
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
                 Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                    // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
                     self.flags.target_names.as_ref().unwrap()[*target_idx as usize].clone()
                 }).collect::<Vec<String>>())};
         }
