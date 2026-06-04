@@ -85,9 +85,10 @@ use crate::parser::metagraph::read_metagraph;
 use crate::parser::sam::read_sam;
 use crate::parser::themisto::read_themisto;
 
-use crate::compression::MetadataCompression;
-
 use indexmap::IndexSet;
+use memchr::memmem;
+use memmap2::Mmap;
+use memmap2::MmapOptions;
 
 use std::io::BufRead;
 use std::io::BufReader;
@@ -132,12 +133,93 @@ impl std::fmt::Display for CorruptedInputErr {
 
 impl std::error::Error for CorruptedInputErr {}
 
+use std::path::PathBuf;
+
+pub struct FastxNameReader {
+    mmap_index: IndexSet<usize>,
+    fastx_mmap: Mmap,
+    prev_byte: usize,
+}
+
+impl FastxNameReader {
+    // TODO Implement tests
+
+    // TODO Using this is pretty slow although it reduces the memory usage by ~5x
+
+    pub fn new(
+        fastx_path: PathBuf,
+    ) -> Result<Self, E> {
+        let mut mmap_index: IndexSet<usize> = IndexSet::new();
+        {
+            // TODO Needletail seems to use a lot of memory to parse the file, investigate.
+            let mut reader = needletail::parse_fastx_file(fastx_path.clone()).expect("Valid fastX file");
+            while reader.next().is_some() {
+                mmap_index.insert(reader.position().byte() as usize + 1); // First byte is '@' which we ignore
+            }
+        }
+        let file = std::fs::File::open(fastx_path.clone())?;
+        let fastx_mmap = unsafe {
+            MmapOptions::new().populate().no_reserve_swap().map(&file)?
+//            Mmap::map(&file)?
+        };
+        Ok(Self {
+            mmap_index,
+            fastx_mmap,
+            prev_byte: 0_usize,
+        })
+    }
+
+    pub fn get_index(
+        &mut self,
+        index: usize,
+    ) -> Result<Option<String>, E> {
+        let start = self.mmap_index[index];
+        let search_end = (start + 4096).min(self.fastx_mmap.len());
+        let end = memchr::memchr(b'\n', &self.fastx_mmap[start..search_end]).unwrap() + start;
+        if end == self.fastx_mmap.len() {
+            Ok(None)
+        } else {
+            let query_name = String::from_utf8(self.fastx_mmap[start..end].to_vec())?;
+            self.prev_byte = start;
+            Ok(Some(query_name))
+        }
+    }
+
+    pub fn get_index_of(
+        &mut self,
+        query: &[u8],
+    ) -> Option<usize> {
+        let byte_guess = memmem::find(&self.fastx_mmap[self.prev_byte..(self.prev_byte + 4096)], query);
+        let byte = if let Some(byte_guess) = byte_guess {
+            byte_guess + self.prev_byte
+        } else {
+            memmem::find(&self.fastx_mmap, query)?
+        };
+        let index = self.mmap_index.get_index_of(&byte)?;
+        self.prev_byte = byte;
+        Some(index)
+
+    }
+
+    pub fn len(
+        &self,
+    ) -> usize {
+        self.mmap_index.len()
+    }
+
+    pub fn is_empty(
+        &self,
+    ) -> bool {
+        self.mmap_index.is_empty()
+    }
+}
+
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: IndexSet<String>,
+    query_to_pos: FastxNameReader,
     target_to_pos: IndexSet<String>,
 
 }
@@ -146,12 +228,11 @@ impl<'a, R: Read> Parser<'a, R> {
     pub fn new(
         conn: &'a mut R,
         targets: &[String],
-        queries: &[String],
         sample_name: &str,
+        fastx_path: PathBuf,
     ) -> Result<Self, E> {
 
-        let mut query_to_pos: IndexSet<String> = IndexSet::new();
-        queries.iter().for_each(|query| { query_to_pos.insert(query.clone()); });
+        let query_to_pos = FastxNameReader::new(fastx_path)?;
 
         let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
         targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
@@ -226,6 +307,19 @@ impl<R: Read> Parser<'_, R> {
             },
         }
     }
+
+    /// Returns the number of query records in the input fastX file
+    pub fn len(
+        &self,
+    ) -> usize {
+        self.query_to_pos.len()
+    }
+
+    pub fn is_empty(
+        &self,
+    ) -> bool {
+        self.query_to_pos.is_empty()
+    }
 }
 
 impl<R: Read> Iterator for Parser<'_, R> {
@@ -280,10 +374,12 @@ impl<R: Read> Iterator for Parser<'_, R> {
 
         let mut record = record?;
         record.query_id = if record.query_id.is_some() { record.query_id } else {
-            Some(self.query_to_pos.get_index_of(&record.query_name.clone().unwrap()).unwrap() as u32)
+            let query_index = self.query_to_pos.get_index_of(record.query_name.as_ref()?.as_bytes())?;
+            Some(query_index as u32)
         };
         record.query_name = if record.query_name.is_some() { record.query_name } else {
-            Some(self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().clone())
+            let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap()?;
+            Some(query_name)
         };
         if record.ones.is_some() {
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {

@@ -23,13 +23,17 @@ path = "src/main.rs"
 bincode = "2"
 clap = { version = "4", features = ["derive"]}
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
+indexmap = "2.14"
 needletail = { version = "0.6", default-features = false, features = ["flate2"] }
 roaring = "0.11"
 stderrlog = "0.6"
 
+## handling .fastq files with memory mapping
+memchr = "2.8"
+memmap2 = "0.9"
+
 ## .sam formatting
 bstr = "1.12"
-indexmap = "2.14"
 noodles-sam = "0.78"
 
 ## C++ API

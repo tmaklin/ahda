@@ -51,15 +51,6 @@ fn main() {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
-            let mut queries: Vec<String> = Vec::new();
-            while let Some(record) = reader.next() {
-                let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
-                let mut infos = query_info.split(' ');
-                let query_name = infos.next().unwrap().to_string();
-                queries.push(query_name);
-            }
-
             let targets: Vec<String> = {
                 let f = File::open(target_list).unwrap();
                 let reader = BufReader::new(f);
@@ -88,7 +79,7 @@ fn main() {
             }
 
             inputs.iter_mut().zip(outputs.iter_mut()).for_each(|(conn_in, conn_out)| {
-                ahda::encode_from_read_to_write(&targets, &queries, &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
+                ahda::encode_from_read_to_write(&targets, query_file.clone(), &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
             })
         },
 
@@ -140,15 +131,6 @@ fn main() {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
-            let mut queries: Vec<String> = Vec::new();
-            while let Some(record) = reader.next() {
-                let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
-                let mut infos = query_info.split(' ');
-                let query_name = infos.next().unwrap().to_string();
-                queries.push(query_name);
-            }
-
             let targets: Vec<String> = {
                 let f = File::open(target_list).unwrap();
                 let reader = BufReader::new(f);
@@ -159,7 +141,7 @@ fn main() {
             let mut conn_out = std::io::stdout();
 
             let sample_name = query_file.file_stem().unwrap().to_string_lossy();
-            ahda::convert_from_read_to_write(&targets, &queries, &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
+            ahda::convert_from_read_to_write(&targets, query_file.clone(), &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
         },
 
         // Set operations
