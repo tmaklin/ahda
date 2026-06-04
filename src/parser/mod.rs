@@ -89,7 +89,6 @@ use crate::parser::themisto::read_themisto;
 
 use crate::compression::MetadataCompression;
 
-use indexmap::IndexMap;
 use indexmap::IndexSet;
 
 use std::io::BufRead;
@@ -140,7 +139,7 @@ pub struct Parser<'a, R: Read> {
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: IndexMap<String, usize>,
+    query_to_pos: IndexSet<String>,
     target_to_pos: IndexSet<String>,
 
     header: FileHeader,
@@ -156,10 +155,8 @@ impl<'a, R: Read> Parser<'a, R> {
         sample_name: &str,
     ) -> Result<Self, E> {
 
-        let mut query_to_pos: IndexMap<String, usize> = IndexMap::new();
-        queries.iter().enumerate().for_each(|(idx, query)| {
-            query_to_pos.insert(query.clone(), idx);
-        });
+        let mut query_to_pos: IndexSet<String> = IndexSet::new();
+        queries.iter().for_each(|query| { query_to_pos.insert(query.clone()); });
 
         let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
         targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
@@ -302,9 +299,11 @@ impl<R: Read> Iterator for Parser<'_, R> {
         };
 
         let mut record = record?;
-        record.query_id = if record.query_id.is_some() { record.query_id } else { Some(*self.query_to_pos.get(&record.query_name.clone().unwrap()).unwrap() as u32) };
+        record.query_id = if record.query_id.is_some() { record.query_id } else {
+            Some(self.query_to_pos.get_index_of(&record.query_name.clone().unwrap()).unwrap() as u32)
+        };
         record.query_name = if record.query_name.is_some() { record.query_name } else {
-            Some(self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().0.clone())
+            Some(self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().clone())
         };
         if record.ones.is_some() {
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
