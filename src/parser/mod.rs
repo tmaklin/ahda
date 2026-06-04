@@ -78,8 +78,6 @@ pub mod themisto;
 
 use crate::Format;
 use crate::PseudoAln;
-use crate::headers::file::FileFlags;
-use crate::headers::file::FileHeader;
 
 use crate::parser::bifrost::read_bifrost;
 use crate::parser::fulgor::read_fulgor;
@@ -142,9 +140,6 @@ pub struct Parser<'a, R: Read> {
     query_to_pos: IndexSet<String>,
     target_to_pos: IndexSet<String>,
 
-    header: FileHeader,
-    flags: FileFlags,
-
 }
 
 impl<'a, R: Read> Parser<'a, R> {
@@ -161,8 +156,6 @@ impl<'a, R: Read> Parser<'a, R> {
         let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
         targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
 
-        let (header, flags) = crate::headers::file::build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default())?;
-
         let mut reader = BufReader::new(conn);
         let mut buf = Cursor::new(Vec::<u8>::new());
 
@@ -173,7 +166,6 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(Self {
             reader, buf, format,
             query_to_pos, target_to_pos,
-            header, flags,
         })
     }
 
@@ -233,18 +225,6 @@ impl<R: Read> Parser<'_, R> {
                 Ok(Some(target_names))
             },
         }
-    }
-
-    pub fn file_header(
-        &self
-    ) -> &FileHeader {
-        &self.header
-    }
-
-    pub fn file_flags(
-        &self
-    ) -> &FileFlags {
-        &self.flags
     }
 }
 
@@ -309,7 +289,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
                 Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
                     // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
-                    self.flags.target_names.as_ref().unwrap()[*target_idx as usize].clone()
+                    self.target_to_pos.get_index(*target_idx as usize).unwrap().clone()
                 }).collect::<Vec<String>>())};
         }
         if record.ones_names.is_some() {

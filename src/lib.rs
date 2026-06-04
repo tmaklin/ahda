@@ -446,9 +446,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
-    let header = reader.file_header().clone();
-    let flags = reader.file_flags().clone();
-    let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut reader, header, flags, format);
+    let mut writer = crate::printer::Printer::new(&mut reader, targets, queries, sample_name, format);
     for record in writer.by_ref() {
         conn_out.write_all(&record)?;
     }
