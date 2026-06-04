@@ -92,7 +92,7 @@
 //!                                ];
 //!
 //! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
-//! let mut encoder = Encoder::new(&mut iter, &targets, &queries, &name);
+//! let mut encoder = Encoder::new(&mut iter, &targets, &name, queries.len());
 //!
 //! let mut bytes = encoder.encode_file_header_and_flags().unwrap();
 //! for mut data in encoder.by_ref() {

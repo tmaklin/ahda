@@ -498,7 +498,7 @@ pub fn encode_to_write<W: Write>(
     assert!(!records.is_empty());
 
     let mut records_iter = records.iter().cloned();
-    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, queries, sample_name);
+    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, sample_name, queries.len());
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
@@ -553,7 +553,7 @@ pub fn encode_from_read<R: Read>(
     conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
     let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
-    let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
+    let mut encoder = encoder::Encoder::new(&mut reader, targets, sample_name, queries.len());
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
     for mut block in encoder.by_ref() {
@@ -608,7 +608,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, targets, queries, sample_name)?;
-    let mut encoder = encoder::Encoder::new(&mut reader, targets, queries, sample_name);
+    let mut encoder = encoder::Encoder::new(&mut reader, targets, sample_name, queries.len());
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;

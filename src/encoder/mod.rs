@@ -67,7 +67,7 @@
 //!
 //! // Create a Parser to convert the plain text data to PseudoAln and initialize Encoder on this parser to encode it
 //! let mut parser = Parser::new(&mut input, &targets, &queries, &name).unwrap();
-//! let mut encoder = Encoder::new(&mut parser, &targets, &queries, &name);
+//! let mut encoder = Encoder::new(&mut parser, &targets, &name, queries.len());
 //! encoder.set_block_size(3);
 //!
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -113,7 +113,7 @@
 //!                                ];
 //!
 //! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
-//! let mut encoder = Encoder::new(&mut iter, &targets, &queries, &name);
+//! let mut encoder = Encoder::new(&mut iter, &targets, &name, queries.len());
 //!
 //! // Encode the file header and flags
 //! let bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -167,11 +167,11 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
         records: &'a mut I,
         targets: &[String],
-        queries: &[String],
         sample_name: &str,
+        n_queries: usize,
     ) -> Self {
 
-        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
+        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default()).unwrap();
 
         Encoder{
             records,
@@ -270,7 +270,7 @@ mod tests {
         let query_name ="ERR4035126".to_string();
 
         let mut tmp = data.into_iter();
-        let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 
@@ -297,7 +297,7 @@ mod tests {
         let query_name ="ERR4035126".to_string();
 
         let mut tmp = data.into_iter();
-        let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
         encoder.set_block_size(1000).unwrap();
 
         let got = encoder.next().unwrap();
@@ -326,7 +326,7 @@ mod tests {
         let query_name ="ERR4035126".to_string();
 
         let mut tmp = data.into_iter();
-        let mut encoder = Encoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
         encoder.set_block_size(2).unwrap();
 
         let mut got: Vec<u8> = Vec::new();
