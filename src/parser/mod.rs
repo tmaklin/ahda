@@ -105,7 +105,7 @@ pub struct UnrecognizedInputFormatErr;
 
 impl std::fmt::Display for UnrecognizedInputFormatErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Unrecognized input format")
+        write!(f, "Unrecognized input format.")
     }
 }
 
@@ -117,7 +117,7 @@ pub struct AmbiguousInputFormatErr;
 
 impl std::fmt::Display for AmbiguousInputFormatErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Unrecognized input format")
+        write!(f, "Ambiguous input format.")
     }
 }
 
@@ -129,7 +129,7 @@ pub struct CorruptedInputErr;
 
 impl std::fmt::Display for CorruptedInputErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Unrecognized input format")
+        write!(f, "Corrupted input alignment data.")
     }
 }
 
