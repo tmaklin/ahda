@@ -166,11 +166,11 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
         records: &'a mut I,
         targets: &[String],
-        queries: &[String],
         sample_name: &str,
+        n_queries: usize,
         format: Format,
     ) -> Self {
-        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
+        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default()).unwrap();
         Printer::new_from_header_and_flags(records, header, flags, format)
     }
 
