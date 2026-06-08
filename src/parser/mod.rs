@@ -278,8 +278,8 @@ impl<'a, R: Read> Parser<'a, R> {
         })
     }
 
-    // TODO Tests for constructor `new_from_fastx_file`
-    pub fn new_from_fastx_file(
+    // TODO Tests for constructor `new_from_fastx_pathbuf`
+    pub fn new_from_fastx_pathbuf(
         conn_pseudoalns: &'a mut R,
         targets: Option<&[String]>,
         fastx_path: PathBuf,
