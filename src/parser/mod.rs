@@ -53,7 +53,7 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
 //!
 //! // Create a Parser to convert the plain text data to PseudoAlns
-//! let mut parser = Parser::new(&mut input, &targets, &queries, &name).unwrap();
+//! let mut parser = Parser::new(&mut input, Some(&targets), &queries).unwrap();
 //!
 //! let mut alns: Vec<PseudoAln> = Vec::new();
 //!
@@ -419,9 +419,11 @@ impl<R: Read> Iterator for Parser<'_, R> {
                 Format::SAM => {
                     // Fill in the target names
                     let targets = self.read_header().unwrap().unwrap();
-                    let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
-                    targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
-                    self.target_to_pos = Some(target_to_pos);
+                    if !targets.is_empty() {
+                        let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
+                        targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
+                        self.target_to_pos = Some(target_to_pos);
+                    }
 
                     self.buf.get_mut().pop(); // first line after header is now here
                     read_sam(&mut self.buf).unwrap()
@@ -647,7 +649,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -668,7 +670,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got: Vec<String> = reader.read_header().unwrap().unwrap();
 
@@ -693,7 +695,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got: Vec<String> = reader.read_header().unwrap().unwrap();
 
@@ -719,7 +721,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -746,7 +748,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got_header: Vec<String> = reader.read_header().unwrap().unwrap();
         assert_eq!(got_header, expected_header);
@@ -780,7 +782,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.3".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut got: Vec<PseudoAln> = Vec::new();
         while let Some(record) = reader.next() {
@@ -832,7 +834,7 @@ mod tests {
         ];
         let queries = (0..129).map(|x| x.to_string()).collect::<Vec<String>>();
         let sample_name = "sample";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -905,7 +907,7 @@ mod tests {
             "ERR4035126.1262962".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -989,7 +991,90 @@ mod tests {
             "ERR4035126.824748".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+
+        let mut res: Vec<PseudoAln> = Vec::new();
+        for record in reader.by_ref() {
+            res.push(record);
+        }
+
+        let (got, got_format) = (res, reader.format);
+
+        assert_eq!(got_format, Format::Bifrost);
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn parse_bifrost_output_with_targets_from_data() {
+        use super::Parser;
+
+        use crate::Format;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.724962\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1235744\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.431001\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.645400\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.3001\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.515778\t242\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.886205\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1254676\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.668031\t0\t121\n".to_vec());
+        data.append(&mut b"ERR4035126.388619\t121\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.959743\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1146685\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1017809\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.788136\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1223924\t366\t9\n".to_vec());
+        data.append(&mut b"ERR4035126.910807\t0\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.824748\t80\t0\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ query_name: Some("ERR4035126.724962".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(0) },
+            PseudoAln{ query_name: Some("ERR4035126.1235744".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(1) },
+            PseudoAln{ query_name: Some("ERR4035126.431001".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2) },
+            PseudoAln{ query_name: Some("ERR4035126.645400".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(3) },
+            PseudoAln{ query_name: Some("ERR4035126.3001".to_string()), ones: Some(vec![0]), ones_names: Some(vec!["chromosome.fasta".to_string()]), query_id: Some(4) },
+            PseudoAln{ query_name: Some("ERR4035126.515778".to_string()), ones: Some(vec![0]), ones_names: Some(vec!["chromosome.fasta".to_string()]), query_id: Some(5) },
+            PseudoAln{ query_name: Some("ERR4035126.886205".to_string()), ones: Some(vec![0]), ones_names: Some(vec!["chromosome.fasta".to_string()]), query_id: Some(6) },
+            PseudoAln{ query_name: Some("ERR4035126.1254676".to_string()), ones: Some(vec![0]), ones_names: Some(vec!["chromosome.fasta".to_string()]), query_id: Some(7) },
+            PseudoAln{ query_name: Some("ERR4035126.668031".to_string()), ones: Some(vec![1]), ones_names: Some(vec!["plasmid.fasta".to_string()]), query_id: Some(8) },
+            PseudoAln{ query_name: Some("ERR4035126.388619".to_string()), ones: Some(vec![0]), ones_names: Some(vec!["chromosome.fasta".to_string()]), query_id: Some(9) },
+            PseudoAln{ query_name: Some("ERR4035126.959743".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(10) },
+            PseudoAln{ query_name: Some("ERR4035126.1146685".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(11) },
+            PseudoAln{ query_name: Some("ERR4035126.1017809".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(12) },
+            PseudoAln{ query_name: Some("ERR4035126.788136".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(13) },
+            PseudoAln{ query_name: Some("ERR4035126.1223924".to_string()), ones: Some(vec![0, 1]), ones_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]), query_id: Some(14) },
+            PseudoAln{ query_name: Some("ERR4035126.910807".to_string()), ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(15) },
+            PseudoAln{ query_name: Some("ERR4035126.824748".to_string()), ones: Some(vec![0]), ones_names: Some(vec!["chromosome.fasta".to_string()]), query_id: Some(16) },
+        ];
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let queries = vec![
+            "ERR4035126.724962".to_string(),
+            "ERR4035126.1235744".to_string(),
+            "ERR4035126.431001".to_string(),
+            "ERR4035126.645400".to_string(),
+            "ERR4035126.3001".to_string(),
+            "ERR4035126.515778".to_string(),
+            "ERR4035126.886205".to_string(),
+            "ERR4035126.1254676".to_string(),
+            "ERR4035126.668031".to_string(),
+            "ERR4035126.388619".to_string(),
+            "ERR4035126.959743".to_string(),
+            "ERR4035126.1146685".to_string(),
+            "ERR4035126.1017809".to_string(),
+            "ERR4035126.788136".to_string(),
+            "ERR4035126.1223924".to_string(),
+            "ERR4035126.910807".to_string(),
+            "ERR4035126.824748".to_string(),
+        ];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, None, &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1036,7 +1121,7 @@ mod tests {
             "ERR4035126.7543".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1113,7 +1198,86 @@ mod tests {
             "ERR4035126.1178767".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, &targets, &queries, &sample_name).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+
+        let mut res: Vec<PseudoAln> = Vec::new();
+        for record in reader.by_ref() {
+            res.push(record);
+        }
+
+        let (got, got_format) = (res, reader.format);
+
+        assert_eq!(got_format, Format::SAM);
+
+        got.iter().zip(expected.iter()).for_each(|(x, y)| { assert_eq!(x, y) });
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn parse_sam_output_with_targets_from_data() {
+        use super::Parser;
+
+        use crate::Format;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC\tFJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.2\t16\tOZ038621.1\t4541557\t60\t151M\t*\t0\t0\tAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGCGTTTTTTATTTGGTGATATTTTTTTCAATATCATGCAGCAAACGGTGCA\tJAFJFJJJFFJFAJJJJJJJJJJFFA<JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJFF-FFFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.3\t16\tOZ038621.1\t4541521\t60\t151M\t*\t0\t0\tCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGCGTTTTTTATTTGG\tJJJJJJJFJFFFJJJJJJAJJJF7JJJJJ<JJFFJJJJJJJFJJJJJJJJJFFFJJJFJJJJJJJJJJJJJJJJAJFJJJJFJJJJJJJJJJJJJJJJJJJJJJAJJJJJJJJJJJJJJJJJAJFJFJJJJJJJJJJJJJJJJJFJFAFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.1261584\t16\tOZ038622.1\t66398\t60\t151M\t*\t0\t0\tGCCGCTGTCTGAACCATGATATTGGCGGAACCGATGCCCATGATGGATGCGCCCCACAGCATGACCAGTTGCGCCAGACTCCAGCCGGAAGCGGTGGGCACAATCATCAAAAATCCACTCACGACACTGAGTATGCCGACGACGTCCCGTC\tFFJJJJFFJFJFFFJJJJJJJJJJJ7FA<JJ<JFJJFJJJJF-FJJA<FJJJJAJJJJJJJJJJJJJJJJJJJJFFJJJFJJJJJJJJJJJJJJJJJJFJFJJJJJJJJJFJJJJJFJJFJFJFJJJJJJJJJJJJJJJJJJJJJJFFFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.1213410\t16\tOZ038622.1\t3996\t60\t151M\t*\t0\t0\tGCTGGCGCTTCGGGGATATGTGTTTCGACGGCAGATGAATTTATTCCGGCGGGGGCTGATTCTGCCGTCTGTTCAGTAAATACAGGTGCGATAATATCTGTTTTTTCGGATAAGGACGGTGGCGAAAAAGTACGACGTTTTTTCACCACAA\tJJJJJJJJJJJJJJJJJJJJJJJJJJJFJFJFFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFFJJJJJJJJJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.1213410\t16\tOZ038621.1\t3996\t60\t151M\t*\t0\t0\tGCTGGCGCTTCGGGGATATGTGTTTCGACGGCAGATGAATTTATTCCGGCGGGGGCTGATTCTGCCGTCTGTTCAGTAAATACAGGTGCGATAATATCTGTTTTTTCGGATAAGGACGGTGGCGAAAAAGTACGACGTTTTTTCACCACAA\tJJJJJJJJJJJJJJJJJJJJJJJJJJJFJFJFFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFFJJJJJJJJJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.4\t0\tOZ038621.1\t4541351\t60\t151M\t*\t0\t0\tAGGTGCGGGCTTTTTTCTGTGTTTCCTGTACGCGTCAGCCCGCACCGTTACCTGTGGTAATGGTGATGGTGGTGGTAATGGTGGTGCTAATGCGTTTCATGGATGTTGTGTACTCTGTAATTTTTATCTGTCTGTGCGCTATGCCTATATT\tAAFFFJJJJJJJJJJJJJJJJJJJJJFFJJJJJJJJJJJJJJJJJJJFFJJJJJJJJFJJJJJJJJJJJ<JFJJJJJJJJJJJAJJJFJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJFFFJFAFJJJJF<FFFJJJJ\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.5\t16\tOZ038621.1\t4541533\t60\t151M\t*\t0\t0\tAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGCGTTTTTTATTTGGTGATATTTTTTT\tFJJJJJJJJFJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJFFFAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.6\t0\tOZ038621.1\t4541261\t60\t151M\t*\t0\t0\tTCTGCATTTGCCACTGATGTACCGCCGAACTTCAACACTCGCATGGTTGTTACCTCGTTACCTTTGGTCGAAAAAAAAGCCCGCACTGTCAGGTGCGGGCTTTTTTCTGTGTTTCCTGTACGCGTCAGCCCGCACCGTTACCTGTGGTAAT\tAAAFFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJFJJJJJJJJ<FJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJFJJJJF7FJJJJJJJFJFJJJJJJJJFJJJJJJJJAJJJJFJFFFJFJF\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.973529\t16\tOZ038621.1\t3695316\t60\t66S85M\t*\t0\t0\tGGAGATGATTTCGTGTTTCTTCTCCGGGATGACCATGTCATCGATACCAACAGATGCACCAGAACGCGCCAAGTCGGGCAATCTGGTGAACTGGAAAGCCGGGGCGCTGTATCACCTGACGGAAAACGGCAATGTCTATATTAACTATGCC\tJJFJFF7-FFJJJA-FJFFFJJFAJJJJJJJJJJJJJJJJFJJJJJJJJFJJJJFJ<JJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFFJFJJJJJJJJFJJJJJJJJFAJJJJJJJJJJJJJFJJJJJFFJJJFJJJJJJFJJFFFAA\tNM:i:0\tMD:Z:85\tAS:i:85\tXS:i:0\tSA:Z:OZ038621.1,5194124,-,69M82S,60,0;\n".to_vec());
+        data.append(&mut b"ERR4035126.973529\t2064\tOZ038621.1\t5194124\t60\t69M82H\t*\t0\t0\tGGAGATGATTTCGTGTTTCTTCTCCGGGATGACCATGTCATCGATACCAACAGATGCACCAGAACGCGC\tJJFJFF7-FFJJJA-FJFFFJJFAJJJJJJJJJJJJJJJJFJJJJJJJJFJJJJFJ<JJJJJJJJJJJJ\tNM:i:0\tMD:Z:69\tAS:i:69\tXS:i:0\tSA:Z:OZ038621.1,3695316,-,66S85M,60,0;\n".to_vec());
+        data.append(&mut b"ERR4035126.621281\t16\tOZ038621.1\t1040569\t60\t39S86M26S\t*\t0\t0\tGCTCGACCGCGTCCCAGTTGAAATGCAACTCCCCAGCCAACTCGATAAACACGATGATTAACACGGCAGTCATGGTCAGAATGGAAACGGGATCGAAAATCGGCATACCAAATGACATCGGCGTGCCACAGCACAAACTGGACGCCCTGGC\tAFAJJJJJJJJJJJJFJJJJJJJJJJJJJJJJFJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFFFAA\tNM:i:0\tMD:Z:86\tAS:i:86\tXS:i:0\tSA:Z:OZ038621.1,3172373,-,46M105S,60,0;OZ038621.1,1301509,+,33M118S,60,0;\n".to_vec());
+        data.append(&mut b"ERR4035126.1178767\t4\t*\t0\t0\t*\t*\t0\t0\tACTTGGCTCATGTTCCGTCAATGCCGGAGAGACAATTGAAGTTGATTTAGGTGATGTCTTCGCTGCCAATTTCCGTGTTGTAGGGCATAAACCTCTTGGGGCCAGAACGGCAGAACTTGCAATTCCAGTCAGGTGTAACACGGGAAACGCG\tAAFFFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJFJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJJ\tAS:i:0\tXS:i:0\n".to_vec());
+        data.append(&mut b"ERR4035126.621281\t2064\tOZ038621.1\t3172373\t60\t46M105H\t*\t0\t0\tGCTCGACCGCGTCCCAGTTGAAATGCAACTCCCCAGCCAACTCGAT\tAFAJJJJJJJJJJJJFJJJJJJJJJJJJJJJJFJFJJJJJJJJJJJ\tNM:i:0\tMD:Z:46\tAS:i:46\tXS:i:0\tSA:Z:OZ038621.1,1040569,-,39S86M26S,60,0;OZ038621.1,1301509,+,33M118S,60,0;\n".to_vec());
+        data.append(&mut b"ERR4035126.621281\t2048\tOZ038621.1\t1301509\t60\t33M118H\t*\t0\t0\tGCCAGGGCGTCCAGTTTGTGCTGTGGCACGCCG\tAAFFFJJJJJJJJJJJJJJJJJJJJJJJJJJJJ\tNM:i:0\tMD:Z:33\tAS:i:33\tXS:i:0\tSA:Z:OZ038621.1,1040569,-,39S86M26S,60,0;OZ038621.1,3172373,-,46M105S,60,0;\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ query_id: Some(0), query_name: Some("ERR4035126.1".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(1), query_name: Some("ERR4035126.2".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(2), query_name: Some("ERR4035126.3".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(3), query_name: Some("ERR4035126.1261584".to_string()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![1]) },
+            PseudoAln{ query_id: Some(4), query_name: Some("ERR4035126.1213410".to_string()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![1]) },
+            PseudoAln{ query_id: Some(4), query_name: Some("ERR4035126.1213410".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(5), query_name: Some("ERR4035126.4".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(6), query_name: Some("ERR4035126.5".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(7), query_name: Some("ERR4035126.6".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(8), query_name: Some("ERR4035126.973529".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(8), query_name: Some("ERR4035126.973529".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(9), query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(10), query_name: Some("ERR4035126.1178767".to_string()), ones_names: None, ones: None },
+            PseudoAln{ query_id: Some(9), query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: Some(9), query_name: Some("ERR4035126.621281".to_string()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+        ];
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let queries = vec![
+            "ERR4035126.1".to_string(),
+            "ERR4035126.2".to_string(),
+            "ERR4035126.3".to_string(),
+            "ERR4035126.1261584".to_string(),
+            "ERR4035126.1213410".to_string(),
+            "ERR4035126.4".to_string(),
+            "ERR4035126.5".to_string(),
+            "ERR4035126.6".to_string(),
+            "ERR4035126.973529".to_string(),
+            "ERR4035126.621281".to_string(),
+            "ERR4035126.1178767".to_string(),
+        ];
+        let sample_name = "ERR4035126";
+        let mut reader = Parser::new(&mut cursor, None, &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
