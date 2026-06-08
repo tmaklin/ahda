@@ -233,13 +233,53 @@ pub struct Parser<'a, R: Read> {
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: FastxNameReader,
+    query_names: Option<FastxNameReader>,
+    query_to_pos: Option<IndexSet<String>>,
     target_to_pos: Option<IndexSet<String>>,
 
 }
 
 impl<'a, R: Read> Parser<'a, R> {
+
     pub fn new(
+        conn_pseudoalns: &'a mut R,
+        targets: Option<&[String]>,
+        query_names: &[String],
+    ) -> Result<Self, E> {
+        // Guess the input format
+        let mut reader = BufReader::new(conn_pseudoalns);
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        reader.read_until(b'\n', buf.get_mut())?;
+        let format = guess_format(buf.get_ref())?;
+
+        let mut target_to_pos: IndexSet<String> = IndexSet::new();
+        if let Some(targets) = targets {
+            // Read targets if given
+            target_to_pos.reserve(targets.len());
+            targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
+        } else {
+            // Error if the detected input format does not allow detecting the targets
+            match format {
+                Format::Themisto => return Err(Box::new(NeedTargetSequencesErr{ format })),
+                Format::Fulgor => return Err(Box::new(NeedTargetSequencesErr{ format })),
+                Format::Metagraph => return Err(Box::new(NeedTargetSequencesErr{ format })),
+                Format::Bifrost => (),
+                Format::SAM => (),
+            }
+        }
+
+        let query_to_pos = IndexSet::from_iter(query_names.iter().cloned());
+
+        Ok(Self {
+            reader, buf, format,
+            query_names: None,
+            query_to_pos: Some(query_to_pos),
+            target_to_pos: if !target_to_pos.is_empty() { Some(target_to_pos) } else { None },
+        })
+    }
+
+    // TODO Tests for constructor `new_from_fastx_file`
+    pub fn new_from_fastx_file(
         conn_pseudoalns: &'a mut R,
         targets: Option<&[String]>,
         fastx_path: PathBuf,
@@ -250,7 +290,7 @@ impl<'a, R: Read> Parser<'a, R> {
         reader.read_until(b'\n', buf.get_mut())?;
         let format = guess_format(buf.get_ref())?;
 
-        let query_to_pos = FastxNameReader::new(fastx_path)?;
+        let query_names = FastxNameReader::new(fastx_path)?;
 
         let mut target_to_pos: IndexSet<String> = IndexSet::new();
         if let Some(targets) = targets {
@@ -270,7 +310,9 @@ impl<'a, R: Read> Parser<'a, R> {
 
         Ok(Self {
             reader, buf, format,
-            query_to_pos, target_to_pos: if !target_to_pos.is_empty() { Some(target_to_pos) } else { None },
+            query_names: Some(query_names),
+            query_to_pos: None,
+            target_to_pos: if !target_to_pos.is_empty() { Some(target_to_pos) } else { None },
         })
     }
 
@@ -336,13 +378,13 @@ impl<R: Read> Parser<'_, R> {
     pub fn len(
         &self,
     ) -> usize {
-        self.query_to_pos.len()
+        self.query_names.as_ref().unwrap().len()
     }
 
     pub fn is_empty(
         &self,
     ) -> bool {
-        self.query_to_pos.is_empty()
+        self.query_names.as_ref().unwrap().is_empty()
     }
 }
 
@@ -407,11 +449,19 @@ impl<R: Read> Iterator for Parser<'_, R> {
 
         let mut record = record?;
         record.query_id = if record.query_id.is_some() { record.query_id } else {
-            let query_index = self.query_to_pos.get_index_of(record.query_name.as_ref()?.as_bytes())?;
+            let query_index = if self.query_names.is_some() {
+                self.query_names.as_mut().unwrap().get_index_of(record.query_name.as_ref()?.as_bytes())?
+            } else {
+                self.query_to_pos.as_mut().unwrap().get_index_of(&record.query_name.as_ref()?.to_string())?
+            };
             Some(query_index as u32)
         };
         record.query_name = if record.query_name.is_some() { record.query_name } else {
-            let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap()?;
+            let query_name = if self.query_names.is_some() {
+                self.query_names.as_mut().unwrap().get_index(record.query_id.unwrap() as usize).unwrap()?
+            } else {
+                self.query_to_pos.as_mut().unwrap().get_index(record.query_id.unwrap() as usize)?.clone()
+            };
             Some(query_name)
         };
         if record.ones.is_some() {
