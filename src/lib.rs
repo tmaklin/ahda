@@ -446,7 +446,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut reader = crate::parser::Parser::new(conn_in, targets, sample_name, queries.clone())?;
+    let mut reader = crate::parser::Parser::new(conn_in, targets, queries.clone())?;
     let n_queries = reader.len();
     let mut writer = crate::printer::Printer::new(&mut reader, targets, sample_name, n_queries, format);
     for record in writer.by_ref() {
@@ -552,7 +552,7 @@ pub fn encode_from_read<R: Read>(
     sample_name: &str,
     conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
-    let mut reader = crate::parser::Parser::new(conn_in, targets, sample_name, queries.clone())?;
+    let mut reader = crate::parser::Parser::new(conn_in, targets, queries.clone())?;
     let n_queries = reader.len();
     let mut encoder = encoder::Encoder::new(&mut reader, targets, sample_name, n_queries);
 
@@ -608,7 +608,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut reader = crate::parser::Parser::new(conn_in, targets, sample_name, queries.clone())?;
+    let mut reader = crate::parser::Parser::new(conn_in, targets, queries.clone())?;
     let n_queries = reader.len();
     let mut encoder = encoder::Encoder::new(&mut reader, targets, sample_name, n_queries);
 

@@ -228,7 +228,6 @@ impl<'a, R: Read> Parser<'a, R> {
     pub fn new(
         conn: &'a mut R,
         targets: &[String],
-        sample_name: &str,
         fastx_path: PathBuf,
     ) -> Result<Self, E> {
 
