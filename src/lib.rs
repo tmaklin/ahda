@@ -237,6 +237,18 @@ impl std::str::FromStr for Format {
     }
 }
 
+impl std::fmt::Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Format::Bifrost => write!(f, "bifrost"),
+            Format::Fulgor => write!(f, "fulgor"),
+            Format::Metagraph => write!(f, "metagraph"),
+            Format::SAM => write!(f, "SAM"),
+            Format::Themisto => write!(f, "themisto"),
+        }
+    }
+}
+
 /// Supported set operations for [decode_from_read_into_roaring].
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
