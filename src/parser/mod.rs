@@ -133,6 +133,20 @@ impl std::fmt::Display for CorruptedInputErr {
 
 impl std::error::Error for CorruptedInputErr {}
 
+/// Input format requires supplying the target sequence names.
+#[derive(Debug, Clone)]
+pub struct NeedTargetSequencesErr {
+    format: Format,
+}
+
+impl std::fmt::Display for NeedTargetSequencesErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Detected input format `{}` requires supplying the target sequence names.", self.format)
+    }
+}
+
+impl std::error::Error for NeedTargetSequencesErr {}
+
 use std::path::PathBuf;
 
 pub struct FastxNameReader {
@@ -220,32 +234,43 @@ pub struct Parser<'a, R: Read> {
     pub format: Format,
 
     query_to_pos: FastxNameReader,
-    target_to_pos: IndexSet<String>,
+    target_to_pos: Option<IndexSet<String>>,
 
 }
 
 impl<'a, R: Read> Parser<'a, R> {
     pub fn new(
-        conn: &'a mut R,
-        targets: &[String],
+        conn_pseudoalns: &'a mut R,
+        targets: Option<&[String]>,
         fastx_path: PathBuf,
     ) -> Result<Self, E> {
+        // Guess the input format
+        let mut reader = BufReader::new(conn_pseudoalns);
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        reader.read_until(b'\n', buf.get_mut())?;
+        let format = guess_format(buf.get_ref())?;
 
         let query_to_pos = FastxNameReader::new(fastx_path)?;
 
-        let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
-        targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
-
-        let mut reader = BufReader::new(conn);
-        let mut buf = Cursor::new(Vec::<u8>::new());
-
-        reader.read_until(b'\n', buf.get_mut())?;
-
-        let format = guess_format(buf.get_ref())?;
+        let mut target_to_pos: IndexSet<String> = IndexSet::new();
+        if let Some(targets) = targets {
+            // Read targets if given
+            target_to_pos.reserve(targets.len());
+            targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
+        } else {
+            // Error if the detected input format does not allow detecting the targets
+            match format {
+                Format::Themisto => return Err(Box::new(NeedTargetSequencesErr{ format })),
+                Format::Fulgor => return Err(Box::new(NeedTargetSequencesErr{ format })),
+                Format::Metagraph => return Err(Box::new(NeedTargetSequencesErr{ format })),
+                Format::Bifrost => (),
+                Format::SAM => (),
+            }
+        }
 
         Ok(Self {
             reader, buf, format,
-            query_to_pos, target_to_pos,
+            query_to_pos, target_to_pos: if !target_to_pos.is_empty() { Some(target_to_pos) } else { None },
         })
     }
 
@@ -338,7 +363,11 @@ impl<R: Read> Iterator for Parser<'_, R> {
                 Format::Fulgor => read_fulgor(&mut line).unwrap(),
                 Format::Metagraph => read_metagraph(&mut line).unwrap(),
                 Format::Bifrost => {
-                    let _ = self.read_header();
+                    // Fill in the target names
+                    let targets = self.read_header().unwrap().unwrap();
+                    let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
+                    targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
+                    self.target_to_pos = Some(target_to_pos);
 
                     line.get_mut().clear();
                     self.reader.read_until(b'\n', line.get_mut()).unwrap();
@@ -346,7 +375,12 @@ impl<R: Read> Iterator for Parser<'_, R> {
                     read_bifrost(&mut line).unwrap()
                 },
                 Format::SAM => {
-                    let _ = self.read_header();
+                    // Fill in the target names
+                    let targets = self.read_header().unwrap().unwrap();
+                    let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
+                    targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
+                    self.target_to_pos = Some(target_to_pos);
+
                     self.buf.get_mut().pop(); // first line after header is now here
                     read_sam(&mut self.buf).unwrap()
                 },
@@ -384,13 +418,13 @@ impl<R: Read> Iterator for Parser<'_, R> {
             record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
                 Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
                     // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
-                    self.target_to_pos.get_index(*target_idx as usize).unwrap().clone()
+                    self.target_to_pos.as_ref().unwrap().get_index(*target_idx as usize).unwrap().clone()
                 }).collect::<Vec<String>>())};
         }
         if record.ones_names.is_some() {
             record.ones = Some(
                 record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                    self.target_to_pos.get_index_of(target_name).unwrap() as u32
+                    self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
                 }).collect::<Vec<u32>>()
             );
         }
