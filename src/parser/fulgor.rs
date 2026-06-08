@@ -11,6 +11,46 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Fulgor `pseudoalign` parser.
+//!
+//! ## Expected format
+//! This example was generated with fulgor v4.2.0 from the `fulgor pseudoalign` subcommand.
+//!
+//! ```text
+//! 11301   0
+//! 4995    0
+//! 7542    1       1
+//! 15782   0
+//! 652016  2       0       1
+//! 100817  1       1
+//! ```
+//!
+//! or, with tabs and line breaks visible:
+//! ```text
+//! 11301\t0$
+//! 4995\t0$
+//! 7542\t1\t1$
+//! 15782\t0$
+//! 652016\t2\t0\t1$
+//! 100817\t1\t1$
+//! ```
+//!
+//! ### Pros of the fulgor format
+//! - The first column contains the index of the query in the input .fastx file.
+//! - Starting from the third column, the subsequent columns contain indexes of the aligned target sequences.
+//! - Queries with no alignments are shown.
+//! - Number of queries can be inferred from the file.
+//!
+//! ### Cons of the fulgor format
+//! - Number of target sequences cannot be inferred with certainty.
+//! - Name of the target sequence is not given.
+//! - Name of the query sequence is not given.
+//!
+//! ### Other considerations for the fulgor format
+//! - The second column contains the total number of aligned target sequences.
+//!
+
 use std::io::Read;
 
 use crate::PseudoAln;

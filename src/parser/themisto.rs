@@ -11,6 +11,46 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Themisto `pseudoalign` parser.
+//!
+//! ## Expected format
+//! This example was generated with themisto v3.2.2 from the `themisto pseudoalign` subcommand.
+//!
+//! ```text
+//! 117378
+//! 119884
+//! 111108 0
+//! 128864
+//! 651964 0 1
+//! 670792 1
+//! ```
+//!
+//! or, with tabs and line breaks visible (note the columns are separated by single *spaces*):
+//! ```text
+//! 117378$
+//! 119884$
+//! 111108 0$
+//! 128864$
+//! 651964 0 1$
+//! 670792 1$
+//! ```
+//!
+//! ### Pros of the themisto format
+//! - The first column contains the index of the query in the input .fastx file.
+//! - The subsequent columns contain indexes of the aligned target sequences.
+//! - Queries with no alignments are shown.
+//! - Number of queries can be inferred from the file.
+//!
+//! ### Cons of the themisto format
+//! - Number of target sequences cannot be inferred with certainty.
+//! - Name of the target sequence is not given.
+//! - Name of the query sequence is not given.
+//!
+//! ### Other considerations for the themisto format
+//! - Older (major) versions of the tool may append spaces at the end of the line.
+//!
+
 use std::io::Read;
 
 use crate::PseudoAln;

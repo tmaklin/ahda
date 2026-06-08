@@ -11,6 +11,48 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Metagraph `--query-mode labels` parser.
+//!
+//! ahda supports input format produced by `metagraph query --query-mode labels`.
+//!
+//! ## Expected format
+//! This example was generated with metagraph v0.5.2.
+//!
+//! ```text
+//! 0    FastqQuery.1
+//! 1    FastqQuery.2
+//! 3    FastqQuery.4    chromosome.fasta
+//! 9    FastqQuery.10
+//! 202728    FastqQuery.202729    chromosome.fasta:plasmid.fasta
+//! 7542    FastqQuery.7543    plasmid.fasta
+//! ```
+//!
+//! or, with tabs and line breaks visible:
+//! ```text
+//! 0\tFastqQuery.1\t$
+//! 1\tFastqQuery.2\t$
+//! 3\tFastqQuery.4\tchromosome.fasta$
+//! 9\tFastqQuery.10\t$
+//! 202728\tFastqQuery.202729\tchromosome.fasta:plasmid.fasta$
+//! 7542\tFastqQuery.7543\tplasmid.fasta$
+//! ```
+//!
+//! ### Pros of the metagraph format
+//! - The first column contains the index of the query in the input .fastx file.
+//! - The second column contains the name of the query sequence.
+//! - The third column contains names of the aligned target sequences.
+//! - Queries with no alignments are shown.
+//! - Number of queries can be inferred from the file.
+//!
+//! ### Cons of the metagraph format
+//! - Number of target sequences cannot be inferred with certainty.
+//! - Index of the target sequence is not given.
+//!
+//! ### Other considerations for the metagraph format
+//! - Different `--query-mode`s produce different output formats.
+//!
+
 use std::io::Read;
 
 use crate::PseudoAln;

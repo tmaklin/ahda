@@ -11,6 +11,14 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! SAM parser.
+//!
+//! SAM parsing is implemented using [noodles_sam](https://docs.rs/noodles-sam/latest/noodles_sam/).
+//!
+//! ## Expected format
+//! See the [SAM v1 file format specification](https://samtools.github.io/hts-specs/SAMv1.pdf) (pdf file).
+//!
 use std::io::Read;
 
 use noodles_sam as sam;

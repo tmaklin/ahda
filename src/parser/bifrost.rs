@@ -11,6 +11,46 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Bifrost `query` parser.
+//!
+//! ## Expected format
+//! This example was generated with bifrost v1.3.5 from the `bifrost query` subcommand.
+//!
+//! ```text
+//! query_name      chromosome.fasta        plasmid.fasta
+//! FastqQuery.1
+//! FastqQuery.2
+//! FastqQuery.3    121     0
+//! FastqQuery.2
+//! FastqQuery.135609       121      57
+//! FastqQuery.100819       0       121
+//! ```
+//!
+//! or, with tabs and line breaks visible:
+//! ```text
+//! query_name\tchromosome.fasta\tplasmid.fasta$
+//! FastqQuery.1$
+//! FastqQuery.2$
+//! FastqQuery.3 \t121\t0$
+//! FastqQuery.2$
+//! FastqQuery.135609\t121\t57$
+//! FastqQuery.100819\t0\t121$
+//! ```
+//!
+//! ### Pros of the bifrost format
+//! - The first column contains the name of the query sequence.
+//! - The subsequent columns contain number of *k*-mers matching each target sequence.
+//! - Queries with no alignments are shown.
+//! - Number of queries can be inferred from the file.
+//! - Number of target sequences can be inferred from the header.
+//! - Names of the target sequences can be inferred from the header.
+//! - Indexes of the target sequences can be inferred from the header.
+//!
+//! ### Cons of the bifrost format
+//! - Index of the query sequence is not given.
+//!
+
 use std::io::Read;
 
 use crate::PseudoAln;
