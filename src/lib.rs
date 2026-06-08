@@ -22,7 +22,7 @@
 //! The following plain text formats are supported:
 //!   - [Bifrost](https://github.com/pmelsted/bifrost)
 //!   - [Fulgor](https://github.com/jermp/fulgor)
-//!   - [Metagraph](https://github.com/ratschlab/metagraph)
+//!   - [Metagraph](https://github.com/ratschlab/metagraph) (`--query-mode labels` only)
 //!   - [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) (input only)
 //!   - [Themisto](https://github.com/algbio/themisto)
 //!
