@@ -650,7 +650,7 @@ mod tests {
         let sample_name = "ERR4035126";
         let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
-        let got: Vec<String> = reader.read_header().unwrap().unwrap();
+        let got = reader.get_targets().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -675,7 +675,7 @@ mod tests {
         let sample_name = "ERR4035126";
         let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
-        let got: Vec<String> = reader.read_header().unwrap().unwrap();
+        let got = reader.get_targets().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -728,7 +728,7 @@ mod tests {
         let sample_name = "ERR4035126";
         let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
 
-        let got_header: Vec<String> = reader.read_header().unwrap().unwrap();
+        let got_header = reader.get_targets().unwrap();
         assert_eq!(got_header, expected_header);
 
         let got_aln: PseudoAln = reader.next().unwrap();
