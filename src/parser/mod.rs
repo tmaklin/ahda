@@ -93,6 +93,7 @@ use memmap2::MmapOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Cursor;
+use std::io::Seek;
 use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
@@ -160,7 +161,7 @@ impl FastxNameReader {
 
     // TODO Using this is pretty slow although it reduces the memory usage by ~5x
 
-    pub fn new(
+    pub fn new_from_pathbuf(
         fastx_path: PathBuf,
     ) -> Result<Self, E> {
         let mut mmap_index: IndexSet<usize> = IndexSet::new();
@@ -252,30 +253,30 @@ impl<'a, R: Read> Parser<'a, R> {
         reader.read_until(b'\n', buf.get_mut())?;
         let format = guess_format(buf.get_ref())?;
 
-        let mut target_to_pos: IndexSet<String> = IndexSet::new();
-        if let Some(targets) = targets {
-            // Read targets if given
-            target_to_pos.reserve(targets.len());
-            targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
-        } else {
-            // Error if the detected input format does not allow detecting the targets
-            match format {
-                Format::Themisto => return Err(Box::new(NeedTargetSequencesErr{ format })),
-                Format::Fulgor => return Err(Box::new(NeedTargetSequencesErr{ format })),
-                Format::Metagraph => return Err(Box::new(NeedTargetSequencesErr{ format })),
-                Format::Bifrost => (),
-                Format::SAM => (),
-            }
-        }
-
         let query_to_pos = IndexSet::from_iter(query_names.iter().cloned());
 
-        Ok(Self {
+        let mut ret = Self {
             reader, buf, format,
             query_names: None,
             query_to_pos: Some(query_to_pos),
-            target_to_pos: if !target_to_pos.is_empty() { Some(target_to_pos) } else { None },
-        })
+            target_to_pos: None,
+        };
+
+        let targets_from_header = ret.read_header()?;
+        if targets_from_header.is_some() && targets.is_some() {
+            assert_eq!(targets_from_header.as_ref().unwrap(), targets.as_ref().unwrap());
+        }
+
+        let targets = if let Some(targets) = targets {
+            targets.to_vec()
+        } else if let Some(targets) = targets_from_header {
+            targets
+        } else {
+            return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
+        };
+
+        ret.target_to_pos = Some(IndexSet::<String>::from_iter(targets.iter().cloned()));
+        Ok(ret)
     }
 
     // TODO Tests for constructor `new_from_fastx_pathbuf`
@@ -290,30 +291,30 @@ impl<'a, R: Read> Parser<'a, R> {
         reader.read_until(b'\n', buf.get_mut())?;
         let format = guess_format(buf.get_ref())?;
 
-        let query_names = FastxNameReader::new(fastx_path)?;
+        let query_names = FastxNameReader::new_from_pathbuf(fastx_path)?;
 
-        let mut target_to_pos: IndexSet<String> = IndexSet::new();
-        if let Some(targets) = targets {
-            // Read targets if given
-            target_to_pos.reserve(targets.len());
-            targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
-        } else {
-            // Error if the detected input format does not allow detecting the targets
-            match format {
-                Format::Themisto => return Err(Box::new(NeedTargetSequencesErr{ format })),
-                Format::Fulgor => return Err(Box::new(NeedTargetSequencesErr{ format })),
-                Format::Metagraph => return Err(Box::new(NeedTargetSequencesErr{ format })),
-                Format::Bifrost => (),
-                Format::SAM => (),
-            }
-        }
-
-        Ok(Self {
+        let mut ret = Self {
             reader, buf, format,
             query_names: Some(query_names),
             query_to_pos: None,
-            target_to_pos: if !target_to_pos.is_empty() { Some(target_to_pos) } else { None },
-        })
+            target_to_pos: None,
+        };
+
+        let targets_from_header = ret.read_header()?;
+        if targets_from_header.is_some() && targets.is_some() {
+            assert_eq!(targets_from_header.as_ref().unwrap(), targets.as_ref().unwrap());
+        }
+
+        let targets = if let Some(targets) = targets {
+            targets.to_vec()
+        } else if let Some(targets) = targets_from_header {
+            targets
+        } else {
+            return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
+        };
+
+        ret.target_to_pos = Some(IndexSet::<String>::from_iter(targets.iter().cloned()));
+        Ok(ret)
     }
 
 }
@@ -386,6 +387,51 @@ impl<R: Read> Parser<'_, R> {
     ) -> bool {
         self.query_names.as_ref().unwrap().is_empty()
     }
+
+    pub fn get_targets(
+        &self,
+    ) -> Option<Vec<String>> {
+        Some(self.target_to_pos.as_ref()?.iter().cloned().collect::<Vec<String>>())
+    }
+
+    fn fill_record(
+        &mut self,
+        record: &mut PseudoAln,
+    ) {
+        if record.query_id.is_none() {
+            let query_index = if self.query_names.is_some() {
+                self.query_names.as_mut().unwrap().get_index_of(record.query_name.as_ref().unwrap().as_bytes()).unwrap()
+            } else {
+                self.query_to_pos.as_mut().unwrap().get_index_of(&record.query_name.as_ref().unwrap().to_string()).unwrap()
+            };
+            record.query_id = Some(query_index as u32);
+        }
+
+        if record.query_name.is_none() {
+            let query_name = if self.query_names.is_some() {
+                self.query_names.as_mut().unwrap().get_index(record.query_id.unwrap() as usize).unwrap().unwrap()
+            } else {
+                self.query_to_pos.as_mut().unwrap().get_index(record.query_id.unwrap() as usize).unwrap().clone()
+            };
+            record.query_name = Some(query_name);
+        }
+
+        if record.ones_names.is_none() && record.ones.is_some() {
+            record.ones_names = Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
+                self.target_to_pos.as_ref().unwrap().get_index(*target_idx as usize).unwrap().clone()
+            }).collect::<Vec<String>>());
+        }
+
+        // TODO figure out why adding `&& record.ones.is_none()` to the clause breaks the tests
+        if record.ones_names.is_some() {
+            record.ones = Some(
+                record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                    self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
+                }).collect::<Vec<u32>>()
+            );
+        }
+    }
 }
 
 impl<R: Read> Iterator for Parser<'_, R> {
@@ -394,93 +440,26 @@ impl<R: Read> Iterator for Parser<'_, R> {
     fn next(
         &mut self,
     ) -> Option<PseudoAln> {
-        let mut line = Cursor::new(Vec::<u8>::new());
-        let record = if !self.buf.get_ref().is_empty() {
-            line = self.buf.clone();
-            if line.get_mut().contains(&b'\n') {
-                line.get_mut().pop();
-            }
-            let record = match self.format {
-                Format::Themisto => read_themisto(&mut line).unwrap(),
-                Format::Fulgor => read_fulgor(&mut line).unwrap(),
-                Format::Metagraph => read_metagraph(&mut line).unwrap(),
-                Format::Bifrost => {
-                    // Fill in the target names
-                    let targets = self.read_header().unwrap().unwrap();
-                    let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
-                    targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
-                    self.target_to_pos = Some(target_to_pos);
-
-                    line.get_mut().clear();
-                    self.reader.read_until(b'\n', line.get_mut()).unwrap();
-                    line.get_mut().pop();
-                    read_bifrost(&mut line).unwrap()
-                },
-                Format::SAM => {
-                    // Fill in the target names
-                    let targets = self.read_header().unwrap().unwrap();
-                    if !targets.is_empty() {
-                        let mut target_to_pos: IndexSet<String> = IndexSet::with_capacity(targets.len());
-                        targets.iter().for_each(|target| { target_to_pos.insert(target.clone()); });
-                        self.target_to_pos = Some(target_to_pos);
-                    }
-
-                    self.buf.get_mut().pop(); // first line after header is now here
-                    read_sam(&mut self.buf).unwrap()
-                },
-            };
-            self.buf.get_mut().clear();
-            Some(record)
-        } else if self.reader.read_until(b'\n', line.get_mut()).is_ok() {
-            if line.get_mut().is_empty() {
+        if self.buf.get_ref().is_empty() {
+            let ret = self.reader.read_until(b'\n', self.buf.get_mut());
+            if ret.is_err() || self.buf.get_ref().is_empty() {
                 return None
             }
-            line.get_mut().pop();
-            Some(
-                match self.format {
-                    Format::Themisto => read_themisto(&mut line).unwrap(),
-                    Format::Fulgor => read_fulgor(&mut line).unwrap(),
-                    Format::Metagraph => read_metagraph(&mut line).unwrap(),
-                    Format::Bifrost => read_bifrost(&mut line).unwrap(),
-                    Format::SAM => read_sam(&mut line).unwrap(),
-                },
-            )
-        } else {
-            None
+            self.buf.rewind().unwrap();
+        }
+        self.buf.get_mut().pop();
+
+        let mut record = match self.format {
+            Format::Themisto => read_themisto(&mut self.buf).unwrap(),
+            Format::Fulgor => read_fulgor(&mut self.buf).unwrap(),
+            Format::Metagraph => read_metagraph(&mut self.buf).unwrap(),
+            Format::Bifrost => read_bifrost(&mut self.buf).unwrap(),
+            Format::SAM => read_sam(&mut self.buf).unwrap(),
         };
 
-        let mut record = record?;
-        record.query_id = if record.query_id.is_some() { record.query_id } else {
-            let query_index = if self.query_names.is_some() {
-                self.query_names.as_mut().unwrap().get_index_of(record.query_name.as_ref()?.as_bytes())?
-            } else {
-                self.query_to_pos.as_mut().unwrap().get_index_of(&record.query_name.as_ref()?.to_string())?
-            };
-            Some(query_index as u32)
-        };
-        record.query_name = if record.query_name.is_some() { record.query_name } else {
-            let query_name = if self.query_names.is_some() {
-                self.query_names.as_mut().unwrap().get_index(record.query_id.unwrap() as usize).unwrap()?
-            } else {
-                self.query_to_pos.as_mut().unwrap().get_index(record.query_id.unwrap() as usize)?.clone()
-            };
-            Some(query_name)
-        };
-        if record.ones.is_some() {
-            record.ones_names = if record.ones_names.is_some() { record.ones_names } else {
-                Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                    // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
-                    self.target_to_pos.as_ref().unwrap().get_index(*target_idx as usize).unwrap().clone()
-                }).collect::<Vec<String>>())};
-        }
-        if record.ones_names.is_some() {
-            record.ones = Some(
-                record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                    self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
-                }).collect::<Vec<u32>>()
-            );
-        }
+        self.buf.get_mut().clear();
 
+        self.fill_record(&mut record);
         Some(record)
     }
 }
