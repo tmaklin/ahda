@@ -50,7 +50,7 @@ pub fn read_sam<R: Read>(
 
     let target: String = record.reference_sequence_name().unwrap().to_string();
 
-    let res = PseudoAln{query_id: None, ones: Some(vec![]), query_name: Some(query_name), ones_names: Some(vec![target]) };
+    let res = PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: Some(vec![target]) };
     Ok(res)
 }
 
@@ -69,7 +69,7 @@ mod tests {
         let data: Vec<u8> =b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec();
 
         let expected = vec![
-            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1".to_string()) },
+            PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: None, query_name: Some("ERR4035126.1".to_string()) },
         ];
 
         let cursor = Cursor::new(data);
