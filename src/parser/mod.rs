@@ -236,7 +236,7 @@ pub struct Parser<'a, R: Read> {
 
     query_names: Option<FastxNameReader>,
     query_to_pos: Option<IndexSet<String>>,
-    target_to_pos: Option<IndexSet<String>>,
+    target_to_pos: IndexSet<String>,
 
 }
 
@@ -259,7 +259,7 @@ impl<'a, R: Read> Parser<'a, R> {
             reader, buf, format,
             query_names: None,
             query_to_pos: Some(query_to_pos),
-            target_to_pos: None,
+            target_to_pos: IndexSet::new(),
         };
 
         let targets_from_header = ret.read_header()?;
@@ -275,7 +275,7 @@ impl<'a, R: Read> Parser<'a, R> {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
 
-        ret.target_to_pos = Some(IndexSet::<String>::from_iter(targets.iter().cloned()));
+        ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
         Ok(ret)
     }
 
@@ -297,7 +297,7 @@ impl<'a, R: Read> Parser<'a, R> {
             reader, buf, format,
             query_names: Some(query_names),
             query_to_pos: None,
-            target_to_pos: None,
+            target_to_pos: IndexSet::new(),
         };
 
         let targets_from_header = ret.read_header()?;
@@ -313,7 +313,7 @@ impl<'a, R: Read> Parser<'a, R> {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
 
-        ret.target_to_pos = Some(IndexSet::<String>::from_iter(targets.iter().cloned()));
+        ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
         Ok(ret)
     }
 
@@ -391,7 +391,7 @@ impl<R: Read> Parser<'_, R> {
     pub fn get_targets(
         &self,
     ) -> Option<Vec<String>> {
-        Some(self.target_to_pos.as_ref()?.iter().cloned().collect::<Vec<String>>())
+        Some(self.target_to_pos.iter().cloned().collect::<Vec<String>>())
     }
 
     fn fill_record(
@@ -418,14 +418,14 @@ impl<R: Read> Parser<'_, R> {
 
         if record.ones_names.is_none() && record.ones.is_some() {
             let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                self.target_to_pos.as_ref().unwrap().get_index(*target_idx as usize).unwrap().clone()
+                self.target_to_pos.get_index(*target_idx as usize).unwrap().clone()
             }).collect::<Vec<String>>();
             record.ones_names = Some(ones_names);
         }
 
         if record.ones_names.is_some() && record.ones.is_none() {
             let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
+                self.target_to_pos.get_index_of(target_name).unwrap() as u32
             }).collect::<Vec<u32>>();
             record.ones = Some(ones);
         }
