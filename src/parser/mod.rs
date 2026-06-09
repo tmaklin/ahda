@@ -242,60 +242,19 @@ pub struct Parser<'a, R: Read> {
 
 impl<'a, R: Read> Parser<'a, R> {
 
-    pub fn new(
+    fn new(
         conn_pseudoalns: &'a mut R,
         targets: Option<&[String]>,
-        query_names: &[String],
     ) -> Result<Self, E> {
         // Guess the input format
         let mut reader = BufReader::new(conn_pseudoalns);
         let mut buf = Cursor::new(Vec::<u8>::new());
         reader.read_until(b'\n', buf.get_mut())?;
         let format = guess_format(buf.get_ref())?;
-
-        let query_to_pos = IndexSet::from_iter(query_names.iter().cloned());
 
         let mut ret = Self {
             reader, buf, format,
             query_names: None,
-            query_to_pos: Some(query_to_pos),
-            target_to_pos: IndexSet::new(),
-        };
-
-        let targets_from_header = ret.read_header()?;
-        if targets_from_header.is_some() && targets.is_some() {
-            assert_eq!(targets_from_header.as_ref().unwrap(), targets.as_ref().unwrap());
-        }
-
-        let targets = if let Some(targets) = targets {
-            targets.to_vec()
-        } else if let Some(targets) = targets_from_header {
-            targets
-        } else {
-            return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
-        };
-
-        ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
-        Ok(ret)
-    }
-
-    // TODO Tests for constructor `new_from_fastx_pathbuf`
-    pub fn new_from_fastx_pathbuf(
-        conn_pseudoalns: &'a mut R,
-        targets: Option<&[String]>,
-        fastx_path: PathBuf,
-    ) -> Result<Self, E> {
-        // Guess the input format
-        let mut reader = BufReader::new(conn_pseudoalns);
-        let mut buf = Cursor::new(Vec::<u8>::new());
-        reader.read_until(b'\n', buf.get_mut())?;
-        let format = guess_format(buf.get_ref())?;
-
-        let query_names = FastxNameReader::new_from_pathbuf(fastx_path)?;
-
-        let mut ret = Self {
-            reader, buf, format,
-            query_names: Some(query_names),
             query_to_pos: None,
             target_to_pos: IndexSet::new(),
         };
@@ -312,8 +271,28 @@ impl<'a, R: Read> Parser<'a, R> {
         } else {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
-
         ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
+
+        Ok(ret)
+    }
+
+    pub fn from_query_names(
+        conn_pseudoalns: &'a mut R,
+        targets: Option<&[String]>,
+        query_names: &[String],
+    ) -> Result<Self, E> {
+        let mut ret = Parser::new(conn_pseudoalns, targets)?;
+        ret.query_to_pos = Some(IndexSet::from_iter(query_names.iter().cloned()));
+        Ok(ret)
+    }
+
+    pub fn from_fastx_pathbuf(
+        conn_pseudoalns: &'a mut R,
+        targets: Option<&[String]>,
+        fastx_path: PathBuf,
+    ) -> Result<Self, E> {
+        let mut ret = Parser::new(conn_pseudoalns, targets)?;
+        ret.query_names = Some(FastxNameReader::new_from_pathbuf(fastx_path)?);
         Ok(ret)
     }
 
