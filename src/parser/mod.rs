@@ -161,7 +161,7 @@ impl FastxNameReader {
 
     // TODO Using this is pretty slow although it reduces the memory usage by ~5x
 
-    pub fn new_from_pathbuf(
+    pub fn from_pathbuf(
         fastx_path: PathBuf,
     ) -> Result<Self, E> {
         let mut mmap_index: IndexSet<usize> = IndexSet::new();
@@ -292,7 +292,7 @@ impl<'a, R: Read> Parser<'a, R> {
         fastx_path: PathBuf,
     ) -> Result<Self, E> {
         let mut ret = Parser::new(conn_pseudoalns, targets)?;
-        ret.query_names = Some(FastxNameReader::new_from_pathbuf(fastx_path)?);
+        ret.query_names = Some(FastxNameReader::from_pathbuf(fastx_path)?);
         Ok(ret)
     }
 
