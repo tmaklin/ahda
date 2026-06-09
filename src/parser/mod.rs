@@ -417,18 +417,18 @@ impl<R: Read> Parser<'_, R> {
         }
 
         if record.ones_names.is_none() && record.ones.is_some() {
-            record.ones_names = Some(record.ones.as_ref().unwrap().iter().map(|target_idx| {
+            let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
                 // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
                 self.target_to_pos.as_ref().unwrap().get_index(*target_idx as usize).unwrap().clone()
-            }).collect::<Vec<String>>());
+            }).collect::<Vec<String>>();
+            record.ones_names = Some(ones_names);
         }
 
         if record.ones_names.is_some() && record.ones.is_none() {
-            record.ones = Some(
-                record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                    self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
-                }).collect::<Vec<u32>>()
-            );
+            let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
+            }).collect::<Vec<u32>>();
+            record.ones = Some(ones);
         }
     }
 }
