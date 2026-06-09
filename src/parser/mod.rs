@@ -53,7 +53,7 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
 //!
 //! // Create a Parser to convert the plain text data to PseudoAlns
-//! let mut parser = Parser::new(&mut input, Some(&targets), &queries).unwrap();
+//! let mut parser = Parser::from_query_names(&mut input, Some(&targets), &queries).unwrap();
 //!
 //! let mut alns: Vec<PseudoAln> = Vec::new();
 //!
@@ -605,7 +605,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -626,7 +626,7 @@ mod tests {
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got = reader.get_targets().unwrap();
 
@@ -651,7 +651,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got = reader.get_targets().unwrap();
 
@@ -677,7 +677,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -704,7 +704,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let got_header = reader.get_targets().unwrap();
         assert_eq!(got_header, expected_header);
@@ -738,7 +738,7 @@ mod tests {
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.3".to_string()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut got: Vec<PseudoAln> = Vec::new();
         while let Some(record) = reader.next() {
@@ -790,7 +790,7 @@ mod tests {
         ];
         let queries = (0..129).map(|x| x.to_string()).collect::<Vec<String>>();
         let sample_name = "sample";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -863,7 +863,7 @@ mod tests {
             "ERR4035126.1262962".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -947,7 +947,7 @@ mod tests {
             "ERR4035126.824748".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1030,7 +1030,7 @@ mod tests {
             "ERR4035126.824748".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, None, &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, None, &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1077,7 +1077,7 @@ mod tests {
             "ERR4035126.7543".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1154,7 +1154,7 @@ mod tests {
             "ERR4035126.1178767".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1233,7 +1233,7 @@ mod tests {
             "ERR4035126.1178767".to_string(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::new(&mut cursor, None, &queries).unwrap();
+        let mut reader = Parser::from_query_names(&mut cursor, None, &queries).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
