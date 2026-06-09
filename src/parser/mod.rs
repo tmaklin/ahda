@@ -305,11 +305,12 @@ impl<R: Read> Parser<'_, R> {
     /// Themisto and Fulgor, this will return None.
     ///
     /// Returns None if the header has already been consumed by calling [next].
+    /// This is checked by looking whether target_to_pos contains anything.
     pub fn read_header(
         &mut self,
     ) -> Result<Option<Vec<String>>, E> {
-        if self.buf.get_ref().is_empty() {
-            return Err(Box::new(AmbiguousInputFormatErr{}))
+        if !self.target_to_pos.is_empty() || self.buf.get_ref().is_empty() {
+            return Ok(None)
         }
         match self.format {
             Format::Themisto => Ok(None),
