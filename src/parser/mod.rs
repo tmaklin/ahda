@@ -137,7 +137,7 @@ impl std::error::Error for CorruptedInputErr {}
 /// Input format requires supplying the target sequence names.
 #[derive(Debug, Clone)]
 pub struct NeedTargetSequencesErr {
-    format: Format,
+    pub format: Format,
 }
 
 impl std::fmt::Display for NeedTargetSequencesErr {

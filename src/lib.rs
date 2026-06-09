@@ -463,9 +463,10 @@ pub fn convert_from_read_to_write<R: Read, W: Write>(
 
     let mut writer = if let Some(targets) = targets {
         crate::printer::Printer::new(&mut reader, targets, sample_name, n_queries, format)
-    } else {
-        let targets = reader.get_targets().unwrap();
+    } else if let Some(targets) = reader.get_targets() {
         crate::printer::Printer::new(&mut reader, &targets, sample_name, n_queries, format)
+    } else {
+        return Err(Box::new(parser::NeedTargetSequencesErr{ format: reader.format }))
     };
 
     for record in writer.by_ref() {
@@ -576,9 +577,10 @@ pub fn encode_from_read<R: Read>(
 
     let mut encoder = if let Some(targets) = targets {
         encoder::Encoder::new(&mut reader, targets, sample_name, n_queries)
-    } else {
-        let targets = reader.get_targets().unwrap();
+    } else if let Some(targets) = reader.get_targets() {
         encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries)
+    } else {
+        return Err(Box::new(parser::NeedTargetSequencesErr{ format: reader.format }))
     };
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -638,9 +640,10 @@ pub fn encode_from_read_to_write<R: Read, W: Write>(
 
     let mut encoder = if let Some(targets) = targets {
         encoder::Encoder::new(&mut reader, targets, sample_name, n_queries)
-    } else {
-        let targets = reader.get_targets().unwrap();
+    } else if let Some(targets) = reader.get_targets() {
         encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries)
+    } else {
+        return Err(Box::new(parser::NeedTargetSequencesErr{ format: reader.format }))
     };
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
