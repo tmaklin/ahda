@@ -423,8 +423,7 @@ impl<R: Read> Parser<'_, R> {
             }).collect::<Vec<String>>());
         }
 
-        // TODO figure out why adding `&& record.ones.is_none()` to the clause breaks the tests
-        if record.ones_names.is_some() {
+        if record.ones_names.is_some() && record.ones.is_none() {
             record.ones = Some(
                 record.ones_names.as_ref().unwrap().iter().map(|target_name| {
                     self.target_to_pos.as_ref().unwrap().get_index_of(target_name).unwrap() as u32
