@@ -418,7 +418,6 @@ impl<R: Read> Parser<'_, R> {
 
         if record.ones_names.is_none() && record.ones.is_some() {
             let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                // TODO Need to check somewhere that the number of target sequences matches what is given in the FileHeader.
                 self.target_to_pos.as_ref().unwrap().get_index(*target_idx as usize).unwrap().clone()
             }).collect::<Vec<String>>();
             record.ones_names = Some(ones_names);
