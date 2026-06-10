@@ -451,7 +451,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// ```
 ///
 pub fn convert_from_read_to_write<R: Read, W: Write>(
-    targets: Option<&[String]>,
+    targets: &Option<Vec<String>>,
     queries: PathBuf,
     sample_name: &str,
     format: Format,
@@ -567,7 +567,7 @@ pub fn encode_to_write<W: Write>(
 /// ```
 ///
 pub fn encode_from_read<R: Read>(
-    targets: Option<&[String]>,
+    targets: &Option<Vec<String>>,
     queries: PathBuf,
     sample_name: &str,
     conn_in: &mut R,
@@ -629,7 +629,7 @@ pub fn encode_from_read<R: Read>(
 /// ```
 ///
 pub fn encode_from_read_to_write<R: Read, W: Write>(
-    targets: Option<&[String]>,
+    targets: &Option<Vec<String>>,
     queries: PathBuf,
     sample_name: &str,
     conn_in: &mut R,

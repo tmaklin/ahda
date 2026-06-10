@@ -51,11 +51,12 @@ fn main() {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let targets: Vec<String> = {
+            let mut targets: Option<Vec<String>> = None;
+            if let Some(target_list) = target_list {
                 let f = File::open(target_list).unwrap();
                 let reader = BufReader::new(f);
-                reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
-            };
+                targets = Some(reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>());
+            }
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();
             let mut outputs: Vec<Box<dyn Write>> = Vec::new();

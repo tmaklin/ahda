@@ -244,7 +244,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
     fn new(
         conn_pseudoalns: &'a mut R,
-        targets: Option<&[String]>,
+        targets: &Option<Vec<String>>,
     ) -> Result<Self, E> {
         // Guess the input format
         let mut reader = BufReader::new(conn_pseudoalns);
@@ -278,7 +278,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
     pub fn from_query_names(
         conn_pseudoalns: &'a mut R,
-        targets: Option<&[String]>,
+        targets: &Option<Vec<String>>,
         query_names: &[String],
     ) -> Result<Self, E> {
         let mut ret = Parser::new(conn_pseudoalns, targets)?;
@@ -288,7 +288,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
     pub fn from_fastx_pathbuf(
         conn_pseudoalns: &'a mut R,
-        targets: Option<&[String]>,
+        targets: &Option<Vec<String>>,
         fastx_path: PathBuf,
     ) -> Result<Self, E> {
         let mut ret = Parser::new(conn_pseudoalns, targets)?;
