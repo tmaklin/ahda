@@ -49,7 +49,7 @@
 //! // First set up some mock encoded data
 //! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-//! let name = "sample".to_string();
+//! let name = "sample".as_bytes().to_vec();
 //!
 //! // Have this input data:
 //! //   3    r7543    chr.fasta:virus.fasta
@@ -115,7 +115,7 @@
 //!                                flags_len: 44_u64,
 //!                              };
 //! let mut file_flags = FileFlags::default();
-//! file_flags.query_name = Some("sample".to_string());
+//! file_flags.query_name = Some("sample".as_bytes().to_vec());
 //! file_flags.target_names = Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]);
 //! let block_header = BlockHeader { num_records: 4, placeholder1: 90, block_len: 28, flags_len: 27, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
 //! let block_flags = BlockFlags { queries: vec!["r1".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()], query_ids: vec![0, 2, 3, 4] };
@@ -303,7 +303,7 @@ mod tests {
 
         use std::io::Cursor;
 
-        let expected_flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let expected_flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),

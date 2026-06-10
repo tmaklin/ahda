@@ -212,7 +212,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
@@ -232,7 +232,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
@@ -251,7 +251,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
@@ -273,7 +273,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
@@ -296,7 +296,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);

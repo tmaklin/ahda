@@ -320,7 +320,7 @@ pub struct PseudoAln{
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-/// let name = "ERR4035126".to_string();
+/// let name = "ERR4035126".as_bytes().to_vec();
 ///
 /// let data_1 = vec![
 ///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
@@ -429,7 +429,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// // Mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"1".to_vec(), b"2".to_vec(), b"651903".to_vec(), b"7543".to_vec(), b"16".to_vec()];
-/// let name = "sample".to_string();
+/// let name = "sample".as_bytes().to_vec();
 ///
 /// // Convert to metagraph format
 /// let out_format = Format::Metagraph;
@@ -494,7 +494,7 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
 ///
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-/// let name = "ERR4035126".to_string();
+/// let name = "ERR4035126".as_bytes().to_vec();
 ///
 /// // Encode to `output`
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -539,7 +539,7 @@ pub fn encode_to_write<W: Write>(
 /// // Mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-/// let name = "sample".to_string();
+/// let name = "sample".as_bytes().to_vec();
 ///
 /// // Have this input data:
 /// //   3    r7543    chr.fasta:virus.fasta
@@ -597,7 +597,7 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 /// // Mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-/// let name = "sample".to_string();
+/// let name = "sample".as_bytes().to_vec();
 ///
 /// // Have this input data:
 /// //   3    r7543    chr.fasta:virus.fasta
@@ -660,7 +660,7 @@ pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-/// let name = "sample".to_string();
+/// let name = "sample".as_bytes().to_vec();
 ///
 /// let mut plaintext_bytes: Vec<u8> = Vec::new();
 /// plaintext_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
@@ -717,7 +717,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 ///
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-/// let name = "ERR4035126".to_string();
+/// let name = "ERR4035126".as_bytes().to_vec();
 ///
 /// // Encode mock data
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -759,7 +759,7 @@ pub fn decode_from_read<R: Read>(
 ///
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-/// let name = "ERR4035126".to_string();
+/// let name = "ERR4035126".as_bytes().to_vec();
 ///
 /// // Encode mock data
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -816,7 +816,7 @@ pub fn decode_to_write<W: Write>(
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-/// let name = "sample".to_string();
+/// let name = "sample".as_bytes().to_vec();
 ///
 /// let mut plaintext_bytes: Vec<u8> = Vec::new();
 /// plaintext_bytes.append(&mut b"0\tr1\tvirus.fasta\n".to_vec());
@@ -864,7 +864,7 @@ pub fn decode_to_write<W: Write>(
 ///                                      flags_len: 46_u64,
 ///                                    });
 /// let mut expected_flags = FileFlags::default();
-/// expected_flags.query_name = Some("sample".to_string());
+/// expected_flags.query_name = Some("sample".as_bytes().to_vec());
 /// expected_flags.target_names = Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]);
 /// assert_eq!(file_flags, expected_flags);
 /// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()], query_ids: vec![0, 2, 3, 4] });
@@ -924,7 +924,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-/// let name = "sample".to_string();
+/// let name = "sample".as_bytes().to_vec();
 ///
 /// // Have this input data in two files:
 /// //     0    r1    virus.fasta
@@ -1090,7 +1090,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let out_format = Format::Bifrost;
 
@@ -1122,7 +1122,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let sample = "ERR4035126".to_string();
+        let sample = "ERR4035126".as_bytes().to_vec();
 
         encode_to_write(&targets, &queries, &sample, &data, &mut bytes).unwrap();
 
@@ -1159,7 +1159,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &query_name, &MetadataCompression::default()).unwrap();
         let format = Format::Metagraph;
@@ -1191,7 +1191,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         let mut it = queries.iter();
@@ -1219,7 +1219,7 @@ mod tests {
             PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
         ];
         expected_alns.sort_by_key(|x| *x.query_id.as_ref().unwrap());
-        let (expected_header, expected_flags) = build_file_header_and_flags(&vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()], 5_usize, &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
+        let (expected_header, expected_flags) = build_file_header_and_flags(&vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()], 5_usize, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);
@@ -1296,7 +1296,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let query_ids = vec![0, 1, 2, 3, 4];
         let expected_block_flags = BlockFlags { queries: queries.clone(), query_ids };
-        let (expected_header, expected_flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
+        let (expected_header, expected_flags) = build_file_header_and_flags(&targets, queries.len(), &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);

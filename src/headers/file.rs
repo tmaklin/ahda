@@ -316,9 +316,9 @@ mod tests {
 
         let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
         let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
-        let sample = "sample";
+        let sample = "sample".as_bytes().to_vec();
 
-        let expected_flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let expected_flags = FileFlags { query_name: Some(sample.clone()), target_names: Some(targets.clone()) };
         let nbytes = encode_file_flags(&expected_flags, &MetadataCompression::default()).unwrap().len();
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
@@ -353,7 +353,7 @@ mod tests {
         let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let flags = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
         let mut header = FileHeader {
             ahda_header: build_ahda_header(),
@@ -389,7 +389,7 @@ mod tests {
         let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let flags = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
         let header = FileHeader {
             ahda_header: build_ahda_header(),
@@ -419,7 +419,7 @@ mod tests {
         let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let flags = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
 
         let expected: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
 
@@ -437,7 +437,7 @@ mod tests {
         let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
         let sample = "sample";
 
-        let flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let flags = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
 
         let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 43, 78, 204, 45, 200, 73, 101, 100, 102, 76, 100, 76, 98, 76, 6, 0, 160, 106, 177, 28, 16, 0, 0, 0];
 
@@ -485,7 +485,7 @@ mod tests {
 
         let data: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
 
-        let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let expected = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
 
         let got = decode_file_flags(&data, &MetadataCompression::default()).unwrap();
 
@@ -503,7 +503,7 @@ mod tests {
 
         let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 43, 78, 204, 45, 200, 73, 101, 100, 102, 76, 100, 76, 98, 76, 6, 0, 160, 106, 177, 28, 16, 0, 0, 0];
 
-        let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let expected = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
 
         let got = decode_file_flags(&data, &MetadataCompression::Flate2).unwrap();
 
@@ -570,7 +570,7 @@ mod tests {
         let data_bytes: Vec<u8> = vec![1, 6, 115, 97, 109, 112, 108, 101, 1, 3, 1, 97, 1, 98, 1, 99];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let expected = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
 
         let got = read_file_flags(&header, &mut data).unwrap();
 
@@ -593,7 +593,7 @@ mod tests {
         let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
         let sample = "sample";
 
-        let expected_flags = FileFlags { query_name: Some(sample.to_string()), target_names: Some(targets.clone()) };
+        let expected_flags = FileFlags { query_name: Some(sample.as_bytes().to_vec()), target_names: Some(targets.clone()) };
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),

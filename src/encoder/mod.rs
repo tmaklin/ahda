@@ -49,7 +49,7 @@
 //! // Mock inputs that will be store in FileHeader and FileFlags
 //! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
-//! let name = "sample".to_string();
+//! let name = "sample".as_bytes().to_vec();
 //!
 //! // Have this Metagraph input data:
 //! //   3    r7543    chr.fasta:virus.fasta
@@ -106,7 +106,7 @@
 //!
 //! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec!["r1".as_bytes().to_vec(), "r2".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()];
-//! let name = "sample".to_string();
+//! let name = "sample".as_bytes().to_vec();
 //!
 //! let data: Vec<PseudoAln> = vec![
 //!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
@@ -270,7 +270,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
@@ -297,7 +297,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
@@ -326,7 +326,7 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
-        let query_name ="ERR4035126".to_string();
+        let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());

@@ -136,7 +136,7 @@ mod tests {
         let query_ids = vec![0, 1, 2, 3];
         let block_flags = BlockFlags { queries, query_ids };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
+        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
@@ -180,7 +180,7 @@ mod tests {
         let query_ids = vec![0, 1, 2, 3, 4];
         let block_flags = BlockFlags { queries, query_ids };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
+        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
@@ -223,7 +223,7 @@ mod tests {
         let query_ids = vec![0, 1, 2, 3, 4];
         let block_flags = BlockFlags { queries, query_ids };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
+        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
@@ -265,7 +265,7 @@ mod tests {
         let query_ids = vec![0, 1, 2, 3, 4];
         let block_flags = BlockFlags { queries, query_ids };
         let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".to_string(), &MetadataCompression::default()).unwrap();
+        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
         let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
