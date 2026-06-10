@@ -97,12 +97,12 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
                     let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
 
-                    match File::create(out_path) {
+                    match File::create_new(out_path.clone()) {
                         Ok(conn_out) => {
                             outputs.push(Box::new(conn_out));
                         },
                         Err(e) => {
-                            eprintln!("ahda: can't create output file `{}`: {}", file.to_string_lossy(), e);
+                            eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
                             return Err(Box::new(e))
                         },
                     }
