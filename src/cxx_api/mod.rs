@@ -112,8 +112,8 @@ pub fn encode_file_header_and_flags(
     name: &CxxString,
     n_queries: u32,
 ) -> Vec<u8> {
-    let target_names: Vec<String> = targets.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
-    let query_name: String = name.as_bytes().iter().map(|x| *x as char).collect::<String>();
+    let target_names: Vec<Vec<u8>> = targets.iter().map(|x| x.as_bytes().to_vec()).collect();
+    let query_name: Vec<u8> = name.as_bytes().to_vec();
 
     let (mut header, flags) = build_file_header_and_flags(&target_names, n_queries.try_into().unwrap(), &query_name, &MetadataCompression::default()).unwrap();
     let bytes: Vec<u8> = crate::headers::file::encode_file_header_and_flags(&mut header, &flags).unwrap();
@@ -135,7 +135,7 @@ pub fn encode_block32(
     set_bits: &CxxVector<u32>,
 ) -> Vec<u8> {
     let bitmap = RoaringBitmap::from_iter(set_bits.iter());
-    let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
+    let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
     let block = pack_block_roaring32(&query_names, query_ids.as_slice(), &bitmap);
     block.unwrap()
 }
@@ -154,7 +154,7 @@ pub fn encode_block64(
     set_bits: &CxxVector<u64>,
 ) -> Vec<u8> {
     let bitmap = RoaringTreemap::from_iter(set_bits.iter());
-    let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
+    let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
     let block = pack_block_roaring64(&query_names, query_ids.as_slice(), &bitmap);
     block.unwrap()
 }
@@ -174,9 +174,9 @@ pub fn encode_bitmap(
     name: &CxxString,
     set_bits: &CxxVector<u64>,
 ) -> Vec<u8> {
-    let query_names: Vec<String> = queries.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
-    let target_names: Vec<String> = targets.iter().map(|x| x.as_bytes().iter().map(|x| *x as char).collect::<String>()).collect();
-    let query_name: String = name.as_bytes().iter().map(|x| *x as char).collect::<String>();
+    let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
+    let target_names: Vec<Vec<u8>> = targets.iter().map(|x| x.as_bytes().to_vec()).collect();
+    let query_name: Vec<u8> = name.as_bytes().to_vec();
 
     let mut set_bits_iter = set_bits.as_slice().iter().cloned();
     let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_names, &query_name);
@@ -223,7 +223,7 @@ pub fn decode_target_names(
     let mut cursor = Cursor::new(bytes.as_slice());
     let (header, flags) = read_file_header_and_flags(&mut cursor).unwrap();
     assert_eq!(header.n_targets as usize, flags.target_names.as_ref().unwrap().len());
-    flags.target_names.unwrap()
+    flags.target_names.unwrap().iter().map(|x| String::from_utf8(x.to_vec()).unwrap()).collect()
 }
 
 /// Decodes the query sequence names from the block flags in an .ahda record.
@@ -245,7 +245,8 @@ pub fn decode_query_names(
     while let Ok((header, mut flags)) = read_block_header_and_flags(&mut cursor) {
         assert_eq!(header.num_records as usize, query_names.len());
         assert_eq!(flags.query_ids.len(), query_names.len());
-        query_names.append(&mut flags.queries);
+        let mut queries_str = flags.queries.iter().map(|x| String::from_utf8(x.to_vec()).unwrap());
+        query_names.extend(&mut queries_str);
         cursor.set_position(cursor.position() + header.block_len as u64);
     }
 
