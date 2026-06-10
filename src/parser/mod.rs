@@ -35,7 +35,7 @@
 //!
 //! // Mock inputs that will be stored in FileHeader and FileFlags
 //! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 //! let name = "sample".to_string();
 //!
 //! // Have this plain text:
@@ -53,7 +53,8 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
 //!
 //! // Create a Parser to convert the plain text data to PseudoAlns
-//! let mut parser = Parser::from_query_names(&mut input, Some(&targets), &queries).unwrap();
+//! let mut it = queries.iter();
+//! let mut parser = Parser::new(&mut input, Some(&mut it), &Some(targets)).unwrap();
 //!
 //! let mut alns: Vec<PseudoAln> = Vec::new();
 //!
@@ -514,7 +515,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -536,7 +537,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let got = reader.get_targets().unwrap();
 
@@ -562,7 +563,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let got = reader.get_targets().unwrap();
 
@@ -589,7 +590,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -617,7 +618,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let got_header = reader.get_targets().unwrap();
         assert_eq!(got_header, expected_header);
@@ -652,7 +653,7 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.3".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let mut got: Vec<PseudoAln> = Vec::new();
         while let Some(record) = reader.next() {
@@ -705,7 +706,7 @@ mod tests {
         let queries = (0..129).map(|x| x.to_string().as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
         let sample_name = "sample";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -779,7 +780,7 @@ mod tests {
         ];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -864,7 +865,7 @@ mod tests {
         ];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -948,7 +949,7 @@ mod tests {
         ];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &None).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &None).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -996,7 +997,7 @@ mod tests {
         ];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1074,7 +1075,7 @@ mod tests {
         ];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1154,7 +1155,7 @@ mod tests {
         ];
         let sample_name = "ERR4035126";
         let mut it = queries.iter();
-        let mut reader = Parser::new(&mut cursor, &mut it, &None).unwrap();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), &None).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {

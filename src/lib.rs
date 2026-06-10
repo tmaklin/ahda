@@ -427,13 +427,14 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 ///
 /// // Mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-/// let queries = vec!["1".to_string(), "2".to_string(), "651903".to_string(), "7543".to_string(), "16".to_string()];
+/// let queries = vec![b"1".to_vec(), b"2".to_vec(), b"651903".to_vec(), b"7543".to_vec(), b"16".to_vec()];
 /// let name = "sample".to_string();
 ///
 /// // Convert to metagraph format
 /// let out_format = Format::Metagraph;
 /// let mut output: Vec<u8> = Vec::new();
-/// convert_from_read_to_write(&targets, &queries, &name, out_format, &mut input, &mut output).unwrap();
+/// let mut it = queries.iter();
+/// convert_from_read_to_write(&Some(targets), Some(&mut it), &name, out_format, &mut input, &mut output).unwrap();
 ///
 /// // Expect to get this output:
 /// //   3    7543    chr.fasta:virus.fasta
@@ -539,7 +540,7 @@ pub fn encode_to_write<W: Write>(
 ///
 /// // Mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
 /// // Have this input data:
@@ -555,8 +556,8 @@ pub fn encode_to_write<W: Write>(
 /// input_bytes.append(&mut b"2\tr651903\t\n".to_vec());
 ///
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
-///
-/// let output = encode_from_read(&targets, &queries, &name, &mut input).unwrap();
+/// let mut it = queries.iter();
+/// let output = encode_from_read(&Some(targets), Some(&mut it), &name, &mut input).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// let mut encoded: Cursor<Vec<u8>> = Cursor::new(output);
@@ -600,7 +601,7 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 ///
 /// // Mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
 /// // Have this input data:
@@ -618,7 +619,8 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
 ///
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_from_read_to_write(&targets, &queries, &name, &mut input, &mut output).unwrap();
+/// let mut it = queries.iter();
+/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut input, &mut output).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// output.rewind();
@@ -665,7 +667,7 @@ pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec
 ///
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
 /// let mut plaintext_bytes: Vec<u8> = Vec::new();
@@ -677,7 +679,8 @@ pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec
 /// // Encode mock data
 /// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext, &mut input).unwrap();
+/// let mut it = queries.iter();
+/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
 /// input.rewind();
 ///
 /// // Decode all alignments and compare against the original inputs
@@ -819,7 +822,7 @@ pub fn decode_to_write<W: Write>(
 ///
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
 /// let mut plaintext_bytes: Vec<u8> = Vec::new();
@@ -831,7 +834,8 @@ pub fn decode_to_write<W: Write>(
 /// // Encode mock data
 /// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext, &mut input).unwrap();
+/// let mut it = queries.iter();
+/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
 /// input.rewind();
 ///
 /// // Decode all alignments and compare against the original inputs
@@ -925,7 +929,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 ///
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-/// let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+/// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
 /// // Have this input data in two files:
@@ -948,12 +952,14 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// // Encode mock data
 /// let mut plaintext_1: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_1.clone());
 /// let mut input_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext_1, &mut input_1).unwrap();
+/// let mut it = queries.iter();
+/// encode_from_read_to_write(&Some(targets.clone()), Some(&mut it), &name, &mut plaintext_1, &mut input_1).unwrap();
 /// input_1.rewind();
 ///
 /// let mut plaintext_2: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_2.clone());
 /// let mut input_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_from_read_to_write(&targets, &queries, &name, &mut plaintext_2, &mut input_2).unwrap();
+/// let mut it = queries.iter();
+/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut plaintext_2, &mut input_2).unwrap();
 /// input_2.rewind();
 ///
 /// // Decode data from `input_1`

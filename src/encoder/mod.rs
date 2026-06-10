@@ -48,7 +48,7 @@
 //!
 //! // Mock inputs that will be store in FileHeader and FileFlags
 //! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 //! let name = "sample".to_string();
 //!
 //! // Have this Metagraph input data:
@@ -66,7 +66,8 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
 //!
 //! // Create a Parser to convert the plain text data to PseudoAln and initialize Encoder on this parser to encode it
-//! let mut parser = Parser::new(&mut input, &targets, &queries, &name).unwrap();
+//! let mut it = queries.iter();
+//! let mut parser = Parser::new(&mut input, Some(&mut it), &Some(targets.clone())).unwrap();
 //! let mut encoder = Encoder::new(&mut parser, &targets, &name, queries.len());
 //! encoder.set_block_size(3);
 //!

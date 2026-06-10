@@ -44,7 +44,7 @@
 //!
 //! let mut iter = data.into_iter(); // Printer expectes PseudoAln, not &PseudoAln
 //!
-//! let mut printer = Printer::new(&mut iter, &targets, &queries, &name, Format::Metagraph);
+//! let mut printer = Printer::new(&mut iter, &targets, &name, queries.len(), Format::Metagraph);
 //!
 //! // Print the records in Metagraph format
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -102,7 +102,7 @@
 //! // Decode from `bytes` to Metagraph plaintext format
 //! let mut input = Cursor::new(&bytes);
 //! let mut decoder = Decoder::new(&mut input);
-//! let mut printer = Printer::new(&mut decoder, &targets, &queries, &name, Format::Metagraph);
+//! let mut printer = Printer::new(&mut decoder, &targets, &name, queries.len(), Format::Metagraph);
 //!
 //! let mut output: Vec<u8> = Vec::new();
 //! for mut line in printer.by_ref() {

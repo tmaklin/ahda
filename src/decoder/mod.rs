@@ -48,7 +48,7 @@
 //!
 //! // First set up some mock encoded data
 //! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
-//! let queries = vec!["r1".to_string(), "r2".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()];
+//! let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 //! let name = "sample".to_string();
 //!
 //! // Have this input data:
@@ -66,7 +66,8 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
 //!
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-//! encode_from_read_to_write(&targets, &queries, &name, &mut input, &mut output).unwrap();
+//! let mut it = queries.iter();
+//! encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut input, &mut output).unwrap();
 //! output.rewind();
 //!
 //! // Then, create a Decoder from `output` and retrieve the original data
