@@ -278,7 +278,7 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: Some(1),   ones: Some(vec![4, 2, 9, 7]), ..Default::default()},
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -344,7 +344,7 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".as_bytes().to_vec()) },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -421,7 +421,7 @@ mod tests {
             PseudoAln{ query_name: Some("ERR4035126.824748".as_bytes().to_vec()), ones: Some(vec![0]), ones_names: None, query_id: None },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -483,14 +483,14 @@ mod tests {
         use std::io::Write;
 
         let data = vec![
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(2), ones: Some(vec![]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(1303804), ones: Some(vec![]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(1303804), ones: Some(vec![]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
             PseudoAln{ones_names: Some(vec![]),  query_id: Some(30), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: Some(vec![]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(15084), ones: Some(vec![]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -540,24 +540,24 @@ mod tests {
         use super::PseudoAln;
 
         let data = vec![
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.2".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.3".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1261584".as_bytes().to_vec()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![1]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".as_bytes().to_vec()), ones_names: Some(vec!["OZ038622.1".to_string()]), ones: Some(vec![1]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.4".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.5".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.6".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.2".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.3".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1261584".as_bytes().to_vec()), ones_names: Some(vec!["OZ038622.1".as_bytes().to_vec()]), ones: Some(vec![1]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".as_bytes().to_vec()), ones_names: Some(vec!["OZ038622.1".as_bytes().to_vec()]), ones: Some(vec![1]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.1213410".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.4".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.5".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.6".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.973529".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
             PseudoAln{ query_id: None, query_name: Some("ERR4035126.1178767".as_bytes().to_vec()), ones_names: None, ones: Some(vec![]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
-            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".to_string()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
+            PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()]) };
+        let flags = FileFlags { query_name: Some("ERR4035126".to_string()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),

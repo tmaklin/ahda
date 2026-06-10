@@ -76,7 +76,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
+        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
 
         let expected: Vec<u8> = b"0\tERR4035126.1262940\tchr.fasta\n".to_vec();
 
@@ -91,7 +91,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
+        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]), query_id: Some(0), ones: None, query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
 
         let expected: Vec<u8> = b"0\tERR4035126.1262940\tchr.fasta:plasmid.fasta\n".to_vec();
 
@@ -121,7 +121,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]), query_name: None, ones: None, query_id: None};
+        let data = PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]), query_name: None, ones: None, query_id: None};
 
         let got = format_metagraph_line(&data, &mut Vec::new());
 
@@ -145,7 +145,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_metagraph_line;
 
-        let data = PseudoAln{ones_names:  Some(vec!["chr.fasta".to_string()]), query_name: Some("ERR4035126.1262954".as_bytes().to_vec()), query_id: None, ones: None};
+        let data = PseudoAln{ones_names:  Some(vec!["chr.fasta".as_bytes().to_vec()]), query_name: Some("ERR4035126.1262954".as_bytes().to_vec()), query_id: None, ones: None};
 
         let got = format_metagraph_line(&data, &mut Vec::new());
 

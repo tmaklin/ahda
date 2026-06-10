@@ -161,7 +161,7 @@ mod tests {
     fn format_bifrost_header() {
         use super::format_bifrost_header;
 
-        let data = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+        let data = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 
         let expected: Vec<u8> = b"query_name\tchr.fasta\tplasmid.fasta\n".to_vec();
 
@@ -175,7 +175,7 @@ mod tests {
     fn header_error_if_no_targets() {
         use super::format_bifrost_header;
 
-        let data: Vec<String> = Vec::new();
+        let data: Vec<Vec<u8>> = Vec::new();
 
         let got = format_bifrost_header(&data, &mut Vec::new());
 

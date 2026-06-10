@@ -124,7 +124,7 @@ mod tests {
 
         // Build header
         // let fheader = FileHeader { n_targets: 2, ..Default::default() };
-        let fflags = FileFlags { target_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]), query_name: Some("test.fastq".to_string()) };
+        let fflags = FileFlags { target_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]), query_name: Some("test.fastq".to_string()) };
         let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();
         expected.append(&mut b"@SQ\tSN:chr.fasta\tLN:1\n".to_vec());
         expected.append(&mut b"@SQ\tSN:plasmid.fasta\tLN:1\n".to_vec());
@@ -132,7 +132,7 @@ mod tests {
         // let header = build_sam_header(&fheader, &fflags).unwrap();
         let header = build_sam_header(fflags.target_names.unwrap().as_ref()).unwrap();
 
-        let data = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) };
+        let data = PseudoAln{ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) };
 
         let expected: Vec<u8> =b"ERR4035126.1\t4\tplasmid.fasta\t0\t255\t*\t*\t0\t0\t*\t*\n".to_vec();
 
@@ -150,7 +150,7 @@ mod tests {
         use super::format_sam_header;
 
         // let fheader = FileHeader { n_targets: 2, ..Default::default() };
-        let fflags = FileFlags { target_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]), query_name: Some("test.fastq".to_string()) };
+        let fflags = FileFlags { target_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]), query_name: Some("test.fastq".to_string()) };
 
         let mut expected: Vec<u8> = b"@HD\tVN:1.6\n".to_vec();
         expected.append(&mut b"@SQ\tSN:chr.fasta\tLN:1\n".to_vec());
