@@ -167,7 +167,7 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
         records: &'a mut I,
-        targets: &[String],
+        targets: &[Vec<u8>],
         sample_name: &str,
         n_queries: usize,
     ) -> Self {

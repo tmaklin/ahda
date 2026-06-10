@@ -166,7 +166,7 @@ pub struct Parser<'a, R: Read> {
     pub format: Format,
 
     query_to_pos: IndexSet<&'a Vec<u8>>,
-    target_to_pos: IndexSet<String>,
+    target_to_pos: IndexSet<Vec<u8>>,
 }
 
 impl<'a, R: Read> Parser<'a, R> {
@@ -174,7 +174,7 @@ impl<'a, R: Read> Parser<'a, R> {
     pub fn new<I: Iterator<Item=&'a Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
         conn_query_names: Option<&'a mut I>,
-        targets: &Option<Vec<String>>,
+        targets: Option<&'a mut I>,
     ) -> Result<Self, E> {
         // Guess the input format
         let mut reader = BufReader::new(conn_pseudoalns);
@@ -193,18 +193,14 @@ impl<'a, R: Read> Parser<'a, R> {
         }
 
         let targets_from_header = ret.read_header()?;
-        if targets_from_header.is_some() && targets.is_some() {
-            assert_eq!(targets_from_header.as_ref().unwrap(), targets.as_ref().unwrap());
-        }
-
-        let targets = if let Some(targets) = targets {
-            targets.to_vec()
+        if let Some(targets) = targets {
+            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets.cloned());
         } else if let Some(targets) = targets_from_header {
-            targets
+            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets.iter().cloned());
         } else {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
-        };
-        ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
+        }
+
         if let Some(conn_query_names) = conn_query_names {
             ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names);
         }
@@ -223,7 +219,7 @@ impl<R: Read> Parser<'_, R> {
     /// This is checked by looking whether target_to_pos contains anything.
     pub fn read_header(
         &mut self,
-    ) -> Result<Option<Vec<String>>, E> {
+    ) -> Result<Option<Vec<Vec<u8>>>, E> {
         if !self.target_to_pos.is_empty() || self.buf.get_ref().is_empty() {
             return Ok(None)
         }
@@ -237,9 +233,9 @@ impl<R: Read> Parser<'_, R> {
                 let mut records = contents.split(separator);
                 // Consume `query_name`
                 records.next().ok_or(CorruptedInputErr{})?;
-                let mut target_names: Vec<String> = Vec::new();
+                let mut target_names: Vec<Vec<u8>> = Vec::new();
                 for record in records {
-                    target_names.push(record.to_string());
+                    target_names.push(record.as_bytes().to_vec());
                 }
                 let n_targets = target_names.len();
                 target_names[n_targets - 1].pop();
@@ -264,7 +260,7 @@ impl<R: Read> Parser<'_, R> {
                 }
                 let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut header_contents)?;
                 let header = reader.read_header()?;
-                let target_names: Vec<String> = header.reference_sequences().iter().map(|x| x.0.to_string()).collect();
+                let target_names: Vec<Vec<u8>> = header.reference_sequences().iter().map(|x| x.0.to_vec()).collect();
                 Ok(Some(target_names))
             },
         }
@@ -285,8 +281,8 @@ impl<R: Read> Parser<'_, R> {
 
     pub fn get_targets(
         &self,
-    ) -> Option<Vec<String>> {
-        Some(self.target_to_pos.iter().cloned().collect::<Vec<String>>())
+    ) -> Option<Vec<Vec<u8>>> {
+        Some(self.target_to_pos.iter().cloned().collect())
     }
 
     fn fill_record(
@@ -307,7 +303,7 @@ impl<R: Read> Parser<'_, R> {
         if record.ones_names.is_none() && record.ones.is_some() {
             let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
                 self.target_to_pos.get_index(*target_idx as usize).unwrap().clone()
-            }).collect::<Vec<String>>();
+            }).collect::<Vec<Vec<u8>>>();
             record.ones_names = Some(ones_names);
         }
 

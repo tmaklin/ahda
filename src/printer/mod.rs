@@ -165,7 +165,7 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
         records: &'a mut I,
-        targets: &[String],
+        targets: &[Vec<u8>],
         sample_name: &str,
         n_queries: usize,
         format: Format,

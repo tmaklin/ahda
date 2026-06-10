@@ -54,7 +54,7 @@ pub fn format_metagraph_line<W: Write>(
     formatted += &separator.to_string();
 
     aln.ones_names.as_ref().unwrap().iter().for_each(|name| {
-        formatted += name;
+        formatted += &name.iter().map(|x| *x as char).collect::<String>();
         formatted += &':'.to_string();
 
     });

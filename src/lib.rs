@@ -285,7 +285,7 @@ pub struct PseudoAln{
     /// Indexes of positive alignment targets.
     pub ones: Option<Vec<u32>>,
     /// Names of positive alignment targets.
-    pub ones_names: Option<Vec<String>>,
+    pub ones_names: Option<Vec<Vec<u8>>>,
     /// Index of the query sequence in the query file.
     pub query_id: Option<u32>,
     /// Name of the query sequence in the query file.
@@ -453,7 +453,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// ```
 ///
 pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
-    targets: &Option<Vec<String>>,
+    targets: Option<&'a mut I>,
     queries: Option<&'a mut I>,
     sample_name: &str,
     format: Format,
@@ -463,13 +463,9 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
-    let mut writer = if let Some(targets) = targets {
-        crate::printer::Printer::new(&mut reader, targets, sample_name, n_queries, format)
-    } else if let Some(targets) = reader.get_targets() {
-        crate::printer::Printer::new(&mut reader, &targets, sample_name, n_queries, format)
-    } else {
-        return Err(Box::new(parser::NeedTargetSequencesErr{ format: reader.format }))
-    };
+    // TODO See if this clone of targets can be avoided
+    let targets = reader.get_targets().unwrap();
+    let mut writer = crate::printer::Printer::new(&mut reader, &targets, sample_name, n_queries, format);
 
     for record in writer.by_ref() {
         conn_out.write_all(&record)?;
@@ -511,7 +507,7 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
 /// ```
 ///
 pub fn encode_to_write<W: Write>(
-    targets: &[String],
+    targets: &[Vec<u8>],
     queries: &[Vec<u8>],
     sample_name: &str,
     records: &[PseudoAln],
@@ -569,7 +565,7 @@ pub fn encode_to_write<W: Write>(
 /// ```
 ///
 pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
-    targets: &Option<Vec<String>>,
+    targets: Option<&'a mut I>,
     queries: Option<&'a mut I>,
     sample_name: &str,
     conn_in: &'a mut R,
@@ -577,13 +573,9 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
-    let mut encoder = if let Some(targets) = targets {
-        encoder::Encoder::new(&mut reader, targets, sample_name, n_queries)
-    } else if let Some(targets) = reader.get_targets() {
-        encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries)
-    } else {
-        return Err(Box::new(parser::NeedTargetSequencesErr{ format: reader.format }))
-    };
+    // TODO See if this clone of targets can be avoided
+    let targets = reader.get_targets().unwrap();
+    let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
     for mut block in encoder.by_ref() {
@@ -632,7 +624,7 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 /// ```
 ///
 pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
-    targets: &Option<Vec<String>>,
+    targets: Option<&'a mut I>,
     queries: Option<&'a mut I>,
     sample_name: &str,
     conn_in: &'a mut R,
@@ -641,13 +633,9 @@ pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
-    let mut encoder = if let Some(targets) = targets {
-        encoder::Encoder::new(&mut reader, targets, sample_name, n_queries)
-    } else if let Some(targets) = reader.get_targets() {
-        encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries)
-    } else {
-        return Err(Box::new(parser::NeedTargetSequencesErr{ format: reader.format }))
-    };
+    // TODO See if this clone of targets can be avoided
+    let targets = reader.get_targets().unwrap();
+    let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;

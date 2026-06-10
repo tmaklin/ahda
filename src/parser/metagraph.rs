@@ -77,13 +77,13 @@ pub fn read_metagraph<R: Read>(
     let query_id: u32 = records.next().unwrap().parse::<u32>().unwrap();
     let query_name = records.next().unwrap().as_bytes().to_vec();
 
-    let mut ones_names: Vec<String> = Vec::new();
+    let mut ones_names: Vec<Vec<u8>> = Vec::new();
 
     let ones_records = records.next().unwrap().split(':');
 
     for record in ones_records {
         if !record.is_empty() {
-            ones_names.push(record.to_string());
+            ones_names.push(record.as_bytes().to_vec());
         }
     };
 

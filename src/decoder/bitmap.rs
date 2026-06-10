@@ -58,7 +58,7 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u64>{
         &mut self,
     ) -> Option<Self::Item> {
         let mut ones: Vec<u32> = Vec::with_capacity(self.file_header.n_targets as usize);
-        let mut names: Vec<String> = Vec::with_capacity(self.file_header.n_targets as usize);
+        let mut names: Vec<Vec<u8>> = Vec::with_capacity(self.file_header.n_targets as usize);
         let mut query_id: Option<u32> = None;
 
         let n_targets: u64 = self.file_header.n_targets as u64;

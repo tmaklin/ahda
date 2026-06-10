@@ -58,7 +58,7 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
 impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     pub fn new(
         set_bits: &'a mut I,
-        targets: &[String],
+        targets: &[Vec<u8>],
         queries: &[Vec<u8>],
         sample_name: &str,
     ) -> Self {

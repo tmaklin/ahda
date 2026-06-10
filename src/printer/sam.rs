@@ -76,7 +76,7 @@ pub fn format_sam_line<W: std::io::Write>(
 
 /// Builds a noodles_sam header
 pub fn build_sam_header(
-    targets: &[String],
+    targets: &[Vec<u8>],
     // file_header: &FileHeader,
     // file_flags: &FileFlags
 ) -> Result<sam::Header, E> {

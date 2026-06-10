@@ -48,7 +48,7 @@ pub fn read_sam<R: Read>(
         return Ok(PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: None });
     }
 
-    let target: String = record.reference_sequence_name().unwrap().to_string();
+    let target = record.reference_sequence_name().unwrap().to_vec();
 
     let res = PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: Some(vec![target]) };
     Ok(res)

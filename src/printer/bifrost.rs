@@ -71,7 +71,7 @@ pub fn format_bifrost_line<W: Write>(
 /// all target sequence names.
 ///
 pub fn format_bifrost_header<W: Write>(
-    targets: &[String],
+    targets: &[Vec<u8>],
     conn: &mut W,
 ) -> Result<(), E> {
     let separator: char = '\t';
@@ -85,7 +85,7 @@ pub fn format_bifrost_header<W: Write>(
 
     targets.iter().for_each(|target| {
         formatted += &separator.to_string();
-        formatted += target;
+        formatted += &target.iter().map(|x| *x as char).collect::<String>();
     });
     formatted += "\n";
 

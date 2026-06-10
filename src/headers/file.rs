@@ -85,7 +85,7 @@ pub struct FileFlags {
     /// Query file basename
     pub query_name: Option<String>,
     /// Name and index of target sequences
-    pub target_names: Option<Vec<String>>,
+    pub target_names: Option<Vec<Vec<u8>>>,
 }
 pub fn build_ahda_header() -> [u8; 6] {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -132,7 +132,7 @@ pub fn check_ahda_header(
 }
 
 pub fn build_file_header_and_flags(
-    targets: &[String],
+    targets: &[Vec<u8>],
     n_queries: usize,
     query_name: &str,
     flags_compression: &MetadataCompression,
