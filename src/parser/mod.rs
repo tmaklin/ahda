@@ -493,9 +493,10 @@ mod tests {
         let mut cursor = Cursor::new(data);
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
-        let queries = vec!["ERR4035126.1".to_string()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -514,9 +515,10 @@ mod tests {
         let mut cursor = Cursor::new(data);
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
-        let queries = vec!["ERR4035126.1".to_string()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let got = reader.get_targets().unwrap();
 
@@ -539,9 +541,10 @@ mod tests {
         let mut cursor = Cursor::new(data);
 
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
-        let queries = vec!["ERR4035126.1".to_string()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let got = reader.get_targets().unwrap();
 
@@ -565,9 +568,10 @@ mod tests {
         let mut cursor = Cursor::new(data);
 
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
-        let queries = vec!["ERR4035126.1".to_string()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let got: PseudoAln = reader.next().unwrap();
 
@@ -592,9 +596,10 @@ mod tests {
         let mut cursor = Cursor::new(data);
 
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
-        let queries = vec!["ERR4035126.1".to_string()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let got_header = reader.get_targets().unwrap();
         assert_eq!(got_header, expected_header);
@@ -626,9 +631,10 @@ mod tests {
         let mut cursor = Cursor::new(data);
 
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
-        let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.3".to_string()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.3".as_bytes().to_vec()];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let mut got: Vec<PseudoAln> = Vec::new();
         while let Some(record) = reader.next() {
@@ -678,9 +684,10 @@ mod tests {
             "10".to_string(),
             "11".to_string(),
         ];
-        let queries = (0..129).map(|x| x.to_string()).collect::<Vec<String>>();
+        let queries = (0..129).map(|x| x.to_string().as_bytes().to_vec()).collect::<Vec<Vec<u8>>>();
         let sample_name = "sample";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -738,22 +745,23 @@ mod tests {
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec![
-            "ERR4035126.4996".to_string(),
-            "ERR4035126.1262953".to_string(),
-            "ERR4035126.1262954".to_string(),
-            "ERR4035126.1262955".to_string(),
-            "ERR4035126.1262956".to_string(),
-            "ERR4035126.1262957".to_string(),
-            "ERR4035126.1262958".to_string(),
-            "ERR4035126.1262959".to_string(),
-            "ERR4035126.651965".to_string(),
-            "ERR4035126.11302".to_string(),
-            "ERR4035126.1262960".to_string(),
-            "ERR4035126.1262961".to_string(),
-            "ERR4035126.1262962".to_string(),
+            "ERR4035126.4996".as_bytes().to_vec(),
+            "ERR4035126.1262953".as_bytes().to_vec(),
+            "ERR4035126.1262954".as_bytes().to_vec(),
+            "ERR4035126.1262955".as_bytes().to_vec(),
+            "ERR4035126.1262956".as_bytes().to_vec(),
+            "ERR4035126.1262957".as_bytes().to_vec(),
+            "ERR4035126.1262958".as_bytes().to_vec(),
+            "ERR4035126.1262959".as_bytes().to_vec(),
+            "ERR4035126.651965".as_bytes().to_vec(),
+            "ERR4035126.11302".as_bytes().to_vec(),
+            "ERR4035126.1262960".as_bytes().to_vec(),
+            "ERR4035126.1262961".as_bytes().to_vec(),
+            "ERR4035126.1262962".as_bytes().to_vec(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -818,26 +826,27 @@ mod tests {
 
         let targets = vec!["chromosome.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec![
-            "ERR4035126.724962".to_string(),
-            "ERR4035126.1235744".to_string(),
-            "ERR4035126.431001".to_string(),
-            "ERR4035126.645400".to_string(),
-            "ERR4035126.3001".to_string(),
-            "ERR4035126.515778".to_string(),
-            "ERR4035126.886205".to_string(),
-            "ERR4035126.1254676".to_string(),
-            "ERR4035126.668031".to_string(),
-            "ERR4035126.388619".to_string(),
-            "ERR4035126.959743".to_string(),
-            "ERR4035126.1146685".to_string(),
-            "ERR4035126.1017809".to_string(),
-            "ERR4035126.788136".to_string(),
-            "ERR4035126.1223924".to_string(),
-            "ERR4035126.910807".to_string(),
-            "ERR4035126.824748".to_string(),
+            "ERR4035126.724962".as_bytes().to_vec(),
+            "ERR4035126.1235744".as_bytes().to_vec(),
+            "ERR4035126.431001".as_bytes().to_vec(),
+            "ERR4035126.645400".as_bytes().to_vec(),
+            "ERR4035126.3001".as_bytes().to_vec(),
+            "ERR4035126.515778".as_bytes().to_vec(),
+            "ERR4035126.886205".as_bytes().to_vec(),
+            "ERR4035126.1254676".as_bytes().to_vec(),
+            "ERR4035126.668031".as_bytes().to_vec(),
+            "ERR4035126.388619".as_bytes().to_vec(),
+            "ERR4035126.959743".as_bytes().to_vec(),
+            "ERR4035126.1146685".as_bytes().to_vec(),
+            "ERR4035126.1017809".as_bytes().to_vec(),
+            "ERR4035126.788136".as_bytes().to_vec(),
+            "ERR4035126.1223924".as_bytes().to_vec(),
+            "ERR4035126.910807".as_bytes().to_vec(),
+            "ERR4035126.824748".as_bytes().to_vec(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -901,26 +910,27 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
 
         let queries = vec![
-            "ERR4035126.724962".to_string(),
-            "ERR4035126.1235744".to_string(),
-            "ERR4035126.431001".to_string(),
-            "ERR4035126.645400".to_string(),
-            "ERR4035126.3001".to_string(),
-            "ERR4035126.515778".to_string(),
-            "ERR4035126.886205".to_string(),
-            "ERR4035126.1254676".to_string(),
-            "ERR4035126.668031".to_string(),
-            "ERR4035126.388619".to_string(),
-            "ERR4035126.959743".to_string(),
-            "ERR4035126.1146685".to_string(),
-            "ERR4035126.1017809".to_string(),
-            "ERR4035126.788136".to_string(),
-            "ERR4035126.1223924".to_string(),
-            "ERR4035126.910807".to_string(),
-            "ERR4035126.824748".to_string(),
+            "ERR4035126.724962".as_bytes().to_vec(),
+            "ERR4035126.1235744".as_bytes().to_vec(),
+            "ERR4035126.431001".as_bytes().to_vec(),
+            "ERR4035126.645400".as_bytes().to_vec(),
+            "ERR4035126.3001".as_bytes().to_vec(),
+            "ERR4035126.515778".as_bytes().to_vec(),
+            "ERR4035126.886205".as_bytes().to_vec(),
+            "ERR4035126.1254676".as_bytes().to_vec(),
+            "ERR4035126.668031".as_bytes().to_vec(),
+            "ERR4035126.388619".as_bytes().to_vec(),
+            "ERR4035126.959743".as_bytes().to_vec(),
+            "ERR4035126.1146685".as_bytes().to_vec(),
+            "ERR4035126.1017809".as_bytes().to_vec(),
+            "ERR4035126.788136".as_bytes().to_vec(),
+            "ERR4035126.1223924".as_bytes().to_vec(),
+            "ERR4035126.910807".as_bytes().to_vec(),
+            "ERR4035126.824748".as_bytes().to_vec(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, None, &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &None).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -960,14 +970,15 @@ mod tests {
 
         let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
         let queries = vec![
-            "ERR4035126.2".to_string(),
-            "ERR4035126.1".to_string(),
-            "ERR4035126.651903".to_string(),
-            "ERR4035126.16".to_string(),
-            "ERR4035126.7543".to_string(),
+            "ERR4035126.2".as_bytes().to_vec(),
+            "ERR4035126.1".as_bytes().to_vec(),
+            "ERR4035126.651903".as_bytes().to_vec(),
+            "ERR4035126.16".as_bytes().to_vec(),
+            "ERR4035126.7543".as_bytes().to_vec(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1031,20 +1042,21 @@ mod tests {
 
         let targets = vec!["OZ038621.1".to_string(), "OZ038622.1".to_string()];
         let queries = vec![
-            "ERR4035126.1".to_string(),
-            "ERR4035126.2".to_string(),
-            "ERR4035126.3".to_string(),
-            "ERR4035126.1261584".to_string(),
-            "ERR4035126.1213410".to_string(),
-            "ERR4035126.4".to_string(),
-            "ERR4035126.5".to_string(),
-            "ERR4035126.6".to_string(),
-            "ERR4035126.973529".to_string(),
-            "ERR4035126.621281".to_string(),
-            "ERR4035126.1178767".to_string(),
+            "ERR4035126.1".as_bytes().to_vec(),
+            "ERR4035126.2".as_bytes().to_vec(),
+            "ERR4035126.3".as_bytes().to_vec(),
+            "ERR4035126.1261584".as_bytes().to_vec(),
+            "ERR4035126.1213410".as_bytes().to_vec(),
+            "ERR4035126.4".as_bytes().to_vec(),
+            "ERR4035126.5".as_bytes().to_vec(),
+            "ERR4035126.6".as_bytes().to_vec(),
+            "ERR4035126.973529".as_bytes().to_vec(),
+            "ERR4035126.621281".as_bytes().to_vec(),
+            "ERR4035126.1178767".as_bytes().to_vec(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, Some(&targets), &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &Some(targets)).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
@@ -1110,20 +1122,21 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
 
         let queries = vec![
-            "ERR4035126.1".to_string(),
-            "ERR4035126.2".to_string(),
-            "ERR4035126.3".to_string(),
-            "ERR4035126.1261584".to_string(),
-            "ERR4035126.1213410".to_string(),
-            "ERR4035126.4".to_string(),
-            "ERR4035126.5".to_string(),
-            "ERR4035126.6".to_string(),
-            "ERR4035126.973529".to_string(),
-            "ERR4035126.621281".to_string(),
-            "ERR4035126.1178767".to_string(),
+            "ERR4035126.1".as_bytes().to_vec(),
+            "ERR4035126.2".as_bytes().to_vec(),
+            "ERR4035126.3".as_bytes().to_vec(),
+            "ERR4035126.1261584".as_bytes().to_vec(),
+            "ERR4035126.1213410".as_bytes().to_vec(),
+            "ERR4035126.4".as_bytes().to_vec(),
+            "ERR4035126.5".as_bytes().to_vec(),
+            "ERR4035126.6".as_bytes().to_vec(),
+            "ERR4035126.973529".as_bytes().to_vec(),
+            "ERR4035126.621281".as_bytes().to_vec(),
+            "ERR4035126.1178767".as_bytes().to_vec(),
         ];
         let sample_name = "ERR4035126";
-        let mut reader = Parser::from_query_names(&mut cursor, None, &queries).unwrap();
+        let mut it = queries.iter();
+        let mut reader = Parser::new(&mut cursor, &mut it, &None).unwrap();
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
