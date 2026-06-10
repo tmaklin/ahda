@@ -70,10 +70,9 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 match needletail::parse_fastx_file(query_file) {
                     Ok(mut reader) => {
                         while let Some(record) = reader.next() {
-                            let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
-                            let mut infos = query_info.split(' ');
-                            let query_name = infos.next().unwrap().as_bytes().to_vec();
-                            queries.push(query_name);
+                            let query_info = &record.unwrap();
+                            let end = query_info.id().iter().position(|x| x == &b' ');
+                            queries.push(query_info.id()[0..end.unwrap_or(query_info.id().len())].to_vec());
                         }
                     },
                     Err(e) => {
@@ -97,6 +96,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
                     let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
 
+                    // TODO implement --force
                     match File::create_new(out_path.clone()) {
                         Ok(conn_out) => {
                             outputs.push(Box::new(conn_out));
