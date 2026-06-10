@@ -76,7 +76,7 @@ pub fn read_fulgor<R: Read>(
     let read_name_bytes = records.next().ok_or(CorruptedInputErr{})?;
     let _ = records.next().ok_or(CorruptedInputErr)?;
 
-    let query_name = read_name_bytes.chars().collect::<String>();
+    let query_name = read_name_bytes.as_bytes().to_vec();
     let mut ones: Vec<u32> = Vec::new();
 
     for record in records {

@@ -46,7 +46,7 @@ pub fn format_fulgor_line<W: Write>(
         return Err(Box::new(FulgorPrinterError{}))
     }
 
-    formatted += &aln.query_name.clone().unwrap().to_string();
+    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
     formatted += &separator.to_string();
     formatted += &aln.ones.as_ref().unwrap().len().to_string();
 

@@ -188,7 +188,7 @@ impl<R: Read> Decoder<'_, R> {
         bitmap_decoder: &mut bitmap::BitmapDecoder<I>,
     ) -> Result<Vec<PseudoAln>, E> {
         let mut alns: Vec<PseudoAln> = Vec::new();
-        let mut name_to_id: HashMap<String, u32> = HashMap::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
+        let mut name_to_id: HashMap<Vec<u8>, u32> = HashMap::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
         let mut seen: HashSet<u32> = HashSet::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
         self.block_flags.as_ref().unwrap().query_ids.iter().zip(self.block_flags.as_ref().unwrap().queries.iter()).for_each(|(idx, name)| {
             name_to_id.insert(name.clone(), *idx);

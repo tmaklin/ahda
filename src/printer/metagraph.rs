@@ -50,7 +50,7 @@ pub fn format_metagraph_line<W: Write>(
     formatted += &aln.query_id.as_ref().unwrap().to_string();
     formatted += &separator.to_string();
 
-    formatted += &aln.query_name.clone().unwrap().to_string();
+    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
     formatted += &separator.to_string();
 
     aln.ones_names.as_ref().unwrap().iter().for_each(|name| {

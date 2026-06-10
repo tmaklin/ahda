@@ -71,7 +71,7 @@ pub struct BlockHeader {
 #[derive(Clone, Decode, Debug, Encode, PartialEq)]
 pub struct BlockFlags {
     /// Names of query records
-    pub queries: Vec<String>,
+    pub queries: Vec<Vec<u8>>,
     pub query_ids: Vec<u32>,
 }
 

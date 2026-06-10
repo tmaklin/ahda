@@ -48,7 +48,7 @@ pub fn format_bifrost_line<W: Write>(
         return Err(Box::new(BifrostPrinterError{}))
     }
 
-    formatted += &aln.query_name.clone().unwrap().to_string();
+    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
 
     let ones: &Vec<u32> = aln.ones.as_ref().unwrap();
     let mut ones_bits: Vec<bool> = vec![false; n_targets];

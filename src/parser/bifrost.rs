@@ -96,7 +96,7 @@ pub fn read_bifrost<R: Read>(
         return Err(Box::new(BifrostHeaderNotConsumedError{}))
     }
 
-    let query_name = read_name_bytes.chars().collect::<String>();
+    let query_name = read_name_bytes.as_bytes().to_vec();
 
     let mut ones: Vec<u32> = Vec::new();
     for (idx, record) in records.enumerate() {

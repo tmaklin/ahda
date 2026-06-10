@@ -75,7 +75,7 @@ pub fn read_metagraph<R: Read>(
     let mut records = contents.split(separator);
 
     let query_id: u32 = records.next().unwrap().parse::<u32>().unwrap();
-    let query_name: String = records.next().unwrap().to_string();
+    let query_name = records.next().unwrap().as_bytes().to_vec();
 
     let mut ones_names: Vec<String> = Vec::new();
 

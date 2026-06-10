@@ -85,7 +85,7 @@ pub fn deserialize_roaring32(
 }
 
 pub fn pack_block_roaring32(
-    queries: &[String],
+    queries: &[Vec<u8>],
     query_ids: &[u32],
     bitmap: &RoaringBitmap,
 ) -> Result<Vec<u8>, E> {

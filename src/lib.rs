@@ -289,7 +289,7 @@ pub struct PseudoAln{
     /// Index of the query sequence in the query file.
     pub query_id: Option<u32>,
     /// Name of the query sequence in the query file.
-    pub query_name: Option<String>,
+    pub query_name: Option<Vec<u8>>,
 }
 
 /// Merge compressed data by concatenating all blocks.
@@ -512,7 +512,7 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
 ///
 pub fn encode_to_write<W: Write>(
     targets: &[String],
-    queries: &[String],
+    queries: &[Vec<u8>],
     sample_name: &str,
     records: &[PseudoAln],
     conn_out: &mut W,
@@ -883,7 +883,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
     let header = crate::headers::file::read_file_header(conn_in)?;
     let flags = crate::headers::file::read_file_flags(&header, conn_in)?;
 
-    let mut queries: Vec<String> = Vec::new();
+    let mut queries: Vec<Vec<u8>> = Vec::new();
     let mut query_ids: Vec<u32> = Vec::new();
 
     while let Ok(block_header) = read_block_header(conn_in) {
@@ -907,9 +907,9 @@ pub fn decode_from_read_to_roaring<R: Read>(
         bitmap_out |= bitmap;
     }
 
-    let mut both: Vec<(u32, String)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name.to_string())).collect();
+    let mut both: Vec<(u32, &Vec<u8>)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name)).collect();
     both.sort_by_key(|x| x.0);
-    let queries: Vec<String> = both.iter().map(|x| x.1.to_string()).collect();
+    let queries: Vec<Vec<u8>> = both.iter().map(|x| x.1.clone()).collect::<Vec<Vec<u8>>>();
     let query_ids: Vec<u32> = both.iter().map(|x| x.0).collect();
 
     Ok((bitmap_out, header, flags, BlockFlags{ queries, query_ids }))

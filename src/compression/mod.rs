@@ -111,7 +111,7 @@ pub fn pack_records(
     file_header: &FileHeader,
     records: &[PseudoAln],
 ) -> Result<Vec<u8>, E> {
-    let queries: Vec<String> = records.iter().filter_map(|record| {
+    let queries: Vec<Vec<u8>> = records.iter().filter_map(|record| {
         assert!(record.query_name.is_some());
         record.query_name.clone()
     }).collect();

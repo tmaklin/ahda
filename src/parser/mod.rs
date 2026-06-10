@@ -294,14 +294,14 @@ impl<R: Read> Parser<'_, R> {
         record: &mut PseudoAln,
     ) {
         if record.query_id.is_none() {
-            let key: Vec<u8> = record.query_name.as_ref().unwrap().as_bytes().to_vec();
+            let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
             let query_index = self.query_to_pos.get_index_of(&key).unwrap();
             record.query_id = Some(query_index as u32);
         }
 
         if record.query_name.is_none() {
             let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap();
-            record.query_name = Some(String::from_utf8(query_name.to_vec()).unwrap());
+            record.query_name = Some(query_name.to_vec());
         }
 
         if record.ones_names.is_none() && record.ones.is_some() {

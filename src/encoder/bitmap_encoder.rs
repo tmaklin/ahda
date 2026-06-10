@@ -46,7 +46,7 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // These are given as construtor parameters
     header: FileHeader,
     flags: FileFlags,
-    queries: Vec<String>,
+    queries: Vec<Vec<u8>>,
 
     // Internals
     blocks_written: usize,
@@ -59,7 +59,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     pub fn new(
         set_bits: &'a mut I,
         targets: &[String],
-        queries: &[String],
+        queries: &[Vec<u8>],
         sample_name: &str,
     ) -> Self {
         let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();

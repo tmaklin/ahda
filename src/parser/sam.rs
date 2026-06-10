@@ -42,7 +42,7 @@ pub fn read_sam<R: Read>(
 
     let record = sam::Record::try_from(contents.as_bytes())?;
 
-    let query_name: String = record.name().unwrap().to_string();
+    let query_name = record.name().unwrap().to_vec();
 
     if record.flags().is_ok() && *record.flags().as_ref().unwrap() == Flags::UNMAPPED {
         return Ok(PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: None });

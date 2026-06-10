@@ -27,7 +27,7 @@ pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     file_header: FileHeader,
     file_flags: FileFlags,
 
-    id_to_name: HashMap<u32, String>,
+    id_to_name: HashMap<u32, Vec<u8>>,
 }
 
 impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u64> {
@@ -39,7 +39,7 @@ impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u64> {
         block_flags: BlockFlags,
     ) -> Self {
 
-        let mut id_to_name: HashMap<u32, String> = HashMap::with_capacity(block_header.num_records as usize);
+        let mut id_to_name: HashMap<u32, Vec<u8>> = HashMap::with_capacity(block_header.num_records as usize);
         block_flags.query_ids.iter().zip(block_flags.queries.iter()).for_each(|(idx, name)| {
             id_to_name.insert(*idx, name.clone());
         });
@@ -89,7 +89,7 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u64>{
                 ones: Some(ones.clone()),
                 ones_names: Some(names.clone()),
                 query_id,
-                query_name: Some(self.id_to_name.get(&query_idx).unwrap().to_string()),
+                query_name: Some(self.id_to_name.get(&query_idx).unwrap().to_vec()),
             });
             ones.clear();
             names.clear();
