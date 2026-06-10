@@ -450,13 +450,13 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// assert_eq!(output, expected);
 /// ```
 ///
-pub fn convert_from_read_to_write<R: Read, W: Write, I: Iterator<Item=Vec<u8>>>(
+pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
     targets: &Option<Vec<String>>,
-    queries: &mut I,
+    queries: &'a mut I,
     sample_name: &str,
     format: Format,
-    conn_in: &mut R,
-    conn_out: &mut W,
+    conn_in: &'a mut R,
+    conn_out: &'a mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
@@ -566,11 +566,11 @@ pub fn encode_to_write<W: Write>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read<R: Read, I: Iterator<Item=Vec<u8>>>(
+pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
     targets: &Option<Vec<String>>,
-    queries: &mut I,
+    queries: &'a mut I,
     sample_name: &str,
-    conn_in: &mut R,
+    conn_in: &'a mut R,
 ) -> Result<Vec<u8>, E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
@@ -628,12 +628,12 @@ pub fn encode_from_read<R: Read, I: Iterator<Item=Vec<u8>>>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read_to_write<R: Read, W: Write, I: Iterator<Item=Vec<u8>>>(
+pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
     targets: &Option<Vec<String>>,
-    queries: &mut I,
+    queries: &'a mut I,
     sample_name: &str,
-    conn_in: &mut R,
-    conn_out: &mut W,
+    conn_in: &'a mut R,
+    conn_out: &'a mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();

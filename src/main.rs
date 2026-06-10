@@ -89,7 +89,7 @@ fn main() {
             }
 
             inputs.iter_mut().zip(outputs.iter_mut()).for_each(|(conn_in, conn_out)| {
-                ahda::encode_from_read_to_write(&targets, &mut queries.iter().cloned(), &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
+                ahda::encode_from_read_to_write(&targets, &mut queries.iter(), &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
             })
         },
 

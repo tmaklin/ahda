@@ -152,13 +152,13 @@ pub struct Parser<'a, R: Read> {
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: IndexSet<Vec<u8>>,
+    query_to_pos: IndexSet<&'a Vec<u8>>,
     target_to_pos: IndexSet<String>,
 }
 
 impl<'a, R: Read> Parser<'a, R> {
 
-    pub fn new<I: Iterator<Item=Vec<u8>>>(
+    pub fn new<I: Iterator<Item=&'a Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
         conn_query_names: &'a mut I,
         targets: &Option<Vec<String>>,
@@ -188,7 +188,7 @@ impl<'a, R: Read> Parser<'a, R> {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
         ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
-        ret.query_to_pos = IndexSet::<Vec<u8>>::from_iter(conn_query_names);
+        ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names);
 
         Ok(ret)
     }
@@ -275,13 +275,14 @@ impl<R: Read> Parser<'_, R> {
         record: &mut PseudoAln,
     ) {
         if record.query_id.is_none() {
-            let query_index = self.query_to_pos.get_index_of(record.query_name.as_ref().unwrap().as_bytes()).unwrap();
+            let key: Vec<u8> = record.query_name.as_ref().unwrap().as_bytes().to_vec();
+            let query_index = self.query_to_pos.get_index_of(&key).unwrap();
             record.query_id = Some(query_index as u32);
         }
 
         if record.query_name.is_none() {
             let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().clone();
-            record.query_name = Some(String::from_utf8(query_name).unwrap());
+            record.query_name = Some(String::from_utf8(query_name.clone()).unwrap());
         }
 
         if record.ones_names.is_none() && record.ones.is_some() {
