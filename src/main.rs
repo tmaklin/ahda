@@ -37,7 +37,7 @@ fn init_log(log_max_level: usize) {
     .unwrap();
 }
 
-fn main() {
+fn main() -> Result<(),  Box<dyn std::error::Error>> {
     let cli = cli::Cli::parse();
 
     // Subcommands:
@@ -90,7 +90,7 @@ fn main() {
                 outputs.push(Box::new(conn_out));
             }
 
-            inputs.iter_mut().zip(outputs.iter_mut()).enumerate().for_each(|(idx, (conn_in, conn_out))| {
+            for (idx, (conn_in, conn_out)) in inputs.iter_mut().zip(outputs.iter_mut()).enumerate() {
                 let ret = if !queries.is_empty() {
                     let mut it = queries.iter();
                     ahda::encode_from_read_to_write(&targets, Some(&mut it), &query_file.as_ref().unwrap().to_string_lossy(), &mut *conn_in, &mut *conn_out)
@@ -99,9 +99,11 @@ fn main() {
                     ahda::encode_from_read_to_write(&targets, None::<&mut std::iter::Empty<&Vec<u8>>>, &sample, &mut *conn_in, &mut *conn_out)
                 };
                 if ret.is_err() {
-                    eprintln!("ahda: can't encode input file {}: {}", input_files[idx].to_string_lossy(), ret.unwrap_err());
+                    eprintln!("ahda: can't encode input file {}: {}", input_files[idx].to_string_lossy(), ret.as_ref().unwrap_err());
+                    ret?
                 }
-            });
+            }
+            Ok(())
         },
 
         // Decode
@@ -122,7 +124,7 @@ fn main() {
 
                 ahda::decode_from_read_to_write(format.clone().unwrap_or_default(), &mut conn_in, &mut conn_out).unwrap();
             });
-
+            Ok(())
         },
 
         // Cat
@@ -140,6 +142,7 @@ fn main() {
             let mut conn_out = std::io::stdout();
 
             ahda::concatenate_from_read_to_write(&mut inputs, &mut conn_out).unwrap();
+            Ok(())
         },
 
         // Convert
@@ -163,6 +166,7 @@ fn main() {
 
             let sample_name = query_file.file_stem().unwrap().to_string_lossy();
             // ahda::convert_from_read_to_write(&targets, query_file.clone(), &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
+            Ok(())
         },
 
         // Set operations
@@ -193,8 +197,9 @@ fn main() {
                 std::io::stdout().write_all(&line).unwrap();
             }
             std::io::stdout().flush().unwrap();
+            Ok(())
 
         },
-        None => { eprintln!("ahda: Try 'ahda --help' for more information.") },
+        None => { eprintln!("ahda: Try 'ahda --help' for more information."); Ok(()) },
     }
 }
