@@ -145,7 +145,19 @@ impl std::fmt::Display for NeedTargetSequencesErr {
 
 impl std::error::Error for NeedTargetSequencesErr {}
 
-use std::path::PathBuf;
+/// Input format requires supplying the query sequence names.
+#[derive(Debug, Clone)]
+pub struct NeedQueryNamesErr {
+    pub format: Format,
+}
+
+impl std::fmt::Display for NeedQueryNamesErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Detected input format `{}` requires supplying the query sequence names.", self.format)
+    }
+}
+
+impl std::error::Error for NeedQueryNamesErr {}
 
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
@@ -160,7 +172,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
     pub fn new<I: Iterator<Item=&'a Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
-        conn_query_names: &'a mut I,
+        mut conn_query_names: Option<&'a mut I>,
         targets: &Option<Vec<String>>,
     ) -> Result<Self, E> {
         // Guess the input format
@@ -175,6 +187,10 @@ impl<'a, R: Read> Parser<'a, R> {
             target_to_pos: IndexSet::new(),
         };
 
+        if ret.format != Format::Metagraph && conn_query_names.is_none() {
+            return Err(Box::new(NeedQueryNamesErr{ format: ret.format }))
+        }
+
         let targets_from_header = ret.read_header()?;
         if targets_from_header.is_some() && targets.is_some() {
             assert_eq!(targets_from_header.as_ref().unwrap(), targets.as_ref().unwrap());
@@ -188,7 +204,7 @@ impl<'a, R: Read> Parser<'a, R> {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
         ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
-        ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names);
+        ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names.as_mut().unwrap());
 
         Ok(ret)
     }
