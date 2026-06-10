@@ -319,16 +319,16 @@ pub struct PseudoAln{
 ///
 /// // Set up mock inputs
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
-/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
 /// let data_1 = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 /// let data_2 = vec![
-///     PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".to_string()) },
-///     PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
 /// ];
 ///
 /// let mut data_bytes_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -491,12 +491,12 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
 ///
 /// // Mock data
 /// let data = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 ///
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
-/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
 /// // Encode to `output`
@@ -719,12 +719,12 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 ///
 /// // Mock data
 /// let data = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 ///
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
-/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
 /// // Encode mock data
@@ -761,12 +761,12 @@ pub fn decode_from_read<R: Read>(
 ///
 /// // Mock data
 /// let data = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".to_string()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".to_string()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 ///
 /// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
-/// let queries = vec!["ERR4035126.1".to_string(), "ERR4035126.2".to_string(), "ERR4035126.651903".to_string(), "ERR4035126.7543".to_string(), "ERR4035126.16".to_string()];
+/// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
 /// // Encode mock data
@@ -874,7 +874,7 @@ pub fn decode_to_write<W: Write>(
 /// expected_flags.query_name = Some("sample".to_string());
 /// expected_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
 /// assert_eq!(file_flags, expected_flags);
-/// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] });
+/// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()], query_ids: vec![0, 2, 3, 4] });
 ///
 pub fn decode_from_read_to_roaring<R: Read>(
     conn_in: &mut R,

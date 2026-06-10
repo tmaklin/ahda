@@ -77,10 +77,10 @@
 //! alns.extend(decoder); // Use Iterator to read all alignments from Decoder
 //!
 //! let expected = vec![
-//!                     PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) },
-//!                     PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) },
-//!                     PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) },
-//!                     PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".to_string()) }
+//!                     PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
+//!                     PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
+//!                     PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
+//!                     PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) }
 //!                     ];
 //!
 //! assert_eq!(alns, expected);
@@ -117,14 +117,14 @@
 //! file_flags.query_name = Some("sample".to_string());
 //! file_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
 //! let block_header = BlockHeader { num_records: 4, placeholder1: 90, block_len: 28, flags_len: 27, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-//! let block_flags = BlockFlags { queries: vec!["r1".to_string(), "r651903".to_string(), "r7543".to_string(), "r16".to_string()], query_ids: vec![0, 2, 3, 4] };
+//! let block_flags = BlockFlags { queries: vec!["r1".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()], query_ids: vec![0, 2, 3, 4] };
 //!
 //! let mut bits_iter = input.iter().map(|x| x as u64); // BitmapDecoder expects u64 indices
 //! let mut bitmap_decoder = BitmapDecoder::new(&mut bits_iter, file_header, file_flags, block_header, block_flags);
 //!
-//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".to_string()) });
-//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".to_string()) });
-//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".to_string()) });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
 //!
 //! assert_eq!(bitmap_decoder.next(), None); // Note that the PseudoAln with query_id: 2 is not included because it did not align against anything
 //! ```
