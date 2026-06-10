@@ -183,7 +183,7 @@ pub fn encode_bitmap(
 
     let mut bytes: Vec<u8> = encoder.encode_file_header_and_flags().unwrap();
     for mut block in encoder.by_ref() {
-        bytes.append(&mut block);
+        bytes.append(&mut block.unwrap());
     }
 
     bytes
