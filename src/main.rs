@@ -53,19 +53,33 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut targets: Option<Vec<String>> = None;
             if let Some(target_list) = target_list {
-                let f = File::open(target_list).unwrap();
-                let reader = BufReader::new(f);
-                targets = Some(reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>());
+                match File::open(target_list) {
+                    Ok(f) => {
+                        let reader = BufReader::new(f);
+                        targets = Some(reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>());
+                    },
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", target_list.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
             }
 
             let mut queries: Vec<Vec<u8>> = Vec::new();
             if let Some(query_file) = query_file {
-                let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
-                while let Some(record) = reader.next() {
-                    let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
-                    let mut infos = query_info.split(' ');
-                    let query_name = infos.next().unwrap().as_bytes().to_vec();
-                    queries.push(query_name);
+                match needletail::parse_fastx_file(query_file) {
+                    Ok(mut reader) => {
+                        while let Some(record) = reader.next() {
+                            let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
+                            let mut infos = query_info.split(' ');
+                            let query_name = infos.next().unwrap().as_bytes().to_vec();
+                            queries.push(query_name);
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", query_file.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
                 }
             }
 
@@ -73,14 +87,25 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             let mut outputs: Vec<Box<dyn Write>> = Vec::new();
             if !input_files.is_empty() {
                 for file in input_files {
-                    let conn_in = File::open(file).unwrap();
-                    inputs.push(Box::new(conn_in));
+                    match File::open(file) {
+                        Ok(conn_in) => inputs.push(Box::new(conn_in)),
+                        Err(e) => {
+                            eprintln!("ahda: can't open input file `{}`: {}", file.to_string_lossy(), e);
+                            return Err(Box::new(e))
+                        },
+                    }
 
                     let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
-                    let f = File::create(out_path).unwrap();
-                    let conn_out = BufWriter::new(f);
-                    outputs.push(Box::new(conn_out));
 
+                    match File::create(out_path) {
+                        Ok(conn_out) => {
+                            outputs.push(Box::new(conn_out));
+                        },
+                        Err(e) => {
+                            eprintln!("ahda: can't create output file `{}`: {}", file.to_string_lossy(), e);
+                            return Err(Box::new(e))
+                        },
+                    }
                 }
             } else {
                 let conn_in = std::io::stdin();
@@ -99,7 +124,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                     ahda::encode_from_read_to_write(&targets, None::<&mut std::iter::Empty<&Vec<u8>>>, &sample, &mut *conn_in, &mut *conn_out)
                 };
                 if ret.is_err() {
-                    eprintln!("ahda: can't encode input file {}: {}", input_files[idx].to_string_lossy(), ret.as_ref().unwrap_err());
+                    eprintln!("ahda: can't encode input file `{}`: {}", input_files[idx].to_string_lossy(), ret.as_ref().unwrap_err());
                     ret?
                 }
             }
