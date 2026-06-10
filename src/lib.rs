@@ -312,7 +312,8 @@ pub struct PseudoAln{
 ///
 /// ## Usage
 ///
-/// ```rust
+/// ```no_run
+/// // TODO This is not currently supported.
 /// use ahda::{concatenate_from_read_to_write, decode_from_read, encode_to_write};
 /// use ahda::PseudoAln;
 /// use std::io::{Cursor, Seek};
