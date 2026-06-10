@@ -157,6 +157,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             input_files,
             verbose,
         }) => {
+            todo!("Implement `ahda cat`");
             init_log(if *verbose { 2 } else { 1 });
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();

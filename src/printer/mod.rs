@@ -523,6 +523,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "not yet implemented")]
     fn print_sam_output() {
         use super::Printer;
 

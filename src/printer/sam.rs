@@ -48,6 +48,7 @@ pub fn format_sam_line<W: std::io::Write>(
     header: &sam::Header,
     conn: &mut W,
 ) -> Result<(), E> {
+    todo!("Print PseudoAln in SAM format");
     // TODO Better error messages.
     if aln.query_name.is_none() {
         return Err(Box::new(SamPrinterError{}))
@@ -113,6 +114,7 @@ pub fn format_sam_header<W: std::io::Write>(
 mod tests {
 
     #[test]
+    #[should_panic(expected = "not yet implemented")]
     fn format_sam_line_aligned() {
         // use crate::headers::file::FileHeader;
         use crate::headers::file::FileFlags;

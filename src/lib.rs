@@ -367,6 +367,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     // alternatively we need to implement a primary/secondary alignment flag
     // somewhere.
 
+    todo!("Handle duplicated queries when concatenating files");
     let headers_flags = conns.iter_mut().map(|conn_in| {
         let header = read_file_header(conn_in).unwrap();
         let flags = read_file_flags(&header, conn_in).unwrap();
@@ -1030,6 +1031,7 @@ pub fn decode_from_read_into_roaring<R: Read>(
 mod tests {
 
     #[test]
+    #[should_panic(expected = "not yet implemented")]
     fn concatenate_from_read_to_write() {
         use super::concatenate_from_read_to_write;
 
@@ -1054,6 +1056,7 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "not yet implemented")]
     fn concatenate_from_read_to_write_with_duplicated_queries() {
         use super::concatenate_from_read_to_write;
 
