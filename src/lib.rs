@@ -111,7 +111,6 @@ use compression::roaring64::unpack_block_roaring64;
 
 use std::io::Read;
 use std::io::Write;
-use std::path::PathBuf;
 
 use roaring::treemap::RoaringTreemap;
 

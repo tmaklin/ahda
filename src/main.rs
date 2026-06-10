@@ -56,7 +56,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 match File::open(target_list) {
                     Ok(f) => {
                         let reader = BufReader::new(f);
-                        targets = Some(reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>());
+                        // TODO avoid the utf8 conversion here and everywhere else
+                        targets = Some(reader.split(b'\n').map(|x| String::from_utf8(x.unwrap()).unwrap()).collect::<Vec<String>>());
                     },
                     Err(e) => {
                         eprintln!("ahda: can't open input file `{}`: {}", target_list.to_string_lossy(), e);
@@ -191,6 +192,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             let mut conn_out = std::io::stdout();
 
             let sample_name = query_file.file_stem().unwrap().to_string_lossy();
+            // TODO Enable convert
             // ahda::convert_from_read_to_write(&targets, query_file.clone(), &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
             Ok(())
         },

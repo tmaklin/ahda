@@ -173,7 +173,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
     pub fn new<I: Iterator<Item=&'a Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
-        mut conn_query_names: Option<&'a mut I>,
+        conn_query_names: Option<&'a mut I>,
         targets: &Option<Vec<String>>,
     ) -> Result<Self, E> {
         // Guess the input format
@@ -300,8 +300,8 @@ impl<R: Read> Parser<'_, R> {
         }
 
         if record.query_name.is_none() {
-            let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().clone();
-            record.query_name = Some(String::from_utf8(query_name.clone()).unwrap());
+            let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap();
+            record.query_name = Some(String::from_utf8(query_name.to_vec()).unwrap());
         }
 
         if record.ones_names.is_none() && record.ones.is_some() {
