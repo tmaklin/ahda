@@ -86,9 +86,6 @@ use crate::parser::sam::read_sam;
 use crate::parser::themisto::read_themisto;
 
 use indexmap::IndexSet;
-use memchr::memmem;
-use memmap2::Mmap;
-use memmap2::MmapOptions;
 
 use std::io::BufRead;
 use std::io::BufReader;
@@ -150,100 +147,20 @@ impl std::error::Error for NeedTargetSequencesErr {}
 
 use std::path::PathBuf;
 
-pub struct FastxNameReader {
-    mmap_index: IndexSet<usize>,
-    fastx_mmap: Mmap,
-    prev_byte: usize,
-}
-
-impl FastxNameReader {
-    // TODO Implement tests
-
-    // TODO Using this is pretty slow although it reduces the memory usage by ~5x
-
-    pub fn from_pathbuf(
-        fastx_path: PathBuf,
-    ) -> Result<Self, E> {
-        let mut mmap_index: IndexSet<usize> = IndexSet::new();
-        {
-            // TODO Needletail seems to use a lot of memory to parse the file, investigate.
-            let mut reader = needletail::parse_fastx_file(fastx_path.clone()).expect("Valid fastX file");
-            while reader.next().is_some() {
-                mmap_index.insert(reader.position().byte() as usize + 1); // First byte is '@' which we ignore
-            }
-        }
-        let file = std::fs::File::open(fastx_path.clone())?;
-        let fastx_mmap = unsafe {
-            MmapOptions::new().populate().no_reserve_swap().map(&file)?
-//            Mmap::map(&file)?
-        };
-        Ok(Self {
-            mmap_index,
-            fastx_mmap,
-            prev_byte: 0_usize,
-        })
-    }
-
-    pub fn get_index(
-        &mut self,
-        index: usize,
-    ) -> Result<Option<String>, E> {
-        let start = self.mmap_index[index];
-        let search_end = (start + 4096).min(self.fastx_mmap.len());
-        let end = memchr::memchr(b'\n', &self.fastx_mmap[start..search_end]).unwrap() + start;
-        if end == self.fastx_mmap.len() {
-            Ok(None)
-        } else {
-            let query_name = String::from_utf8(self.fastx_mmap[start..end].to_vec())?;
-            self.prev_byte = start;
-            Ok(Some(query_name))
-        }
-    }
-
-    pub fn get_index_of(
-        &mut self,
-        query: &[u8],
-    ) -> Option<usize> {
-        let byte_guess = memmem::find(&self.fastx_mmap[self.prev_byte..(self.prev_byte + 4096)], query);
-        let byte = if let Some(byte_guess) = byte_guess {
-            byte_guess + self.prev_byte
-        } else {
-            memmem::find(&self.fastx_mmap, query)?
-        };
-        let index = self.mmap_index.get_index_of(&byte)?;
-        self.prev_byte = byte;
-        Some(index)
-
-    }
-
-    pub fn len(
-        &self,
-    ) -> usize {
-        self.mmap_index.len()
-    }
-
-    pub fn is_empty(
-        &self,
-    ) -> bool {
-        self.mmap_index.is_empty()
-    }
-}
-
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_names: Option<FastxNameReader>,
-    query_to_pos: Option<IndexSet<String>>,
+    query_to_pos: IndexSet<Vec<u8>>,
     target_to_pos: IndexSet<String>,
-
 }
 
 impl<'a, R: Read> Parser<'a, R> {
 
-    fn new(
+    pub fn new<I: Iterator<Item=Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
+        conn_query_names: &'a mut I,
         targets: &Option<Vec<String>>,
     ) -> Result<Self, E> {
         // Guess the input format
@@ -254,8 +171,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
         let mut ret = Self {
             reader, buf, format,
-            query_names: None,
-            query_to_pos: None,
+            query_to_pos: IndexSet::new(),
             target_to_pos: IndexSet::new(),
         };
 
@@ -272,30 +188,10 @@ impl<'a, R: Read> Parser<'a, R> {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
         ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
+        ret.query_to_pos = IndexSet::<Vec<u8>>::from_iter(conn_query_names);
 
         Ok(ret)
     }
-
-    pub fn from_query_names(
-        conn_pseudoalns: &'a mut R,
-        targets: &Option<Vec<String>>,
-        query_names: &[String],
-    ) -> Result<Self, E> {
-        let mut ret = Parser::new(conn_pseudoalns, targets)?;
-        ret.query_to_pos = Some(IndexSet::from_iter(query_names.iter().cloned()));
-        Ok(ret)
-    }
-
-    pub fn from_fastx_pathbuf(
-        conn_pseudoalns: &'a mut R,
-        targets: &Option<Vec<String>>,
-        fastx_path: PathBuf,
-    ) -> Result<Self, E> {
-        let mut ret = Parser::new(conn_pseudoalns, targets)?;
-        ret.query_names = Some(FastxNameReader::from_pathbuf(fastx_path)?);
-        Ok(ret)
-    }
-
 }
 
 impl<R: Read> Parser<'_, R> {
@@ -359,13 +255,13 @@ impl<R: Read> Parser<'_, R> {
     pub fn len(
         &self,
     ) -> usize {
-        self.query_names.as_ref().unwrap().len()
+        self.query_to_pos.len()
     }
 
     pub fn is_empty(
         &self,
     ) -> bool {
-        self.query_names.as_ref().unwrap().is_empty()
+        self.query_to_pos.is_empty()
     }
 
     pub fn get_targets(
@@ -379,21 +275,13 @@ impl<R: Read> Parser<'_, R> {
         record: &mut PseudoAln,
     ) {
         if record.query_id.is_none() {
-            let query_index = if self.query_names.is_some() {
-                self.query_names.as_mut().unwrap().get_index_of(record.query_name.as_ref().unwrap().as_bytes()).unwrap()
-            } else {
-                self.query_to_pos.as_mut().unwrap().get_index_of(&record.query_name.as_ref().unwrap().to_string()).unwrap()
-            };
+            let query_index = self.query_to_pos.get_index_of(record.query_name.as_ref().unwrap().as_bytes()).unwrap();
             record.query_id = Some(query_index as u32);
         }
 
         if record.query_name.is_none() {
-            let query_name = if self.query_names.is_some() {
-                self.query_names.as_mut().unwrap().get_index(record.query_id.unwrap() as usize).unwrap().unwrap()
-            } else {
-                self.query_to_pos.as_mut().unwrap().get_index(record.query_id.unwrap() as usize).unwrap().clone()
-            };
-            record.query_name = Some(query_name);
+            let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap().clone();
+            record.query_name = Some(String::from_utf8(query_name).unwrap());
         }
 
         if record.ones_names.is_none() && record.ones.is_some() {

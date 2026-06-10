@@ -450,15 +450,15 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// assert_eq!(output, expected);
 /// ```
 ///
-pub fn convert_from_read_to_write<R: Read, W: Write>(
+pub fn convert_from_read_to_write<R: Read, W: Write, I: Iterator<Item=Vec<u8>>>(
     targets: &Option<Vec<String>>,
-    queries: PathBuf,
+    queries: &mut I,
     sample_name: &str,
     format: Format,
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut reader = crate::parser::Parser::from_fastx_pathbuf(conn_in, targets, queries.clone())?;
+    let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
     let mut writer = if let Some(targets) = targets {
@@ -566,13 +566,13 @@ pub fn encode_to_write<W: Write>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read<R: Read>(
+pub fn encode_from_read<R: Read, I: Iterator<Item=Vec<u8>>>(
     targets: &Option<Vec<String>>,
-    queries: PathBuf,
+    queries: &mut I,
     sample_name: &str,
     conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
-    let mut reader = crate::parser::Parser::from_fastx_pathbuf(conn_in, targets, queries.clone())?;
+    let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
     let mut encoder = if let Some(targets) = targets {
@@ -628,14 +628,14 @@ pub fn encode_from_read<R: Read>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read_to_write<R: Read, W: Write>(
+pub fn encode_from_read_to_write<R: Read, W: Write, I: Iterator<Item=Vec<u8>>>(
     targets: &Option<Vec<String>>,
-    queries: PathBuf,
+    queries: &mut I,
     sample_name: &str,
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut reader = crate::parser::Parser::from_fastx_pathbuf(conn_in, targets, queries.clone())?;
+    let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
     let mut encoder = if let Some(targets) = targets {
