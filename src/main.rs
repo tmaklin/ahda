@@ -59,12 +59,14 @@ fn main() {
             }
 
             let mut queries: Vec<Vec<u8>> = Vec::new();
-            let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
-            while let Some(record) = reader.next() {
-                let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
-                let mut infos = query_info.split(' ');
-                let query_name = infos.next().unwrap().as_bytes().to_vec();
-                queries.push(query_name);
+            if let Some(query_file) = query_file {
+                let mut reader = needletail::parse_fastx_file(query_file).expect("Valid fastX file");
+                while let Some(record) = reader.next() {
+                    let query_info = record.unwrap().id().iter().map(|x| *x as char).collect::<String>();
+                    let mut infos = query_info.split(' ');
+                    let query_name = infos.next().unwrap().as_bytes().to_vec();
+                    queries.push(query_name);
+                }
             }
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();
@@ -88,9 +90,18 @@ fn main() {
                 outputs.push(Box::new(conn_out));
             }
 
-            inputs.iter_mut().zip(outputs.iter_mut()).for_each(|(conn_in, conn_out)| {
-                ahda::encode_from_read_to_write(&targets, &mut queries.iter(), &query_file.to_string_lossy(), &mut *conn_in, &mut *conn_out).unwrap();
-            })
+            inputs.iter_mut().zip(outputs.iter_mut()).enumerate().for_each(|(idx, (conn_in, conn_out))| {
+                let ret = if !queries.is_empty() {
+                    let mut it = queries.iter();
+                    ahda::encode_from_read_to_write(&targets, Some(&mut it), &query_file.as_ref().unwrap().to_string_lossy(), &mut *conn_in, &mut *conn_out)
+                } else {
+                    let sample = input_files[idx].to_string_lossy();
+                    ahda::encode_from_read_to_write(&targets, None::<&mut std::iter::Empty<&Vec<u8>>>, &sample, &mut *conn_in, &mut *conn_out)
+                };
+                if ret.is_err() {
+                    eprintln!("ahda: can't encode input file {}: {}", input_files[idx].to_string_lossy(), ret.unwrap_err());
+                }
+            });
         },
 
         // Decode

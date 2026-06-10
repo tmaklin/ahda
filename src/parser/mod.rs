@@ -204,7 +204,9 @@ impl<'a, R: Read> Parser<'a, R> {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         };
         ret.target_to_pos = IndexSet::<String>::from_iter(targets.iter().cloned());
-        ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names.as_mut().unwrap());
+        if let Some(conn_query_names) = conn_query_names {
+            ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names);
+        }
 
         Ok(ret)
     }

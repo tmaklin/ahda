@@ -32,8 +32,8 @@ pub enum Commands {
         input_files: Vec<PathBuf>,
 
         // FastX file used to generate the alignment
-        #[arg(short = 'q', long = "query", required = true)]
-        query_file: PathBuf,
+        #[arg(short = 'q', long = "query")]
+        query_file: Option<PathBuf>,
 
         // File listing target sequence names in the order they appear in the index
         #[arg(long = "targets")]
