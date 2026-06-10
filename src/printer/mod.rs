@@ -166,7 +166,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn new(
         records: &'a mut I,
         targets: &[Vec<u8>],
-        sample_name: &str,
+        sample_name: &[u8],
         n_queries: usize,
         format: Format,
     ) -> Self {

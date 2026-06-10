@@ -119,10 +119,10 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 let mut t_it = targets.iter();
                 let ret = if !queries.is_empty() {
                     let mut q_it = queries.iter();
-                    ahda::encode_from_read_to_write(Some(&mut t_it), Some(&mut q_it), &query_file.as_ref().unwrap().to_string_lossy(), &mut *conn_in, &mut *conn_out)
+                    ahda::encode_from_read_to_write(Some(&mut t_it), Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), &mut *conn_in, &mut *conn_out)
                 } else {
                     // TODO Force giving sample name?
-                    let sample = input_files[idx].to_string_lossy();
+                    let sample = input_files[idx].to_string_lossy().as_bytes().to_vec();
                     ahda::encode_from_read_to_write(Some(&mut t_it), None, &sample, &mut *conn_in, &mut *conn_out)
                 };
                 if ret.is_err() {

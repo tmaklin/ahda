@@ -60,7 +60,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         set_bits: &'a mut I,
         targets: &[Vec<u8>],
         queries: &[Vec<u8>],
-        sample_name: &str,
+        sample_name: &[u8],
     ) -> Self {
         let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
 

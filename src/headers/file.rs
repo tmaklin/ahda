@@ -83,7 +83,7 @@ pub struct FileHeader {
 #[derive(Clone, Debug, Decode, Default, Encode, PartialEq)]
 pub struct FileFlags {
     /// Query file basename
-    pub query_name: Option<String>,
+    pub query_name: Option<Vec<u8>>,
     /// Name and index of target sequences
     pub target_names: Option<Vec<Vec<u8>>>,
 }
@@ -134,7 +134,7 @@ pub fn check_ahda_header(
 pub fn build_file_header_and_flags(
     targets: &[Vec<u8>],
     n_queries: usize,
-    query_name: &str,
+    query_name: &[u8],
     flags_compression: &MetadataCompression,
 ) -> Result<(FileHeader, FileFlags), E> {
     // Check if bitmap fits in 32-bit address space and adjust accordingly
@@ -154,7 +154,7 @@ pub fn build_file_header_and_flags(
         },
     };
 
-    let flags = FileFlags{ target_names: Some(targets.to_vec()), query_name: Some(query_name.to_string()) };
+    let flags = FileFlags{ target_names: Some(targets.to_vec()), query_name: Some(query_name.to_vec()) };
     let flags_bytes = encode_file_flags(&flags, flags_compression).unwrap();
 
     let header = FileHeader{

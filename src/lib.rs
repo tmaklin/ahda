@@ -456,7 +456,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
     targets: Option<&'a mut I>,
     queries: Option<&'a mut I>,
-    sample_name: &str,
+    sample_name: &[u8],
     format: Format,
     conn_in: &'a mut R,
     conn_out: &'a mut W,
@@ -510,7 +510,7 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
 pub fn encode_to_write<W: Write>(
     targets: &[Vec<u8>],
     queries: &[Vec<u8>],
-    sample_name: &str,
+    sample_name: &[u8],
     records: &[PseudoAln],
     conn_out: &mut W,
 ) -> Result<(), E> {
@@ -569,7 +569,7 @@ pub fn encode_to_write<W: Write>(
 pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
     targets: Option<&'a mut I>,
     queries: Option<&'a mut I>,
-    sample_name: &str,
+    sample_name: &[u8],
     conn_in: &'a mut R,
 ) -> Result<Vec<u8>, E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
@@ -629,7 +629,7 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
     targets: Option<&'a mut I>,
     queries: Option<&'a mut I>,
-    sample_name: &str,
+    sample_name: &[u8],
     conn_in: &'a mut R,
     conn_out: &'a mut W,
 ) -> Result<(), E> {
