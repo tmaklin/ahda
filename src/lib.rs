@@ -318,16 +318,16 @@ pub struct PseudoAln{
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
 /// let data_1 = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 /// let data_2 = vec![
-///     PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
 ///     PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
 /// ];
 ///
@@ -427,7 +427,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes);
 ///
 /// // Mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"1".to_vec(), b"2".to_vec(), b"651903".to_vec(), b"7543".to_vec(), b"16".to_vec()];
 /// let name = "sample".to_string();
 ///
@@ -435,7 +435,8 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// let out_format = Format::Metagraph;
 /// let mut output: Vec<u8> = Vec::new();
 /// let mut it = queries.iter();
-/// convert_from_read_to_write(&Some(targets), Some(&mut it), &name, out_format, &mut input, &mut output).unwrap();
+/// let mut t_it = targets.iter();
+/// convert_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, out_format, &mut input, &mut output).unwrap();
 ///
 /// // Expect to get this output:
 /// //   3    7543    chr.fasta:virus.fasta
@@ -487,11 +488,11 @@ pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Ve
 ///
 /// // Mock data
 /// let data = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 ///
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
@@ -536,7 +537,7 @@ pub fn encode_to_write<W: Write>(
 /// use std::io::{Cursor, Seek};
 ///
 /// // Mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
@@ -554,7 +555,8 @@ pub fn encode_to_write<W: Write>(
 ///
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
 /// let mut it = queries.iter();
-/// let output = encode_from_read(&Some(targets), Some(&mut it), &name, &mut input).unwrap();
+/// let mut t_it = targets.iter();
+/// let output = encode_from_read(Some(&mut t_it), Some(&mut it), &name, &mut input).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// let mut encoded: Cursor<Vec<u8>> = Cursor::new(output);
@@ -593,7 +595,7 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 /// use std::io::{Cursor, Seek};
 ///
 /// // Mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
@@ -613,7 +615,8 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 ///
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.iter();
-/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut input, &mut output).unwrap();
+/// let mut t_it = targets.iter();
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut input, &mut output).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// output.rewind();
@@ -655,7 +658,7 @@ pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
@@ -669,7 +672,8 @@ pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec
 /// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.iter();
-/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
+/// let mut t_it = targets.iter();
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
 /// input.rewind();
 ///
 /// // Decode all alignments and compare against the original inputs
@@ -707,11 +711,11 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 ///
 /// // Mock data
 /// let data = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 ///
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
@@ -749,11 +753,11 @@ pub fn decode_from_read<R: Read>(
 ///
 /// // Mock data
 /// let data = vec![
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
-///     PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
 /// ];
 ///
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".to_string();
 ///
@@ -810,7 +814,7 @@ pub fn decode_to_write<W: Write>(
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
@@ -824,7 +828,8 @@ pub fn decode_to_write<W: Write>(
 /// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.iter();
-/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
+/// let mut t_it = targets.iter();
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
 /// input.rewind();
 ///
 /// // Decode all alignments and compare against the original inputs
@@ -860,7 +865,7 @@ pub fn decode_to_write<W: Write>(
 ///                                    });
 /// let mut expected_flags = FileFlags::default();
 /// expected_flags.query_name = Some("sample".to_string());
-/// expected_flags.target_names = Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]);
+/// expected_flags.target_names = Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]);
 /// assert_eq!(file_flags, expected_flags);
 /// assert_eq!(block_flags, BlockFlags{ queries: vec!["r1".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()], query_ids: vec![0, 2, 3, 4] });
 ///
@@ -917,7 +922,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
-/// let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+/// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".to_string();
 ///
@@ -941,14 +946,16 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// // Encode mock data
 /// let mut plaintext_1: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_1.clone());
 /// let mut input_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// let mut t_it = targets.iter();
 /// let mut it = queries.iter();
-/// encode_from_read_to_write(&Some(targets.clone()), Some(&mut it), &name, &mut plaintext_1, &mut input_1).unwrap();
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext_1, &mut input_1).unwrap();
 /// input_1.rewind();
 ///
 /// let mut plaintext_2: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_2.clone());
 /// let mut input_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.iter();
-/// encode_from_read_to_write(&Some(targets), Some(&mut it), &name, &mut plaintext_2, &mut input_2).unwrap();
+/// let mut t_it = targets.iter();
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext_2, &mut input_2).unwrap();
 /// input_2.rewind();
 ///
 /// // Decode data from `input_1`

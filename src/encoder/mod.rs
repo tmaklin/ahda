@@ -47,7 +47,7 @@
 //! use std::io::{Cursor, Seek, Write};
 //!
 //! // Mock inputs that will be store in FileHeader and FileFlags
-//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 //! let name = "sample".to_string();
 //!
@@ -67,7 +67,9 @@
 //!
 //! // Create a Parser to convert the plain text data to PseudoAln and initialize Encoder on this parser to encode it
 //! let mut it = queries.iter();
-//! let mut parser = Parser::new(&mut input, Some(&mut it), &Some(targets.clone())).unwrap();
+//! let mut t_it = targets.iter();
+//! let mut parser = Parser::new(&mut input, Some(&mut it), Some(&mut t_it)).unwrap();
+//! let targets = parser.get_targets().unwrap();
 //! let mut encoder = Encoder::new(&mut parser, &targets, &name, queries.len());
 //! encoder.set_block_size(3);
 //!
@@ -86,9 +88,9 @@
 //! output.rewind();
 //! let (_file_header, _file_flags, alns) = decode_from_read(&mut output).unwrap();
 //!
-//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
-//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
-//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
 //! assert_eq!(alns[3], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) });
 //! assert_eq!(alns.len(), 4);
 //! ```
@@ -102,14 +104,14 @@
 //! use ahda::{decode_from_read, PseudoAln};
 //! use std::io::{Cursor, Seek, Write};
 //!
-//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec!["r1".as_bytes().to_vec(), "r2".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()];
 //! let name = "sample".to_string();
 //!
 //! let data: Vec<PseudoAln> = vec![
-//!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
-//!                                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
-//!                                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
+//!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
+//!                                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
+//!                                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
 //!                                 PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) }
 //!                                ];
 //!
@@ -130,9 +132,9 @@
 //! output.rewind();
 //! let (_file_header, _file_flags, alns) = decode_from_read(&mut output).unwrap();
 //!
-//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
-//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
-//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
 //! assert_eq!(alns[3], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) });
 //! assert_eq!(alns.len(), 4);
 //! ```

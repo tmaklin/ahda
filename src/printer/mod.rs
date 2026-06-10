@@ -31,14 +31,14 @@
 //! use ahda::printer::Printer;
 //! use std::io::{Cursor, Write};
 //!
-//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec!["r1".as_bytes().to_vec(), "r2".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()];
 //! let name = "sample".to_string();
 //!
 //! let data = vec![
-//!                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
-//!                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
-//!                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
+//!                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
+//!                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
+//!                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
 //!                 PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) }
 //!                ];
 //!
@@ -80,14 +80,14 @@
 //! use std::io::{Cursor, Seek, Write};
 //!
 //! // Set up some encoded data
-//! let targets = vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()];
+//! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 //! let queries = vec!["r1".as_bytes().to_vec(), "r2".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()];
 //! let name = "sample".to_string();
 //!
 //! let data: Vec<PseudoAln> = vec![
-//!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".to_string()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
-//!                                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
-//!                                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string(), "virus.fasta".to_string()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
+//!                                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
+//!                                 PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) },
+//!                                 PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) },
 //!                                 PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) }
 //!                                ];
 //!
