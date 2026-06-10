@@ -132,7 +132,7 @@ mod tests {
         // let header = build_sam_header(&fheader, &fflags).unwrap();
         let header = build_sam_header(fflags.target_names.unwrap().as_ref()).unwrap();
 
-        let data = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1".to_string()) };
+        let data = PseudoAln{ones_names: Some(vec!["OZ038621.1".to_string()]), query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) };
 
         let expected: Vec<u8> =b"ERR4035126.1\t4\tplasmid.fasta\t0\t255\t*\t*\t0\t0\t*\t*\n".to_vec();
 

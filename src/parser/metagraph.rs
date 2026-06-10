@@ -110,11 +110,11 @@ mod tests {
         data.append(&mut b"15084\tERR4035126.7543\tplasmid.fasta\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(3), ones: None, query_name: Some("ERR4035126.2".to_string()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(2), ones: None, query_name: Some("ERR4035126.1".to_string()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(1303804), ones: None, query_name: Some("ERR4035126.651903".to_string()) },
-            PseudoAln{ones_names: Some(vec![]),  query_id: Some(30), ones: None, query_name: Some("ERR4035126.16".to_string()) },
-            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: None, query_name: Some("ERR4035126.7543".to_string()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(3), ones: None, query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string()]),  query_id: Some(2), ones: None, query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".to_string(), "plasmid.fasta".to_string()]),  query_id: Some(1303804), ones: None, query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(30), ones: None, query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".to_string()]),  query_id: Some(15084), ones: None, query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
         ];
 
         let cursor = Cursor::new(data);

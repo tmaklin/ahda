@@ -153,16 +153,16 @@ mod tests {
         data.append(&mut b"ERR4035126.1262970\t0\t0\n".to_vec());
 
         let expected = vec![
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0,]), query_name: Some("ERR4035126.1".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.20".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.16".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262938".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262940".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262954".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1262955".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651994".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651993".to_string()) },
-            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1262970".to_string()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0,]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.20".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262938".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262954".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1262955".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651994".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651993".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1262970".as_bytes().to_vec()) },
         ];
 
         let cursor = Cursor::new(data);

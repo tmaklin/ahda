@@ -102,7 +102,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
-        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![0]), query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
 
         let expected: Vec<u8> = b"ERR4035126.1262940\t1\t0\n".to_vec();
 
@@ -117,7 +117,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
-        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![1]), query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
 
         let expected: Vec<u8> = b"ERR4035126.1262940\t0\t1\n".to_vec();
 
@@ -132,7 +132,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
-        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![0,1]), query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![0,1]), query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
 
         let expected: Vec<u8> = b"ERR4035126.1262940\t1\t1\n".to_vec();
 
@@ -147,7 +147,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
-        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1262940".to_string()) };
+        let data = PseudoAln{ones_names: None, query_id: None, ones: Some(vec![]), query_name: Some("ERR4035126.1262940".as_bytes().to_vec()) };
 
         let expected: Vec<u8> = b"ERR4035126.1262940\t0\t0\n".to_vec();
 
@@ -199,7 +199,7 @@ mod tests {
         use crate::PseudoAln;
         use super::format_bifrost_line;
 
-        let data = PseudoAln{ones_names: None, query_name: Some("ERR4035126.1262954".to_string()), query_id: Some(128), ones: None};
+        let data = PseudoAln{ones_names: None, query_name: Some("ERR4035126.1262954".as_bytes().to_vec()), query_id: Some(128), ones: None};
 
         let got = format_bifrost_line(&data, 2, &mut Vec::new());
 
