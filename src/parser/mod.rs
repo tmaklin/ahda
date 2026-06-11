@@ -166,16 +166,16 @@ pub struct Parser<'a, R: Read> {
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: IndexSet<&'a Vec<u8>>,
+    query_to_pos: IndexSet<Vec<u8>>,
     target_to_pos: IndexSet<Vec<u8>>,
 }
 
 impl<'a, R: Read> Parser<'a, R> {
 
-    pub fn new<I: Iterator<Item=&'a Vec<u8>>>(
+    pub fn new<T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
-        conn_query_names: Option<&'a mut I>,
-        targets: Option<&'a mut I>,
+        conn_query_names: Option<&mut Q>,
+        targets: Option<&mut T>,
     ) -> Result<Self, E> {
         // Guess the input format
         let mut reader = BufReader::new(conn_pseudoalns);
@@ -195,15 +195,15 @@ impl<'a, R: Read> Parser<'a, R> {
 
         let targets_from_header = ret.read_header()?;
         if let Some(targets) = targets {
-            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets.cloned());
+            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
         } else if let Some(targets) = targets_from_header {
-            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets.iter().cloned());
+            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
         } else {
             return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
         }
 
         if let Some(conn_query_names) = conn_query_names {
-            ret.query_to_pos = IndexSet::<&Vec<u8>>::from_iter(conn_query_names);
+            ret.query_to_pos = IndexSet::<Vec<u8>>::from_iter(conn_query_names);
         }
 
         Ok(ret)

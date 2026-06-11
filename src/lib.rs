@@ -453,13 +453,13 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// assert_eq!(output, expected);
 /// ```
 ///
-pub fn convert_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
-    targets: Option<&'a mut I>,
-    queries: Option<&'a mut I>,
+pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
+    targets: Option<&mut T>,
+    queries: Option<&mut Q>,
     sample_name: &[u8],
     format: Format,
-    conn_in: &'a mut R,
-    conn_out: &'a mut W,
+    conn_in: &mut R,
+    conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
@@ -566,11 +566,11 @@ pub fn encode_to_write<W: Write>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
-    targets: Option<&'a mut I>,
-    queries: Option<&'a mut I>,
+pub fn encode_from_read<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
+    targets: Option<&mut T>,
+    queries: Option<&mut Q>,
     sample_name: &[u8],
-    conn_in: &'a mut R,
+    conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
@@ -626,18 +626,19 @@ pub fn encode_from_read<'a, R: Read, I: Iterator<Item=&'a Vec<u8>>>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read_to_write<'a, R: Read, W: Write, I: Iterator<Item=&'a Vec<u8>>>(
-    targets: Option<&'a mut I>,
-    queries: Option<&'a mut I>,
+pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
+    targets: Option<&mut T>,
+    queries: Option<&mut Q>,
     sample_name: &[u8],
-    conn_in: &'a mut R,
-    conn_out: &'a mut W,
+    conn_in: &mut R,
+    conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
     // TODO See if this clone of targets can be avoided
     let targets = reader.get_targets().unwrap();
+
     let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
