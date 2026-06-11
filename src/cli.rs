@@ -104,6 +104,10 @@ pub enum Commands {
         #[arg(short = 't', long = "targets", help_heading = "Inputs", help = "File listing target sequence names")]
         target_list: Option<PathBuf>,
 
+        // Output file name
+        #[arg(short = 'o', long = "output", help_heading = "Outputs", help = "Output to file, keep original file")]
+        output_file: Option<PathBuf>,
+
         // Output format, defaults to Themisto
         #[arg(short = 'F', long = "format", required = false, help = "Output plain text format")]
         format: Option<ahda::Format>,
