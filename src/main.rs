@@ -79,12 +79,12 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let mut targets: Vec<Vec<u8>> = Vec::new();
+            let mut targets = None;
             if let Some(target_list) = target_list {
                 match File::open(target_list) {
                     Ok(f) => {
                         let reader = BufReader::new(f);
-                        targets = reader.split(b'\n').map(|x| x.unwrap()).collect::<Vec<Vec<u8>>>();
+                        targets = Some(reader.split(b'\n').map(|x| x.unwrap()).collect::<Vec<Vec<u8>>>());
                     },
                     Err(e) => {
                         eprintln!("ahda: can't open input file `{}`: {}", target_list.to_string_lossy(), e);
@@ -136,24 +136,21 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 outputs.push(Box::new(conn_out));
             }
 
-            // for (idx, (conn_in, conn_out)) in inputs.iter_mut().zip(outputs.iter_mut()).enumerate() {
             let conn_in = &mut inputs[0];
             let conn_out = &mut outputs[0];
             let idx = 0;
-                let mut t_it = targets.into_iter();
-                let ret = if let Some(mut q_it) = queries {
-                    // let mut q_it = queries.into_iter();
-                    ahda::encode_from_read_to_write(Some(&mut t_it), Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), conn_in, conn_out)
-                } else {
-                    // TODO Force giving sample name?
-                    let sample = "sample".as_bytes().to_vec();
-                    ahda::encode_from_read_to_write(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &sample, conn_in, conn_out)
-                };
-                if ret.is_err() {
-                    eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), ret.as_ref().unwrap_err());
-                    ret?
-                }
-            // }
+            let mut t_it = if let Some(t) = targets { Some(&mut t.into_iter()) } else { None };
+            let ret = if let Some(mut q_it) = queries {
+                ahda::encode_from_read_to_write(t_it, Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), conn_in, conn_out)
+            } else {
+                // TODO Force giving sample name?
+                let sample = "sample".as_bytes().to_vec();
+                ahda::encode_from_read_to_write(t_it, None::<&mut std::iter::Empty<Vec<u8>>>, &sample, conn_in, conn_out)
+            };
+            if ret.is_err() {
+                eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), ret.as_ref().unwrap_err());
+                ret?
+            }
             Ok(())
         },
 
