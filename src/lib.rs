@@ -34,10 +34,9 @@
 //! ### Command line
 //!
 //! The ahda CLI supports the following subcommands:
-//!   - `ahda cat` concatenate compressed pseudoalignment data.
-//!   - `ahda convert` convert between supported plain text formats.
-//!   - `ahda decode` decompress pseudoalignment data to a supported format.
 //!   - `ahda encode` compress pseudoalignment data from a supported format.
+//!   - `ahda decode` decompress pseudoalignment data to a supported format.
+//!   - `ahda convert` convert between supported plain text formats.
 //!   - `ahda set` perform set operations on compressed pseudoalignment data.
 //!
 //! Note that `encode` needs access to the .fastq input file and the names of

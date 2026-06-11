@@ -133,17 +133,17 @@ pub enum Commands {
         verbose: bool,
     },
 
-    // Concatenate encoded data
-    #[command(name = "cat", about = "Concatenate binary data")]
-    Cat {
-        // Input file
-        #[arg(group = "input", required = true, help = "Input file(s)")]
-        input_files: Vec<PathBuf>,
+    // // Concatenate encoded data
+    // #[command(name = "cat", about = "Concatenate binary data")]
+    // Cat {
+    //     // Input file
+    //     #[arg(group = "input", required = true, help = "Input file(s)")]
+    //     input_files: Vec<PathBuf>,
 
-        // Verbosity
-        #[arg(long = "verbose", default_value_t = false)]
-        verbose: bool,
-    },
+    //     // Verbosity
+    //     #[arg(long = "verbose", default_value_t = false)]
+    //     verbose: bool,
+    // },
 
     // Set operations on .ahda files
     #[command(name = "set", about = "Set operations on binary data")]

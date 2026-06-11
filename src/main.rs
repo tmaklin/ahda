@@ -19,7 +19,6 @@ use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
-use std::io::BufWriter;
 use std::io::IsTerminal;
 use std::path::PathBuf;
 
@@ -245,24 +244,24 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             Ok(())
         },
 
-        // Cat
-        Some(cli::Commands::Cat {
-            input_files,
-            verbose,
-        }) => {
-            todo!("Implement `ahda cat`");
-            init_log(if *verbose { 2 } else { 1 });
+        // // Cat
+        // Some(cli::Commands::Cat {
+        //     input_files,
+        //     verbose,
+        // }) => {
+        //     todo!("Implement `ahda cat`");
+        //     init_log(if *verbose { 2 } else { 1 });
 
-            let mut inputs: Vec<Box<dyn Read>> = Vec::new();
-            for file in input_files {
-                let conn_in = File::open(file).unwrap();
-                inputs.push(Box::new(conn_in));
-            }
-            let mut conn_out = std::io::stdout();
+        //     let mut inputs: Vec<Box<dyn Read>> = Vec::new();
+        //     for file in input_files {
+        //         let conn_in = File::open(file).unwrap();
+        //         inputs.push(Box::new(conn_in));
+        //     }
+        //     let mut conn_out = std::io::stdout();
 
-            ahda::concatenate_from_read_to_write(&mut inputs, &mut conn_out).unwrap();
-            Ok(())
-        },
+        //     ahda::concatenate_from_read_to_write(&mut inputs, &mut conn_out).unwrap();
+        //     Ok(())
+        // },
 
         // Convert
         Some(cli::Commands::Convert {
