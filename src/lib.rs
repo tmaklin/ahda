@@ -573,6 +573,7 @@ pub fn encode_from_read<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q: Iterato
     conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
+    reader.fill_target_names(false);
     let n_queries = reader.len();
 
     // TODO See if this clone of targets can be avoided
@@ -634,6 +635,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
+    reader.fill_target_names(false);
     let n_queries = reader.len();
 
     // TODO See if this clone of targets can be avoided
