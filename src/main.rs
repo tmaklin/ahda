@@ -37,6 +37,34 @@ fn init_log(log_max_level: usize) {
     .unwrap();
 }
 
+type E = Box<dyn std::error::Error>;
+
+struct FastxNameReader {
+    reader: Box<dyn needletail::FastxReader>,
+}
+
+impl FastxNameReader {
+    pub fn new(
+        file: &PathBuf,
+    ) -> Result<Self, E> {
+        let reader = needletail::parse_fastx_file(file)?;
+        Ok(Self{ reader })
+    }
+}
+
+impl Iterator for FastxNameReader {
+    type Item = Vec<u8>;
+
+    fn next(
+        &mut self,
+    ) -> Option<Vec<u8>> {
+        let record = self.reader.next()?;
+        let query_info = record.unwrap();
+        let end = query_info.id().iter().position(|x| x == &b' ');
+        Some(query_info.id()[0..end.unwrap_or(query_info.id().len())].to_vec())
+    }
+}
+
 fn main() -> Result<(),  Box<dyn std::error::Error>> {
     let cli = cli::Cli::parse();
 
@@ -65,22 +93,17 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 }
             }
 
-            let mut queries: Vec<Vec<u8>> = Vec::new();
-            if let Some(query_file) = query_file {
-                match needletail::parse_fastx_file(query_file) {
-                    Ok(mut reader) => {
-                        while let Some(record) = reader.next() {
-                            let query_info = &record.unwrap();
-                            let end = query_info.id().iter().position(|x| x == &b' ');
-                            queries.push(query_info.id()[0..end.unwrap_or(query_info.id().len())].to_vec());
-                        }
-                    },
+            let queries: Option<FastxNameReader> = if let Some(query_file) = query_file {
+                match FastxNameReader::new(query_file) {
+                    Ok(reader) => Some(reader),
                     Err(e) => {
                         eprintln!("ahda: can't open input file `{}`: {}", query_file.to_string_lossy(), e);
-                        return Err(Box::new(e))
+                        return Err(e)
                     },
                 }
-            }
+            } else {
+                None
+            };
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();
             let mut outputs: Vec<Box<dyn Write>> = Vec::new();
@@ -115,21 +138,24 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 outputs.push(Box::new(conn_out));
             }
 
-            for (idx, (conn_in, conn_out)) in inputs.iter_mut().zip(outputs.iter_mut()).enumerate() {
-                let mut t_it = targets.iter();
-                let ret = if !queries.is_empty() {
-                    let mut q_it = queries.iter();
-                    ahda::encode_from_read_to_write(Some(&mut t_it), Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), &mut *conn_in, &mut *conn_out)
+            // for (idx, (conn_in, conn_out)) in inputs.iter_mut().zip(outputs.iter_mut()).enumerate() {
+            let conn_in = &mut inputs[0];
+            let conn_out = &mut outputs[0];
+            let idx = 0;
+                let mut t_it = targets.into_iter();
+                let ret = if let Some(mut q_it) = queries {
+                    // let mut q_it = queries.into_iter();
+                    ahda::encode_from_read_to_write(Some(&mut t_it), Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), conn_in, conn_out)
                 } else {
                     // TODO Force giving sample name?
                     let sample = input_files[idx].to_string_lossy().as_bytes().to_vec();
-                    ahda::encode_from_read_to_write(Some(&mut t_it), None, &sample, &mut *conn_in, &mut *conn_out)
+                    ahda::encode_from_read_to_write(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &sample, conn_in, conn_out)
                 };
                 if ret.is_err() {
                     eprintln!("ahda: can't encode input file `{}`: {}", input_files[idx].to_string_lossy(), ret.as_ref().unwrap_err());
                     ret?
                 }
-            }
+            // }
             Ok(())
         },
 
