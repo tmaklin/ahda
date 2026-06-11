@@ -1098,8 +1098,8 @@ mod tests {
         let out_format = Format::Bifrost;
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        let mut it = queries.iter();
-        let mut t_it = targets.iter();
+        let mut it = queries.into_iter();
+        let mut t_it = targets.into_iter();
         convert_from_read_to_write(Some(&mut t_it), Some(&mut it), &query_name, out_format, &mut data, &mut bytes_got).unwrap();
         let got = bytes_got.get_ref();
 
@@ -1174,8 +1174,8 @@ mod tests {
         }
         bytes.rewind().unwrap();
 
-        let mut it = queries.iter();
-        let mut t_it = targets.iter();
+        let mut it = queries.into_iter();
+        let mut t_it = targets.into_iter();
         let got = encode_from_read(Some(&mut t_it), Some(&mut it), &query_name, &mut bytes).unwrap();
 
         assert_eq!(got, expected);
@@ -1197,8 +1197,8 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        let mut it = queries.iter();
-        let mut t_it = targets.iter();
+        let mut it = queries.into_iter();
+        let mut t_it = targets.into_iter();
         encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &query_name, &mut data, &mut bytes_got).unwrap();
         let got = bytes_got.get_ref();
 
