@@ -72,7 +72,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
     match &cli.command {
         // Encode
         Some(cli::Commands::Encode {
-            input_files,
+            input_file,
             query_file,
             target_list,
             verbose,
@@ -107,28 +107,26 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();
             let mut outputs: Vec<Box<dyn Write>> = Vec::new();
-            if !input_files.is_empty() {
-                for file in input_files {
-                    match File::open(file) {
-                        Ok(conn_in) => inputs.push(Box::new(conn_in)),
-                        Err(e) => {
-                            eprintln!("ahda: can't open input file `{}`: {}", file.to_string_lossy(), e);
-                            return Err(Box::new(e))
-                        },
-                    }
+            if let Some(input_file) = input_file {
+                match File::open(input_file) {
+                    Ok(conn_in) => inputs.push(Box::new(conn_in)),
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", input_file.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
 
-                    let out_path = PathBuf::from(file.to_string_lossy().to_string() + ".ahda");
+                let out_path = PathBuf::from(input_file.to_string_lossy().to_string() + ".ahda");
 
-                    // TODO implement --force
-                    match File::create_new(out_path.clone()) {
-                        Ok(conn_out) => {
-                            outputs.push(Box::new(conn_out));
-                        },
-                        Err(e) => {
-                            eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
-                            return Err(Box::new(e))
-                        },
-                    }
+                // TODO implement --force
+                match File::create_new(out_path.clone()) {
+                    Ok(conn_out) => {
+                        outputs.push(Box::new(conn_out));
+                    },
+                    Err(e) => {
+                        eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
                 }
             } else {
                 let conn_in = std::io::stdin();
@@ -148,11 +146,11 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                     ahda::encode_from_read_to_write(Some(&mut t_it), Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), conn_in, conn_out)
                 } else {
                     // TODO Force giving sample name?
-                    let sample = input_files[idx].to_string_lossy().as_bytes().to_vec();
+                    let sample = "sample".as_bytes().to_vec();
                     ahda::encode_from_read_to_write(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &sample, conn_in, conn_out)
                 };
                 if ret.is_err() {
-                    eprintln!("ahda: can't encode input file `{}`: {}", input_files[idx].to_string_lossy(), ret.as_ref().unwrap_err());
+                    eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), ret.as_ref().unwrap_err());
                     ret?
                 }
             // }

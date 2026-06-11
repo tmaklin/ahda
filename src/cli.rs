@@ -29,7 +29,7 @@ pub enum Commands {
     Encode {
         // Input fasta or fastq sequence file(s)
         #[arg(group = "input", required = false, help = "Input file(s)")]
-        input_files: Vec<PathBuf>,
+        input_file: Option<PathBuf>,
 
         // FastX file used to generate the alignment
         #[arg(short = 'q', long = "query")]
