@@ -61,21 +61,35 @@ pub enum Commands {
     },
 
     // Decode .ahda format
+    #[command(name = "decode", about = "Decompress binary data")]
     Decode {
         // Input file
-        #[arg(group = "input", required = true, help = "Input file(s)")]
-        input_files: Vec<PathBuf>,
+        #[arg(group = "input", required = false, help = "Input file(s)")]
+        input_file: Option<PathBuf>,
 
         // Output format, defaults to Themisto
-        #[arg(long = "format", required = false)]
+        #[arg(short = 'F', long = "format", required = false)]
         format: Option<ahda::Format>,
 
+        // Write to stdout
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original files")]
+        stdout: bool,
+
+        // Overwrite output file
+        #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
+        force: bool,
+
+        // Keep original files
+        #[arg(short = 'k', long = "keep", default_value_t = false, help = "Don't delete input file after finishing")]
+        keep: bool,
+
         // Verbosity
-        #[arg(long = "verbose", default_value_t = false)]
+        #[arg(short = 'v', long = "verbose", default_value_t = false, help = "Print extra information")]
         verbose: bool,
     },
 
     // Convert plaintext to another plaintext format
+    #[command(name = "convert", about = "Convert between plain text formats")]
     Convert {
         // Input file
         #[arg(group = "input", required = true, help = "Input file")]

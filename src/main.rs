@@ -183,22 +183,65 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
         // Decode
         Some(cli::Commands::Decode {
-            input_files,
+            input_file,
             format,
+            stdout,
+            force,
+            keep,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            input_files.iter().for_each(|file| {
-                let out_name = file.file_stem().unwrap().to_string_lossy();
-                let out_path = PathBuf::from(out_name.to_string());
-                let f = File::create(out_path).unwrap();
+            let mut conn_in: Vec<Box<dyn Read>> = Vec::new();
+            let mut conn_out: Vec<Box<dyn Write>> = Vec::new();
+            if let Some(file) = input_file {
+                if *stdout {
+                    conn_out.push(Box::new(std::io::stdout()));
+                } else {
+                    let out_name = file.file_stem().unwrap().to_string_lossy();
+                    let out_path = PathBuf::from(out_name.to_string());
 
-                let mut conn_out = BufWriter::new(f);
-                let mut conn_in = File::open(file).unwrap();
+                    if !*stdout {
+                        match if *force { File::create(out_path.clone()) } else { File::create_new(out_path.clone()) } {
+                            Ok(out) => {
+                                conn_out.push(Box::new(out));
+                            },
+                            Err(e) => {
+                                eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
+                                return Err(Box::new(e))
+                            },
+                        }
+                    }
 
-                ahda::decode_from_read_to_write(format.clone().unwrap_or_default(), &mut conn_in, &mut conn_out).unwrap();
-            });
+                }
+                match File::open(file) {
+                    Ok(conn) => conn_in.push(Box::new(conn)),
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", file.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
+            } else {
+                if !*force  && std::io::stdin().is_terminal() {
+                    eprintln!("ahda: standard input is a terminal, use `--force` to ignore");
+                    return Ok(());
+                }
+                conn_in.push(Box::new(std::io::stdin()));
+                conn_out.push(Box::new(std::io::stdout()));
+            }
+
+            ahda::decode_from_read_to_write(format.clone().unwrap_or_default(), &mut conn_in[0], &mut conn_out[0]).unwrap();
+
+            if !*keep && !*stdout && input_file.is_some() {
+                match std::fs::remove_file(input_file.as_ref().unwrap()) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        eprintln!("ahda: can't remove input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    }
+                }
+            }
+
             Ok(())
         },
 
