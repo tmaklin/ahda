@@ -168,7 +168,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 ret?
             }
 
-            if !*keep && input_file.is_some() {
+            if !*keep && !*stdout && input_file.is_some() {
                 match std::fs::remove_file(input_file.as_ref().unwrap()) {
                     Ok(()) => (),
                     Err(e) => {
