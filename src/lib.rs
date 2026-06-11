@@ -566,7 +566,7 @@ pub fn encode_to_write<W: Write>(
 /// assert_eq!(decoded.get_ref(), &input_bytes);
 /// ```
 ///
-pub fn encode_from_read<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
+pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
     targets: Option<&mut T>,
     queries: Option<&mut Q>,
     sample_name: &[u8],
