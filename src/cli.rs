@@ -45,8 +45,12 @@ pub enum Commands {
 
         // Overwrite output file
         #[arg(short = 'f', long = "force", default_value_t = false)]
-        force: bool
-    },
+        force: bool,
+
+        // Write to stdout
+        #[arg(short = 'c', long = "stdout", default_value_t = false)]
+        stdout: bool,
+},
 
     // Decode .ahda format
     Decode {

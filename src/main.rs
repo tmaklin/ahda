@@ -20,6 +20,7 @@ use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 use std::io::BufWriter;
+use std::io::IsTerminal;
 use std::path::PathBuf;
 
 use clap::Parser;
@@ -76,6 +77,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             query_file,
             target_list,
             force,
+            stdout,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -108,6 +110,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();
             let mut outputs: Vec<Box<dyn Write>> = Vec::new();
+            let mut force_stdout: bool = false;
             if let Some(input_file) = input_file {
                 match File::open(input_file) {
                     Ok(conn_in) => inputs.push(Box::new(conn_in)),
@@ -119,22 +122,29 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
                 let out_path = PathBuf::from(input_file.to_string_lossy().to_string() + ".ahda");
 
-                // TODO implement --force
-                match if *force { File::create(out_path.clone()) } else { File::create_new(out_path.clone()) } {
-                    Ok(conn_out) => {
-                        outputs.push(Box::new(conn_out));
-                    },
-                    Err(e) => {
-                        eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
-                        return Err(Box::new(e))
-                    },
+                if !*stdout {
+                    match if *force { File::create(out_path.clone()) } else { File::create_new(out_path.clone()) } {
+                        Ok(conn_out) => {
+                            outputs.push(Box::new(conn_out));
+                        },
+                        Err(e) => {
+                            eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
+                            return Err(Box::new(e))
+                        },
+                    }
                 }
             } else {
-                let conn_in = std::io::stdin();
-                inputs.push(Box::new(conn_in));
+                inputs.push(Box::new(std::io::stdin()));
+                if !*force  && std::io::stdout().is_terminal() {
+                    eprintln!("ahda: refusing to write binary data to terminal, use `--force` to override");
+                    return Ok(());
+                } else {
+                    force_stdout = true;
+                }
+            }
 
-                let conn_out = std::io::stdout();
-                outputs.push(Box::new(conn_out));
+            if *stdout || force_stdout {
+                outputs.push(Box::new(std::io::stdout()));
             }
 
             let conn_in = &mut inputs[0];
