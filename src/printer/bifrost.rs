@@ -17,17 +17,6 @@ use crate::PseudoAln;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct BifrostPrinterError;
-
-impl std::fmt::Display for BifrostPrinterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "invalid input to encode")
-    }
-}
-
-impl std::error::Error for BifrostPrinterError {}
-
 /// Format a single pseudoalignment in Bifrost format
 ///
 /// Writes bytes containing the formatted line containing the contents of
@@ -45,7 +34,7 @@ pub fn format_bifrost_line<W: Write>(
     let mut formatted: String = String::new();
 
     if aln.ones.is_none() || aln.query_name.is_none() {
-        return Err(Box::new(BifrostPrinterError{}))
+        return Err(Box::new(crate::errors::BifrostPrinterError{}))
     }
 
     formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
@@ -78,7 +67,7 @@ pub fn format_bifrost_header<W: Write>(
     let mut formatted: String = String::new();
 
     if targets.is_empty() {
-        return Err(Box::new(BifrostPrinterError{}))
+        return Err(Box::new(crate::errors::BifrostPrinterError{}))
     }
 
     formatted += "query_name";

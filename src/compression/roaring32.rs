@@ -32,17 +32,6 @@ use roaring::bitmap::RoaringBitmap;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct EncodeError;
-
-impl std::fmt::Display for EncodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "invalid input to encode")
-    }
-}
-
-impl std::error::Error for EncodeError {}
-
 /// Converts [PseudoAln] records to Roaring bitmaps
 pub fn convert_to_roaring32(
     file_header: &FileHeader,
@@ -53,7 +42,7 @@ pub fn convert_to_roaring32(
 
     for record in records.iter() {
         if record.ones.is_none() || record.query_id.is_none() {
-            return Err(Box::new(EncodeError{}))
+            return Err(Box::new(crate::errors::EncodeError{}))
         }
         let ones = record.ones.as_ref().unwrap();
         let idx = *record.query_id.as_ref().unwrap();

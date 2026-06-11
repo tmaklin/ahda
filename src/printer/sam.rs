@@ -24,17 +24,6 @@ use crate::PseudoAln;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct SamPrinterError;
-
-impl std::fmt::Display for SamPrinterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "invalid input to encode")
-    }
-}
-
-impl std::error::Error for SamPrinterError {}
-
 /// Format a single pseudoalignment in Sam format
 ///
 /// Writes bytes containing the formatted line containing the contents of
@@ -52,10 +41,10 @@ pub fn format_sam_line<W: std::io::Write>(
     todo!("Print PseudoAln in SAM format");
     // TODO Better error messages.
     if aln.query_name.is_none() {
-        return Err(Box::new(SamPrinterError{}))
+        return Err(Box::new(crate::errors::SamPrinterError{}))
     }
     if aln.ones.is_none() || (aln.ones.is_none() && aln.ones.as_ref().unwrap().is_empty()) {
-        return Err(Box::new(SamPrinterError{}))
+        return Err(Box::new(crate::errors::SamPrinterError{}))
     }
 
     let mut writer = noodles_sam::io::Writer::new(Vec::new());

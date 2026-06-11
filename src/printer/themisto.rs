@@ -17,17 +17,6 @@ use crate::PseudoAln;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct ThemistoPrinterError;
-
-impl std::fmt::Display for ThemistoPrinterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "invalid input to encode")
-    }
-}
-
-impl std::error::Error for ThemistoPrinterError {}
-
 /// Format a single pseudoalignment in Themisto format
 ///
 /// Writes bytes containing the formatted line containing the contents of
@@ -44,7 +33,7 @@ pub fn format_themisto_line<W: Write>(
     let mut formatted: String = String::new();
 
     if aln.ones.is_none() || aln.query_id.is_none() {
-        return Err(Box::new(ThemistoPrinterError{}))
+        return Err(Box::new(crate::errors::ThemistoPrinterError{}))
     }
 
     formatted += &aln.query_id.unwrap().to_string();

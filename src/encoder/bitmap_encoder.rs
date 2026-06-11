@@ -29,15 +29,6 @@ use roaring::RoaringTreemap;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct SetBitsIteratorNotSortedErr;
-impl std::fmt::Display for SetBitsIteratorNotSortedErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "`set_bits` iterator given to BitmapEncoder::new() (argument #1) must be sorted.")
-    }
-}
-impl std::error::Error for SetBitsIteratorNotSortedErr {}
-
 pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Input iterator
     set_bits: &'a mut I,
@@ -161,7 +152,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
         loop {
             if let Some(next_idx) = self.set_bits.next() {
                 if next_idx < self.prev_idx {
-                    return Some(Err(Box::new(SetBitsIteratorNotSortedErr{})))
+                    return Some(Err(Box::new(crate::errors::SetBitsIteratorNotSortedErr{})))
                 }
                 self.prev_idx = next_idx;
 

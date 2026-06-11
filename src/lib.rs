@@ -120,29 +120,11 @@ pub mod compression;
 pub mod headers;
 pub mod decoder;
 pub mod encoder;
+pub mod errors;
 pub mod parser;
 pub mod printer;
 
 type E = Box<dyn std::error::Error>;
-
-
-#[derive(Debug, Clone)]
-pub struct AhdaVersionErr;
-impl std::fmt::Display for AhdaVersionErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Not a valid AhdaVersion")
-    }
-}
-impl std::error::Error for AhdaVersionErr {}
-
-#[derive(Debug, Clone)]
-pub struct AhdaFormatVersionErr;
-impl std::fmt::Display for AhdaFormatVersionErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Not a valid AhdaVersion")
-    }
-}
-impl std::error::Error for AhdaFormatVersionErr {}
 
 /// Ahda library version
 ///
@@ -158,7 +140,7 @@ impl AhdaVersion {
     pub fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(AhdaVersion::V0_1_0),
-            _ => Err(Box::new(AhdaVersionErr)),
+            _ => Err(Box::new(errors::AhdaVersionErr)),
         }
     }
 
@@ -170,12 +152,12 @@ impl AhdaVersion {
 }
 
 impl std::str::FromStr for AhdaVersion {
-    type Err = AhdaVersionErr;
+    type Err = errors::AhdaVersionErr;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "0.1.0" => Ok(Self::V0_1_0),
-            _ => Err(AhdaVersionErr{}),
+            _ => Err(errors::AhdaVersionErr{}),
 
         }
     }
@@ -196,7 +178,7 @@ impl AhdaFormatVersion {
     pub fn from_u8(val: u8) -> Result<Self, E> {
         match val {
             0 => Ok(AhdaFormatVersion::V1_0_0),
-            _ => Err(Box::new(AhdaFormatVersionErr)),
+            _ => Err(Box::new(errors::AhdaFormatVersionErr)),
         }
     }
 

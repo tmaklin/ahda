@@ -17,17 +17,6 @@ use crate::PseudoAln;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct MetagraphPrinterError;
-
-impl std::fmt::Display for MetagraphPrinterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "invalid input to encode")
-    }
-}
-
-impl std::error::Error for MetagraphPrinterError {}
-
 /// Format a single pseudoalignment in Metagraph format
 ///
 /// Writes bytes containing the formatted line containing the contents of
@@ -44,7 +33,7 @@ pub fn format_metagraph_line<W: Write>(
     let mut formatted: String = String::new();
 
     if aln.ones_names.is_none() || aln.query_name.is_none() || aln.query_id.is_none() {
-        return Err(Box::new(MetagraphPrinterError{}))
+        return Err(Box::new(crate::errors::MetagraphPrinterError{}))
     }
 
     formatted += &aln.query_id.as_ref().unwrap().to_string();

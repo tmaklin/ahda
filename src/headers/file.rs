@@ -97,17 +97,6 @@ pub fn build_ahda_header() -> [u8; 6] {
     header
 }
 
-#[derive(Debug, Clone)]
-pub struct AhdaHeaderError;
-
-impl std::fmt::Display for AhdaHeaderError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "bytes do not start with a valid ahda file header")
-    }
-}
-
-impl std::error::Error for AhdaHeaderError {}
-
 pub fn check_ahda_header(
     bytes: [u8; 6],
 ) -> Result<String, E> {
@@ -127,7 +116,7 @@ pub fn check_ahda_header(
     if is_ahda {
         Ok(version_str)
     } else {
-        Err(Box::new(AhdaHeaderError))
+        Err(Box::new(crate::errors::AhdaHeaderError))
     }
 }
 

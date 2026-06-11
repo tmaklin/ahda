@@ -54,20 +54,9 @@
 use std::io::Read;
 
 use crate::PseudoAln;
-use super::CorruptedInputErr;
+use crate::errors::CorruptedInputErr;
 
 type E = Box<dyn std::error::Error>;
-
-#[derive(Debug, Clone)]
-pub struct BifrostHeaderNotConsumedError;
-
-impl std::fmt::Display for BifrostHeaderNotConsumedError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Bifrost header not consumed from input `Read`.")
-    }
-}
-
-impl std::error::Error for BifrostHeaderNotConsumedError {}
 
 /// Parse a line from Bifrost
 ///
@@ -93,7 +82,7 @@ pub fn read_bifrost<R: Read>(
     let read_name_bytes = records.next().ok_or(CorruptedInputErr)?;
 
     if read_name_bytes == "query_name" {
-        return Err(Box::new(BifrostHeaderNotConsumedError{}))
+        return Err(Box::new(crate::errors::BifrostHeaderNotConsumedError{}))
     }
 
     let query_name = read_name_bytes.as_bytes().to_vec();

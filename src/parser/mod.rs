@@ -97,70 +97,6 @@ use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
 
-/// [guess_format] could not guess the input format.
-#[derive(Debug, Clone)]
-pub struct UnrecognizedInputFormatErr;
-
-impl std::fmt::Display for UnrecognizedInputFormatErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Unrecognized input format.")
-    }
-}
-
-impl std::error::Error for UnrecognizedInputFormatErr {}
-
-/// [guess_format] found a valid input format but could not confirm it with certainty.
-#[derive(Debug, Clone)]
-pub struct AmbiguousInputFormatErr;
-
-impl std::fmt::Display for AmbiguousInputFormatErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Ambiguous input format.")
-    }
-}
-
-impl std::error::Error for AmbiguousInputFormatErr {}
-
-/// Plaintext data is not in the expected format.
-#[derive(Debug, Clone)]
-pub struct CorruptedInputErr;
-
-impl std::fmt::Display for CorruptedInputErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Corrupted input alignment data.")
-    }
-}
-
-impl std::error::Error for CorruptedInputErr {}
-
-/// Input format requires supplying the target sequence names.
-#[derive(Debug, Clone)]
-pub struct NeedTargetSequencesErr {
-    pub format: Format,
-}
-
-impl std::fmt::Display for NeedTargetSequencesErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Detected input format `{}` requires supplying the target sequence names.", self.format)
-    }
-}
-
-impl std::error::Error for NeedTargetSequencesErr {}
-
-/// Input format requires supplying the query sequence names.
-#[derive(Debug, Clone)]
-pub struct NeedQueryNamesErr {
-    pub format: Format,
-}
-
-impl std::fmt::Display for NeedQueryNamesErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Detected input format `{}` requires supplying the query sequence names.", self.format)
-    }
-}
-
-impl std::error::Error for NeedQueryNamesErr {}
-
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
     buf: Cursor<Vec<u8>>,
@@ -200,7 +136,7 @@ impl<'a, R: Read> Parser<'a, R> {
         };
 
         if ret.format != Format::Metagraph && conn_query_names.is_none() {
-            return Err(Box::new(NeedQueryNamesErr{ format: ret.format }))
+            return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: ret.format }))
         }
 
         let targets_from_header = ret.read_header()?;
@@ -209,7 +145,7 @@ impl<'a, R: Read> Parser<'a, R> {
         } else if let Some(targets) = targets_from_header {
             ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
         } else {
-            return Err(Box::new(NeedTargetSequencesErr{ format: ret.format }))
+            return Err(Box::new(crate::errors::NeedTargetSequencesErr{ format: ret.format }))
         }
 
         if let Some(conn_query_names) = conn_query_names {
@@ -243,7 +179,7 @@ impl<R: Read> Parser<'_, R> {
                 let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
                 let mut records = contents.split(separator);
                 // Consume `query_name`
-                records.next().ok_or(CorruptedInputErr{})?;
+                records.next().ok_or(crate::errors::CorruptedInputErr{})?;
                 let mut target_names: Vec<Vec<u8>> = Vec::new();
                 for record in records {
                     target_names.push(record.as_bytes().to_vec());
@@ -396,7 +332,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
 /// - Metagraph
 ///
 /// ## Errors
-/// ### [CorruptedInputErr]
+/// ### [crate::errors::CorruptedInputErr]
 /// Input bytes do not contain the expected data.
 ///
 /// ### [AmbiguousInputFormatErr]
@@ -430,7 +366,7 @@ pub fn guess_format(
     let line = first_line.clone().iter().map(|x| *x as char).collect::<String>();
     let mut records = line.split('\t');
 
-    let first_record = records.next().ok_or(CorruptedInputErr{})?;
+    let first_record = records.next().ok_or(crate::errors::CorruptedInputErr{})?;
     let bifrost: bool = first_record == "query_name";
     if bifrost {
         return Ok(Format::Bifrost)
@@ -438,12 +374,12 @@ pub fn guess_format(
 
     let maybe_metagraph: bool = first_record.parse::<u32>().is_ok();
 
-    let next = records.next().ok_or(CorruptedInputErr{})?;
+    let next = records.next().ok_or(crate::errors::CorruptedInputErr{})?;
 
     let fulgor: bool = next.parse::<u32>().is_ok();
 
     if fulgor && maybe_metagraph {
-        return Err(Box::new(AmbiguousInputFormatErr{}))
+        return Err(Box::new(crate::errors::AmbiguousInputFormatErr{}))
     }
 
     if fulgor {
@@ -454,7 +390,7 @@ pub fn guess_format(
         return Ok(Format::Metagraph)
     }
 
-    Err(Box::new(UnrecognizedInputFormatErr{}))
+    Err(Box::new(crate::errors::UnrecognizedInputFormatErr{}))
 }
 
 // Tests

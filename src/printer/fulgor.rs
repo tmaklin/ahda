@@ -17,17 +17,6 @@ use crate::PseudoAln;
 
 type E = Box<dyn std::error::Error>;
 
-#[derive(Debug, Clone)]
-pub struct FulgorPrinterError;
-
-impl std::fmt::Display for FulgorPrinterError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "invalid input to encode")
-    }
-}
-
-impl std::error::Error for FulgorPrinterError {}
-
 /// Format a single pseudoalignment in Fulgor format
 ///
 /// Writes bytes containing the formatted line containing the contents of
@@ -43,7 +32,7 @@ pub fn format_fulgor_line<W: Write>(
     let mut formatted: String = String::new();
 
     if aln.ones.is_none() || aln.query_name.is_none() {
-        return Err(Box::new(FulgorPrinterError{}))
+        return Err(Box::new(crate::errors::FulgorPrinterError{}))
     }
 
     formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();

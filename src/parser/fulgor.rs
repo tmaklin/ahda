@@ -54,7 +54,7 @@
 use std::io::Read;
 
 use crate::PseudoAln;
-use super::CorruptedInputErr;
+use crate::errors::CorruptedInputErr;
 
 type E = Box<dyn std::error::Error>;
 
