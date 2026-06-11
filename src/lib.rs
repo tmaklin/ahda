@@ -434,8 +434,8 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 /// // Convert to metagraph format
 /// let out_format = Format::Metagraph;
 /// let mut output: Vec<u8> = Vec::new();
-/// let mut it = queries.iter();
-/// let mut t_it = targets.iter();
+/// let mut it = queries.into_iter();
+/// let mut t_it = targets.into_iter();
 /// convert_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, out_format, &mut input, &mut output).unwrap();
 ///
 /// // Expect to get this output:
@@ -554,8 +554,8 @@ pub fn encode_to_write<W: Write>(
 /// input_bytes.append(&mut b"2\tr651903\t\n".to_vec());
 ///
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
-/// let mut it = queries.iter();
-/// let mut t_it = targets.iter();
+/// let mut it = queries.into_iter();
+/// let mut t_it = targets.into_iter();
 /// let output = encode_from_read(Some(&mut t_it), Some(&mut it), &name, &mut input).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
@@ -615,8 +615,8 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
 ///
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// let mut it = queries.iter();
-/// let mut t_it = targets.iter();
+/// let mut it = queries.into_iter();
+/// let mut t_it = targets.into_iter();
 /// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut input, &mut output).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
@@ -674,8 +674,8 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
 /// // Encode mock data
 /// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// let mut it = queries.iter();
-/// let mut t_it = targets.iter();
+/// let mut it = queries.into_iter();
+/// let mut t_it = targets.into_iter();
 /// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
 /// input.rewind();
 ///
@@ -830,8 +830,8 @@ pub fn decode_to_write<W: Write>(
 /// // Encode mock data
 /// let mut plaintext: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes.clone());
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// let mut it = queries.iter();
-/// let mut t_it = targets.iter();
+/// let mut it = queries.into_iter();
+/// let mut t_it = targets.into_iter();
 /// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
 /// input.rewind();
 ///
@@ -949,15 +949,15 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// // Encode mock data
 /// let mut plaintext_1: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_1.clone());
 /// let mut input_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// let mut t_it = targets.iter();
-/// let mut it = queries.iter();
+/// let mut t_it = targets.iter().cloned();
+/// let mut it = queries.iter().cloned();
 /// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext_1, &mut input_1).unwrap();
 /// input_1.rewind();
 ///
 /// let mut plaintext_2: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_2.clone());
 /// let mut input_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// let mut it = queries.iter();
-/// let mut t_it = targets.iter();
+/// let mut it = queries.into_iter();
+/// let mut t_it = targets.into_iter();
 /// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext_2, &mut input_2).unwrap();
 /// input_2.rewind();
 ///

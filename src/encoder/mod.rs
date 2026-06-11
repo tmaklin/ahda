@@ -66,11 +66,12 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
 //!
 //! // Create a Parser to convert the plain text data to PseudoAln and initialize Encoder on this parser to encode it
-//! let mut it = queries.iter();
-//! let mut t_it = targets.iter();
+//! let n_queries = queries.len();
+//! let mut it = queries.into_iter();
+//! let mut t_it = targets.into_iter();
 //! let mut parser = Parser::new(&mut input, Some(&mut it), Some(&mut t_it)).unwrap();
 //! let targets = parser.get_targets().unwrap();
-//! let mut encoder = Encoder::new(&mut parser, &targets, &name, queries.len());
+//! let mut encoder = Encoder::new(&mut parser, &targets, &name, n_queries);
 //! encoder.set_block_size(3);
 //!
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());

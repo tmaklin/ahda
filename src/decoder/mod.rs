@@ -66,8 +66,8 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
 //!
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-//! let mut it = queries.iter();
-//! let mut t_it = targets.iter();
+//! let mut it = queries.into_iter();
+//! let mut t_it = targets.into_iter();
 //! encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut input, &mut output).unwrap();
 //! output.rewind();
 //!

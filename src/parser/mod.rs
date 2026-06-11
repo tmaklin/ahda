@@ -53,8 +53,8 @@
 //! let mut input: Cursor<Vec<u8>> = Cursor::new(plaintext.clone());
 //!
 //! // Create a Parser to convert the plain text data to PseudoAlns
-//! let mut it = queries.iter();
-//! let mut t_it = targets.iter();
+//! let mut it = queries.into_iter();
+//! let mut t_it = targets.into_iter();
 //! let mut parser = Parser::new(&mut input, Some(&mut it), Some(&mut t_it)).unwrap();
 //!
 //! let mut alns: Vec<PseudoAln> = Vec::new();
