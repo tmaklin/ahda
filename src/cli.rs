@@ -28,37 +28,36 @@ pub enum Commands {
     // Encode pseudoalignment data in .ahda format
     Encode {
         // Input fasta or fastq sequence file(s)
-        #[arg(group = "input", required = false, help = "Input file(s)")]
+        #[arg(group = "input", required = false, help = "Input file")]
         input_file: Option<PathBuf>,
 
         // FastX file used to generate the alignment
-        #[arg(short = 'q', long = "query")]
+        #[arg(short = 'q', long = "query", help_heading = "Inputs", help = "Query .fastX file")]
         query_file: Option<PathBuf>,
 
         // File listing target sequence names in the order they appear in the index
-        #[arg(long = "targets")]
+        #[arg(short = 't', long = "targets", help_heading = "Inputs", help = "File listing target sequence names")]
         target_list: Option<PathBuf>,
 
         // Sample name
-        #[arg(long = "name")]
+        #[arg(short = 'n', long = "name", help_heading = "Inputs", help = "Sample name (default: .fastX file path)")]
         sample_name: Option<String>,
 
-        // Verbosity
-        #[arg(long = "verbose", default_value_t = false)]
-        verbose: bool,
-
-        // Overwrite output file
-        #[arg(short = 'f', long = "force", default_value_t = false)]
-        force: bool,
-
         // Write to stdout
-        #[arg(short = 'c', long = "stdout", default_value_t = false)]
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original files")]
         stdout: bool,
 
+        // Overwrite output file
+        #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
+        force: bool,
+
         // Keep original files
-        #[arg(short = 'k', long = "keep", default_value_t = false)]
+        #[arg(short = 'k', long = "keep", default_value_t = false, help = "Don't delete input file after finishing")]
         keep: bool,
 
+        // Verbosity
+        #[arg(short = 'v', long = "verbose", default_value_t = false, help = "Print extra information")]
+        verbose: bool,
     },
 
     // Decode .ahda format
