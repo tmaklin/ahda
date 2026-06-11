@@ -19,7 +19,7 @@
 //! - [Decoder]: reads the .ahda binary format from a connection implementing
 //!   [Read] and returns blocks of [PseudoAln] records when [next] is called.
 //!
-//! - [BitmapDecoder](bitmap::BitmapDecoder): decodes a [PseudoAln] record from
+//! - [BitmapDecoder](bitmap_decoder::BitmapDecoder): decodes a [PseudoAln] record from
 //!   any struct that returns u64 indexes of aligned bits in a flattened
 //!   pseudoalignment. Currently, the intended use case is with
 //!   [RoaringBitmap](roaring::RoaringBitmap) or
@@ -96,7 +96,7 @@
 //! ```rust
 //! use ahda::headers::file::{FileHeader, FileFlags};
 //! use ahda::headers::block::{BlockHeader, BlockFlags};
-//! use ahda::decoder::bitmap::BitmapDecoder;
+//! use ahda::decoder::bitmap_decoder::BitmapDecoder;
 //! use ahda::PseudoAln;
 //! use roaring::RoaringBitmap;
 //!
@@ -131,7 +131,7 @@
 //! ```
 //!
 
-pub mod bitmap;
+pub mod bitmap_decoder;
 
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
@@ -186,7 +186,7 @@ impl<R: Read> Decoder<'_, R> {
 
     fn alns_from_bitmapdecoder<I: Iterator<Item=u64>>(
         &self,
-        bitmap_decoder: &mut bitmap::BitmapDecoder<I>,
+        bitmap_decoder: &mut bitmap_decoder::BitmapDecoder<I>,
     ) -> Result<Vec<PseudoAln>, E> {
         let mut alns: Vec<PseudoAln> = Vec::new();
         let mut name_to_id: HashMap<Vec<u8>, u32> = HashMap::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
@@ -216,7 +216,7 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Result<Vec<PseudoAln>, E> {
         let (bitmap, block_flags) = unpack_block_roaring32(bytes, self.block_header.as_ref().unwrap())?;
         let mut tmp = bitmap.iter().map(|x| x as u64);
-        let mut bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
+        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
         self.block_flags = Some(block_flags);
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
     }
@@ -227,7 +227,7 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Result<Vec<PseudoAln>, E> {
         let (bitmap, block_flags) = unpack_block_roaring64(bytes, self.block_header.as_ref().unwrap())?;
         let mut tmp = bitmap.iter();
-        let mut bitmap_decoder = bitmap::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
+        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
         self.block_flags = Some(block_flags);
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
     }
