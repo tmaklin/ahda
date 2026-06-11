@@ -78,6 +78,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             target_list,
             force,
             stdout,
+            keep,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -162,6 +163,17 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), ret.as_ref().unwrap_err());
                 ret?
             }
+
+            if !*keep && input_file.is_some() {
+                match std::fs::remove_file(input_file.as_ref().unwrap()) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        eprintln!("ahda: can't remove input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    }
+                }
+            }
+
             Ok(())
         },
 

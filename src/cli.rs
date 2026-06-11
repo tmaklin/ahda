@@ -50,7 +50,12 @@ pub enum Commands {
         // Write to stdout
         #[arg(short = 'c', long = "stdout", default_value_t = false)]
         stdout: bool,
-},
+
+        // Keep original files
+        #[arg(short = 'k', long = "keep", default_value_t = false)]
+        keep: bool,
+
+    },
 
     // Decode .ahda format
     Decode {
