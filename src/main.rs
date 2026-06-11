@@ -269,6 +269,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             input_file,
             query_file,
             target_list,
+            output_file,
             format,
             sample_name,
             stdout,
@@ -306,7 +307,6 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut inputs: Vec<Box<dyn Read>> = Vec::new();
             let mut outputs: Vec<Box<dyn Write>> = Vec::new();
-            let mut force_stdout: bool = false;
             if let Some(input_file) = input_file {
                 match File::open(input_file) {
                     Ok(conn_in) => inputs.push(Box::new(conn_in)),
@@ -316,7 +316,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                     },
                 }
 
-                let out_path = PathBuf::from(input_file.to_string_lossy().to_string() + ".ahda");
+                let out_path = if let Some(out) = output_file { out.clone() } else { PathBuf::from(input_file.to_string_lossy().to_string() + ".tmp") };
 
                 if !*stdout {
                     match if *force { File::create(out_path.clone()) } else { File::create_new(out_path.clone()) } {
@@ -330,16 +330,14 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                     }
                 }
             } else {
-                inputs.push(Box::new(std::io::stdin()));
-                if !*force  && std::io::stdout().is_terminal() {
-                    eprintln!("ahda: refusing to write binary data to terminal, use `--force` to override");
+                if std::io::stdin().is_terminal() {
+                    eprintln!("ahda: standard input is a terminal, ignoring");
                     return Ok(());
-                } else {
-                    force_stdout = true;
                 }
+                inputs.push(Box::new(std::io::stdin()));
             }
 
-            if *stdout || force_stdout {
+            if *stdout || (input_file.is_none() && output_file.is_none()) {
                 outputs.push(Box::new(std::io::stdout()));
             }
 
@@ -358,15 +356,16 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 ahda::convert_from_read_to_write(t_it, None::<&mut std::iter::Empty<Vec<u8>>>, &sample, format.as_ref().unwrap().clone(), conn_in, conn_out)
             };
             if let Err(e) = ret {
-                eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                eprintln!("ahda: can't convert input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
                 return Err(e)
             }
 
-            if !*keep && !*stdout && input_file.is_some() {
-                match std::fs::remove_file(input_file.as_ref().unwrap()) {
+            if !*keep && !*stdout && input_file.is_some() && output_file.is_none() {
+                let tmp_path = PathBuf::from(input_file.as_ref().unwrap().to_string_lossy().to_string() + ".tmp");
+                match std::fs::rename(tmp_path.clone(), input_file.as_ref().unwrap()) {
                     Ok(()) => (),
                     Err(e) => {
-                        eprintln!("ahda: can't remove input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                        eprintln!("ahda: can't rename output file `{}` to `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), tmp_path.to_string_lossy(), e);
                         return Err(Box::new(e))
                     }
                 }
