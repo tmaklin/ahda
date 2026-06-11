@@ -26,6 +26,7 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     // Encode pseudoalignment data in .ahda format
+    #[command(name = "encode", about = "Compress plain text data")]
     Encode {
         // Input fasta or fastq sequence file(s)
         #[arg(group = "input", required = false, help = "Input file")]
@@ -113,6 +114,7 @@ pub enum Commands {
     },
 
     // Concatenate encoded data
+    #[command(name = "cat", about = "Concatenate binary data")]
     Cat {
         // Input file
         #[arg(group = "input", required = true, help = "Input file(s)")]
@@ -124,6 +126,7 @@ pub enum Commands {
     },
 
     // Set operations on .ahda files
+    #[command(name = "set", about = "Set operations on binary data")]
     Set {
         // Input file
         #[arg(group = "input", required = true, help = "Input files")]
