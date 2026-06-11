@@ -14,10 +14,10 @@
 
 //! ahda is a library and a command-line client for:
 //!
+//!   - Compressing plain text pseudoalignment data.
+//!   - Decompressing binary pseudoalignment data in any supported format.
 //!   - Converting between plain text pseudoalignment formats output by different tools.
-//!   - Compressing and decompressing plain text pseudoalignment data.
 //!   - Performing set operations on compressed pseudoalignment data.
-//!   - Concatenating compressed pseudoalignment data.
 //!
 //! The following plain text formats are supported:
 //!   - [Bifrost](https://github.com/pmelsted/bifrost)
