@@ -45,14 +45,14 @@ pub enum Commands {
         sample_name: Option<String>,
 
         // Write to stdout
-        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original files")]
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original file")]
         stdout: bool,
 
         // Overwrite output file
         #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
         force: bool,
 
-        // Keep original files
+        // Keep original file
         #[arg(short = 'k', long = "keep", default_value_t = false, help = "Don't delete input file after finishing")]
         keep: bool,
 
@@ -69,18 +69,18 @@ pub enum Commands {
         input_file: Option<PathBuf>,
 
         // Output format, defaults to Themisto
-        #[arg(short = 'F', long = "format", required = false)]
+        #[arg(short = 'F', long = "format", required = false, help = "Output plain text format")]
         format: Option<ahda::Format>,
 
         // Write to stdout
-        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original files")]
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original file")]
         stdout: bool,
 
         // Overwrite output file
         #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
         force: bool,
 
-        // Keep original files
+        // Keep original file
         #[arg(short = 'k', long = "keep", default_value_t = false, help = "Don't delete input file after finishing")]
         keep: bool,
 
@@ -92,24 +92,40 @@ pub enum Commands {
     // Convert plaintext to another plaintext format
     #[command(name = "convert", about = "Convert between plain text formats")]
     Convert {
-        // Input file
-        #[arg(group = "input", required = true, help = "Input file")]
-        input_file: PathBuf,
+        // Input fasta or fastq sequence file(s)
+        #[arg(group = "input", required = false, help = "Input file")]
+        input_file: Option<PathBuf>,
 
         // FastX file used to generate the alignment
-        #[arg(short = 'q', long = "query", required = true)]
-        query_file: PathBuf,
+        #[arg(short = 'q', long = "query", help_heading = "Inputs", help = "Query .fastX file")]
+        query_file: Option<PathBuf>,
 
         // File listing target sequence names in the order they appear in the index
-        #[arg(long = "targets", required = true)]
-        target_list: PathBuf,
+        #[arg(short = 't', long = "targets", help_heading = "Inputs", help = "File listing target sequence names")]
+        target_list: Option<PathBuf>,
 
-        // Output format
-        #[arg(long = "format", required = false)]
+        // Output format, defaults to Themisto
+        #[arg(short = 'F', long = "format", required = false, help = "Output plain text format")]
         format: Option<ahda::Format>,
 
+        // Sample name
+        #[arg(short = 'n', long = "name", help_heading = "Inputs", help = "Sample name (default: .fastX file path)")]
+        sample_name: Option<String>,
+
+        // Write to stdout
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original file")]
+        stdout: bool,
+
+        // Overwrite output file
+        #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
+        force: bool,
+
+        // Keep original file
+        #[arg(short = 'k', long = "keep", default_value_t = false, help = "Don't delete input file after finishing")]
+        keep: bool,
+
         // Verbosity
-        #[arg(long = "verbose", default_value_t = false)]
+        #[arg(short = 'v', long = "verbose", default_value_t = false, help = "Print extra information")]
         verbose: bool,
     },
 
