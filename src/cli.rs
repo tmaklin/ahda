@@ -39,6 +39,10 @@ pub enum Commands {
         #[arg(long = "targets")]
         target_list: Option<PathBuf>,
 
+        // Sample name
+        #[arg(long = "name")]
+        sample_name: Option<String>,
+
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,

@@ -75,6 +75,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
         Some(cli::Commands::Encode {
             input_file,
             query_file,
+            sample_name,
             target_list,
             force,
             stdout,
@@ -153,10 +154,13 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             let idx = 0;
             let mut t_it = if let Some(t) = targets { Some(&mut t.into_iter()) } else { None };
             let ret = if let Some(mut q_it) = queries {
-                ahda::encode_from_read_to_write(t_it, Some(&mut q_it), query_file.as_ref().unwrap().to_string_lossy().as_bytes(), conn_in, conn_out)
+                let sample = if let Some(name) = sample_name { name.as_bytes().to_vec() } else { query_file.as_ref().unwrap().to_string_lossy().as_bytes().to_vec() };
+                ahda::encode_from_read_to_write(t_it, Some(&mut q_it), &sample, conn_in, conn_out)
             } else {
-                // TODO Force giving sample name?
-                let sample = "sample".as_bytes().to_vec();
+                let sample = if let Some(name) = sample_name { name.as_bytes().to_vec() } else {
+                    eprintln!("ahda: use `--name` to supply the sample name");
+                    return Ok(())
+                };
                 ahda::encode_from_read_to_write(t_it, None::<&mut std::iter::Empty<Vec<u8>>>, &sample, conn_in, conn_out)
             };
             if ret.is_err() {
