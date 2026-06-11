@@ -353,6 +353,7 @@ pub struct PseudoAln{
 /// assert_eq!(data_both[0..2], data_1);
 /// assert_eq!(data_both[2..4], data_2);
 /// ```
+#[allow(unreachable_code, unused_variables)]
 pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conns: &mut [R],
     conn_out: &mut W,

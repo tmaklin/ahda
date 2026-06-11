@@ -43,6 +43,7 @@ impl std::error::Error for SamPrinterError {}
 /// Terminates with a [SamPrinterError] if [PseudoAln::query_id] or
 /// [PseudoAln::ones] is None.
 ///
+#[allow(unreachable_code, unused_variables)]
 pub fn format_sam_line<W: std::io::Write>(
     aln: &PseudoAln,
     header: &sam::Header,
