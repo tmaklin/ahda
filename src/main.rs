@@ -270,22 +270,108 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             query_file,
             target_list,
             format,
+            sample_name,
+            stdout,
+            force,
+            keep,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
 
-            let targets: Vec<String> = {
-                let f = File::open(target_list).unwrap();
-                let reader = BufReader::new(f);
-                reader.lines().map(|line| line.unwrap()).collect::<Vec<String>>()
+            let mut targets = None;
+            if let Some(target_list) = target_list {
+                match File::open(target_list) {
+                    Ok(f) => {
+                        let reader = BufReader::new(f);
+                        targets = Some(reader.split(b'\n').map(|x| x.unwrap()).collect::<Vec<Vec<u8>>>());
+                    },
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", target_list.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
+            }
+
+            let queries: Option<FastxNameReader> = if let Some(query_file) = query_file {
+                match FastxNameReader::new(query_file) {
+                    Ok(reader) => Some(reader),
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", query_file.to_string_lossy(), e);
+                        return Err(e)
+                    },
+                }
+            } else {
+                None
             };
 
-            let mut conn_in = File::open(input_file).unwrap();
-            let mut conn_out = std::io::stdout();
+            let mut inputs: Vec<Box<dyn Read>> = Vec::new();
+            let mut outputs: Vec<Box<dyn Write>> = Vec::new();
+            let mut force_stdout: bool = false;
+            if let Some(input_file) = input_file {
+                match File::open(input_file) {
+                    Ok(conn_in) => inputs.push(Box::new(conn_in)),
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", input_file.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
 
-            let sample_name = query_file.file_stem().unwrap().to_string_lossy();
-            // TODO Enable convert
-            // ahda::convert_from_read_to_write(&targets, query_file.clone(), &sample_name, format.as_ref().unwrap().clone(), &mut conn_in, &mut conn_out).unwrap();
+                let out_path = PathBuf::from(input_file.to_string_lossy().to_string() + ".ahda");
+
+                if !*stdout {
+                    match if *force { File::create(out_path.clone()) } else { File::create_new(out_path.clone()) } {
+                        Ok(conn_out) => {
+                            outputs.push(Box::new(conn_out));
+                        },
+                        Err(e) => {
+                            eprintln!("ahda: can't create output file `{}`: {}", out_path.to_string_lossy(), e);
+                            return Err(Box::new(e))
+                        },
+                    }
+                }
+            } else {
+                inputs.push(Box::new(std::io::stdin()));
+                if !*force  && std::io::stdout().is_terminal() {
+                    eprintln!("ahda: refusing to write binary data to terminal, use `--force` to override");
+                    return Ok(());
+                } else {
+                    force_stdout = true;
+                }
+            }
+
+            if *stdout || force_stdout {
+                outputs.push(Box::new(std::io::stdout()));
+            }
+
+            let conn_in = &mut inputs[0];
+            let conn_out = &mut outputs[0];
+            #[allow(clippy::manual_map)]
+            let t_it = if let Some(t) = targets { Some(&mut t.into_iter()) } else { None };
+            let ret = if let Some(mut q_it) = queries {
+                let sample = if let Some(name) = sample_name { name.as_bytes().to_vec() } else { query_file.as_ref().unwrap().to_string_lossy().as_bytes().to_vec() };
+                ahda::convert_from_read_to_write(t_it, Some(&mut q_it), &sample, format.as_ref().unwrap().clone(), conn_in, conn_out)
+            } else {
+                let sample = if let Some(name) = sample_name { name.as_bytes().to_vec() } else {
+                    eprintln!("ahda: use `--name` to supply the sample name");
+                    return Ok(())
+                };
+                ahda::convert_from_read_to_write(t_it, None::<&mut std::iter::Empty<Vec<u8>>>, &sample, format.as_ref().unwrap().clone(), conn_in, conn_out)
+            };
+            if let Err(e) = ret {
+                eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                return Err(e)
+            }
+
+            if !*keep && !*stdout && input_file.is_some() {
+                match std::fs::remove_file(input_file.as_ref().unwrap()) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        eprintln!("ahda: can't remove input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    }
+                }
+            }
+
             Ok(())
         },
 
