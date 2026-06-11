@@ -296,6 +296,7 @@ impl<R: Read> Parser<'_, R> {
         Some(self.target_to_pos.iter().cloned().collect())
     }
 
+    #[allow(clippy::unnecessary_unwrap)]
     fn fill_record(
         &mut self,
         record: &mut PseudoAln,
