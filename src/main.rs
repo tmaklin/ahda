@@ -75,10 +75,10 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
         Some(cli::Commands::Encode {
             input_file,
             query_file,
-            sample_name,
             target_list,
-            force,
+            sample_name,
             stdout,
+            force,
             keep,
             verbose,
         }) => {
@@ -151,8 +151,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let conn_in = &mut inputs[0];
             let conn_out = &mut outputs[0];
-            let idx = 0;
-            let mut t_it = if let Some(t) = targets { Some(&mut t.into_iter()) } else { None };
+            #[allow(clippy::manual_map)]
+            let t_it = if let Some(t) = targets { Some(&mut t.into_iter()) } else { None };
             let ret = if let Some(mut q_it) = queries {
                 let sample = if let Some(name) = sample_name { name.as_bytes().to_vec() } else { query_file.as_ref().unwrap().to_string_lossy().as_bytes().to_vec() };
                 ahda::encode_from_read_to_write(t_it, Some(&mut q_it), &sample, conn_in, conn_out)
@@ -163,9 +163,9 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 };
                 ahda::encode_from_read_to_write(t_it, None::<&mut std::iter::Empty<Vec<u8>>>, &sample, conn_in, conn_out)
             };
-            if ret.is_err() {
-                eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), ret.as_ref().unwrap_err());
-                ret?
+            if let Err(e) = ret {
+                eprintln!("ahda: can't encode input file `{}`: {}", input_file.as_ref().unwrap().to_string_lossy(), e);
+                return Err(e)
             }
 
             if !*keep && !*stdout && input_file.is_some() {
