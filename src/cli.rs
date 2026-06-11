@@ -42,6 +42,10 @@ pub enum Commands {
         // Verbosity
         #[arg(long = "verbose", default_value_t = false)]
         verbose: bool,
+
+        // Overwrite output file
+        #[arg(short = 'f', long = "force", default_value_t = false)]
+        force: bool
     },
 
     // Decode .ahda format

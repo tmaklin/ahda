@@ -75,6 +75,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             input_file,
             query_file,
             target_list,
+            force,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -119,7 +120,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 let out_path = PathBuf::from(input_file.to_string_lossy().to_string() + ".ahda");
 
                 // TODO implement --force
-                match File::create_new(out_path.clone()) {
+                match if *force { File::create(out_path.clone()) } else { File::create_new(out_path.clone()) } {
                     Ok(conn_out) => {
                         outputs.push(Box::new(conn_out));
                     },
