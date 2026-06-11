@@ -168,6 +168,12 @@ pub struct Parser<'a, R: Read> {
 
     query_to_pos: IndexSet<Vec<u8>>,
     target_to_pos: IndexSet<Vec<u8>>,
+
+    // What values to fill in the records
+    fill_query_id: bool,
+    fill_query_name: bool,
+    fill_target_ids: bool,
+    fill_target_names: bool,
 }
 
 impl<'a, R: Read> Parser<'a, R> {
@@ -187,6 +193,10 @@ impl<'a, R: Read> Parser<'a, R> {
             reader, buf, format,
             query_to_pos: IndexSet::new(),
             target_to_pos: IndexSet::new(),
+            fill_query_id: true,
+            fill_query_name: true,
+            fill_target_ids: true,
+            fill_target_names: true,
         };
 
         if ret.format != Format::Metagraph && conn_query_names.is_none() {
@@ -290,30 +300,58 @@ impl<R: Read> Parser<'_, R> {
         &mut self,
         record: &mut PseudoAln,
     ) {
-        if record.query_id.is_none() {
+        if record.query_id.is_none() && self.fill_query_id {
             let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
             let query_index = self.query_to_pos.get_index_of(&key).unwrap();
             record.query_id = Some(query_index as u32);
         }
 
-        if record.query_name.is_none() {
+        if record.query_name.is_none() && self.fill_query_name {
             let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap();
             record.query_name = Some(query_name.to_vec());
         }
 
-        if record.ones_names.is_none() && record.ones.is_some() {
+        if record.ones_names.is_none() && record.ones.is_some() && self.fill_target_names {
             let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
                 self.target_to_pos.get_index(*target_idx as usize).unwrap().clone()
             }).collect::<Vec<Vec<u8>>>();
             record.ones_names = Some(ones_names);
         }
 
-        if record.ones_names.is_some() && record.ones.is_none() {
+        if record.ones_names.is_some() && record.ones.is_none() && self.fill_target_ids{
             let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
                 self.target_to_pos.get_index_of(target_name).unwrap() as u32
             }).collect::<Vec<u32>>();
             record.ones = Some(ones);
         }
+    }
+
+    pub fn fill_query_id(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_query_id = val;
+    }
+
+    pub fn fill_query_name(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_query_name = val;
+    }
+
+    pub fn fill_target_ids(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_target_ids = val;
+    }
+
+    pub fn fill_target_names(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_target_names = val;
     }
 }
 
