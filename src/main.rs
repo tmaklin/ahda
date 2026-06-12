@@ -11,7 +11,6 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
-use ahda::headers::block::BlockHeader;
 use ahda::printer::Printer;
 
 use std::fs::File;
@@ -424,7 +423,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             // Read first bitmap
-            let (mut bitmap_a, header_a, flags_a, block_flags_a) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
+            let (mut bitmap_a, header_a, flags_a, _) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
 
             // Read the remainning bitmaps and perform requested operation.
             // Intersection requires reading the entire other bitmaps into memory.
@@ -440,10 +439,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 }
             }
 
-            // TODO should fill this block_header correctly
-            let block_header = BlockHeader{ num_records: header_a.n_queries, bitmap_type: 0, metadata_compression: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder1: 0, placeholder2: 0, placeholder3: 0 };
             let mut iter = bitmap_a.into_iter();
-            let mut decoder = ahda::decoder::bitmap_decoder::BitmapDecoder::new(&mut iter, header_a.clone(), flags_a.clone(), block_header, block_flags_a);
+            let mut decoder = ahda::decoder::bitmap_decoder::BitmapDecoder::new(&mut iter, header_a.clone());
             let printer = Printer::new_from_header_and_flags(&mut decoder, header_a.clone(), flags_a.clone(), format.as_ref().unwrap().clone());
             for line in printer {
                 conn_out[0].write_all(&line)?;

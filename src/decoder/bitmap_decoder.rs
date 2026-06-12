@@ -13,11 +13,6 @@
 //
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
-use crate::headers::file::FileFlags;
-use crate::headers::block::BlockHeader;
-use crate::headers::block::BlockFlags;
-
-use std::collections::HashMap;
 
 pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Inputs
@@ -25,22 +20,17 @@ pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     index: Option<u64>,
 
     file_header: FileHeader,
-    file_flags: FileFlags,
 }
 
 impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u64> {
     pub fn new(
         bits_iter: &'a mut I,
         file_header: FileHeader,
-        file_flags: FileFlags,
-        block_header: BlockHeader,
-        block_flags: BlockFlags,
     ) -> Self {
 
         BitmapDecoder {
             bits_iter,
             file_header,
-            file_flags,
             index: None,
         }
     }
@@ -123,12 +113,10 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec()];
         let n_queries = queries.len();
         let query_ids = vec![0, 1, 2, 3];
-        let block_flags = BlockFlags { queries, query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
+        let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
-        let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
+        let mut bdecoder = BitmapDecoder::new(&mut tmp, header);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
         for record in bdecoder.by_ref() {
@@ -167,12 +155,10 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let n_queries = queries.len();
         let query_ids = vec![0, 1, 2, 3, 4];
-        let block_flags = BlockFlags { queries, query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
+        let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
-        let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
+        let mut bdecoder = BitmapDecoder::new(&mut tmp, header);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
         for record in bdecoder.by_ref() {
@@ -210,12 +196,10 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let n_queries = queries.len();
         let query_ids = vec![0, 1, 2, 3, 4];
-        let block_flags = BlockFlags { queries, query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
+        let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
-        let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
+        let mut bdecoder = BitmapDecoder::new(&mut tmp, header);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
         for record in bdecoder.by_ref() {
@@ -252,12 +236,10 @@ mod tests {
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let n_queries = queries.len();
         let query_ids = vec![0, 1, 2, 3, 4];
-        let block_flags = BlockFlags { queries, query_ids };
-        let block_header = BlockHeader { num_records: 0, placeholder1: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let (header, flags) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
+        let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
-        let mut bdecoder = BitmapDecoder::new(&mut tmp, header, flags, block_header, block_flags);
+        let mut bdecoder = BitmapDecoder::new(&mut tmp, header);
 
         let mut got: Vec<PseudoAln> = Vec::with_capacity(expected.len());
         for record in bdecoder.by_ref() {

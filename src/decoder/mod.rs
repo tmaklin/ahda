@@ -114,14 +114,9 @@
 //!                                block_size: ((u32::MAX as u64) / (5_u64)).min(65537_u64) as u32,
 //!                                flags_len: 44_u64,
 //!                              };
-//! let mut file_flags = FileFlags::default();
-//! file_flags.query_name = Some("sample".as_bytes().to_vec());
-//! file_flags.target_names = Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]);
-//! let block_header = BlockHeader { num_records: 4, placeholder1: 90, block_len: 28, flags_len: 27, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-//! let block_flags = BlockFlags { queries: vec!["r1".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()], query_ids: vec![0, 2, 3, 4] };
 //!
 //! let mut bits_iter = input.iter().map(|x| x as u64); // BitmapDecoder expects u64 indices
-//! let mut bitmap_decoder = BitmapDecoder::new(&mut bits_iter, file_header, file_flags, block_header, block_flags);
+//! let mut bitmap_decoder = BitmapDecoder::new(&mut bits_iter, file_header);
 //!
 //! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: None, query_id: Some(0), query_name: None });
 //! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 2]), ones_names: None, query_id: Some(3), query_name: None });
@@ -248,7 +243,7 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Result<Vec<PseudoAln>, E> {
         let (bitmap, block_flags) = unpack_block_roaring32(bytes, self.block_header.as_ref().unwrap())?;
         let mut tmp = bitmap.into_iter().map(|x| x as u64);
-        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
+        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
         self.block_flags = Some(block_flags);
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
     }
@@ -259,7 +254,7 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Result<Vec<PseudoAln>, E> {
         let (bitmap, block_flags) = unpack_block_roaring64(bytes, self.block_header.as_ref().unwrap())?;
         let mut tmp = bitmap.into_iter();
-        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
+        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
         self.block_flags = Some(block_flags);
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
     }
