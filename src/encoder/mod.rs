@@ -228,17 +228,7 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
         &mut self,
     ) -> Option<Vec<u8>> {
         let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.header.block_size as usize);
-        for mut record in self.records.by_ref() {
-            // TODO Check that all fields are set?
-
-            // We don't need these in the encoded data and they can take a lot of space if the alignment is dense
-            record.ones_names = None;
-
-            block_records.push(record);
-            if block_records.len() == self.header.block_size as usize {
-                break;
-            }
-        }
+        block_records.extend(self.records.take(self.header.block_size as usize).map(|mut x| { x.ones_names = None; x } ));
 
         if block_records.is_empty() {
             return None
