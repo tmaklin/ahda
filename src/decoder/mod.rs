@@ -123,9 +123,9 @@
 //! let mut bits_iter = input.iter().map(|x| x as u64); // BitmapDecoder expects u64 indices
 //! let mut bitmap_decoder = BitmapDecoder::new(&mut bits_iter, file_header, file_flags, block_header, block_flags);
 //!
-//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
-//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
-//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![2]), ones_names: None, query_id: Some(0), query_name: None });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 2]), ones_names: None, query_id: Some(3), query_name: None });
+//! assert_eq!(bitmap_decoder.next().unwrap(), PseudoAln { ones: Some(vec![0, 1, 2]), ones_names: None, query_id: Some(4), query_name: None });
 //!
 //! assert_eq!(bitmap_decoder.next(), None); // Note that the PseudoAln with query_id: 2 is not included because it did not align against anything
 //! ```
@@ -145,7 +145,6 @@ use crate::compression::BitmapType;
 use crate::compression::roaring32::unpack_block_roaring32;
 use crate::compression::roaring64::unpack_block_roaring64;
 
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::io::Read;
 
@@ -163,6 +162,12 @@ pub struct Decoder<'a, R: Read> {
     block_flags: Option<BlockFlags>,
     block: Vec<PseudoAln>,
     block_index: usize,
+
+    // What values to fill in the records
+    fill_query_id: bool,
+    fill_query_name: bool,
+    fill_target_ids: bool,
+    fill_target_names: bool,
 }
 
 impl<'a, R: Read> Decoder<'a, R> {
@@ -178,7 +183,39 @@ impl<'a, R: Read> Decoder<'a, R> {
             header, flags,
             block_header: None, block_flags: None,
             block: Vec::new(), block_index: 0_usize,
+            fill_query_id: true,
+            fill_query_name: true,
+            fill_target_ids: true,
+            fill_target_names: true,
         }
+    }
+
+    pub fn fill_query_id(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_query_id = val;
+    }
+
+    pub fn fill_query_name(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_query_name = val;
+    }
+
+    pub fn fill_target_ids(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_target_ids = val;
+    }
+
+    pub fn fill_target_names(
+        &mut self,
+        val: bool,
+    ) {
+        self.fill_target_names = val;
     }
 }
 
@@ -188,22 +225,17 @@ impl<R: Read> Decoder<'_, R> {
         &self,
         bitmap_decoder: &mut bitmap_decoder::BitmapDecoder<I>,
     ) -> Result<Vec<PseudoAln>, E> {
-        let mut alns: Vec<PseudoAln> = Vec::new();
-        let mut name_to_id: HashMap<Vec<u8>, u32> = HashMap::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
-        let mut seen: HashSet<u32> = HashSet::with_capacity(self.block_header.as_ref().unwrap().num_records as usize);
-        self.block_flags.as_ref().unwrap().query_ids.iter().zip(self.block_flags.as_ref().unwrap().queries.iter()).for_each(|(idx, name)| {
-            name_to_id.insert(name.clone(), *idx);
-        });
-        for mut record in bitmap_decoder {
-            let query_id = *name_to_id.get(record.query_name.as_ref().unwrap()).unwrap();
-            record.query_id = Some(query_id);
-            seen.insert(query_id);
+        let n_records = self.block_header.as_ref().unwrap().num_records as usize;
+        let mut alns: Vec<PseudoAln> = Vec::with_capacity(n_records);
+        let mut seen: HashSet<u32> = HashSet::with_capacity(n_records);
+        for record in bitmap_decoder.by_ref() {
+            seen.insert(*record.query_id.as_ref().unwrap());
             alns.push(record);
         }
 
-        self.block_flags.as_ref().unwrap().query_ids.iter().zip(self.block_flags.as_ref().unwrap().queries.iter()).for_each(|(idx, name)| {
+        self.block_flags.as_ref().unwrap().query_ids.iter().for_each(|idx| {
             if !seen.contains(idx) {
-                alns.push(PseudoAln{ ones_names: Some(vec![]), query_id: Some(*idx), ones: Some(vec![]), query_name: Some(name.clone()) });
+                alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None });
             }
         });
 
@@ -215,7 +247,7 @@ impl<R: Read> Decoder<'_, R> {
         bytes: &[u8],
     ) -> Result<Vec<PseudoAln>, E> {
         let (bitmap, block_flags) = unpack_block_roaring32(bytes, self.block_header.as_ref().unwrap())?;
-        let mut tmp = bitmap.iter().map(|x| x as u64);
+        let mut tmp = bitmap.into_iter().map(|x| x as u64);
         let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
         self.block_flags = Some(block_flags);
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
@@ -226,7 +258,7 @@ impl<R: Read> Decoder<'_, R> {
         bytes: &[u8],
     ) -> Result<Vec<PseudoAln>, E> {
         let (bitmap, block_flags) = unpack_block_roaring64(bytes, self.block_header.as_ref().unwrap())?;
-        let mut tmp = bitmap.iter();
+        let mut tmp = bitmap.into_iter();
         let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone(), self.flags.clone(), self.block_header.as_ref().unwrap().clone(), block_flags.clone());
         self.block_flags = Some(block_flags);
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
@@ -268,6 +300,38 @@ impl<R: Read> Decoder<'_, R> {
             _ => None,
         }
     }
+
+    fn fill_record(
+        &self,
+        record: &mut PseudoAln,
+    ) {
+        // TODO using .iter().position() is prob more inefficient than indexing the data when initializing a new block
+        if record.query_id.is_none() && self.fill_query_id {
+            let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
+            let query_index = self.block_flags.as_ref().unwrap().query_ids[self.block_flags.as_ref().unwrap().queries.iter().position(|x| x == &key).unwrap()];
+            record.query_id = Some(query_index);
+        }
+
+        if record.query_name.is_none() && self.fill_query_name {
+            let query_name = self.block_flags.as_ref().unwrap().queries[self.block_flags.as_ref().unwrap().query_ids.iter().position(|x| x == &record.query_id.unwrap()).unwrap()].clone();
+            record.query_name = Some(query_name.to_vec());
+        }
+
+        if record.ones_names.is_none() && record.ones.is_some() && self.fill_target_names {
+            let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
+                self.flags.target_names.as_ref().unwrap()[*target_idx as usize].clone()
+            }).collect::<Vec<Vec<u8>>>();
+            record.ones_names = Some(ones_names);
+        }
+
+        if record.ones_names.is_some() && record.ones.is_none() && self.fill_target_ids{
+            let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
+                self.flags.target_names.as_ref().unwrap().into_iter().position(|x| x == target_name).unwrap() as u32
+            }).collect::<Vec<u32>>();
+            record.ones = Some(ones);
+        }
+    }
+
 }
 
 impl<R: Read> Iterator for Decoder<'_, R> {
@@ -278,7 +342,8 @@ impl<R: Read> Iterator for Decoder<'_, R> {
     ) -> Option<Self::Item> {
         if self.block_index < self.block.len() {
             self.block_index += 1;
-            let ret = self.block[self.block_index - 1].clone();
+            let mut ret = self.block[self.block_index - 1].clone();
+            self.fill_record(&mut ret);
             Some(ret)
         } else {
             self.block = self.next_block()?;
@@ -364,11 +429,11 @@ mod tests {
         use std::io::Cursor;
 
         let mut expected = vec![
-            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
-            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+            PseudoAln{ones_names: None,  query_id: Some(1), ones: Some(vec![0]), query_name: None },
+            PseudoAln{ones_names: None,  query_id: Some(0), ones: Some(vec![0]), query_name: None },
+            PseudoAln{ones_names: None,  query_id: Some(2), ones: Some(vec![0, 1]), query_name: None },
+            PseudoAln{ones_names: None, query_id: Some(4), ones: Some(vec![]), query_name: None },
+            PseudoAln{ones_names: None,  query_id: Some(3), ones: Some(vec![1]), query_name: None },
         ];
         expected.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
