@@ -133,7 +133,6 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
 use crate::headers::file::read_file_header;
 use crate::headers::file::read_file_flags;
-use crate::headers::block::BlockHeader;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use crate::compression::BitmapType;
@@ -155,10 +154,8 @@ pub struct Decoder<'a, R: Read> {
     flags: FileFlags,
 
     // Internals
-    block_header: Option<BlockHeader>,
     block: Vec<PseudoAln>,
     block_index: usize,
-
     q_ids: IndexSet<u32>,
     q_names: IndexSet<Vec<u8>>,
 
@@ -183,7 +180,6 @@ impl<'a, R: Read> Decoder<'a, R> {
             q_names: IndexSet::with_capacity(header.block_size as usize),
             conn,
             header, flags,
-            block_header: None,
             block_index: 0_usize,
             fill_query_id: true,
             fill_query_name: true,
@@ -268,15 +264,14 @@ impl<R: Read> Decoder<'_, R> {
                 let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into().unwrap();
                 let mut bytes: Vec<u8> = vec![0; deflated_len];
                 self.conn.read_exact(&mut bytes).unwrap();
-                self.block_header = Some(block_header);
                 match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
                     BitmapType::Roaring32 => {
-                        let (bitmap, block_flags) = unpack_block_roaring32(&bytes, self.block_header.as_ref().unwrap()).unwrap();
+                        let (bitmap, block_flags) = unpack_block_roaring32(&bytes, &block_header).unwrap();
                         let mut tmp = bitmap.into_iter().map(|x| x as u64);
                         self.alns_from_set_bits(block_flags, &mut tmp).unwrap();
                     },
                     BitmapType::Roaring64 => {
-                        let (bitmap, block_flags) = unpack_block_roaring64(&bytes, self.block_header.as_ref().unwrap()).unwrap();
+                        let (bitmap, block_flags) = unpack_block_roaring64(&bytes, &block_header).unwrap();
                         let mut tmp = bitmap.into_iter();
                         self.alns_from_set_bits(block_flags, &mut tmp).unwrap();
                     }
