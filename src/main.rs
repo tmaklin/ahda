@@ -384,26 +384,71 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
-            assert!(input_files.len() > 1);
+            assert!(!input_files.is_empty());
 
-            // Read bitmap A from the first file
-            let mut conn_in = File::open(&input_files[0]).unwrap();
-            let (mut bitmap_a, header_a, flags_a, block_flags_a) = ahda::decode_from_read_to_roaring(&mut conn_in).unwrap();
+            let mut conn_in: Vec<Box<dyn Read>> = Vec::new();
 
-            // Read the remainning bitmaps and perform requested operation
-            for file in input_files.iter().skip(1) {
-                let mut conn_in = File::open(file).unwrap();
-                ahda::decode_from_read_into_roaring(&mut conn_in, operation.as_ref().unwrap(), &mut bitmap_a).unwrap();
+            // Read first file from stdin if data is being piped in
+            if !std::io::stdin().is_terminal() {
+                conn_in.push(Box::new(std::io::stdin()));
             }
 
+            for file in input_files {
+                match File::open(file) {
+                    Ok(conn) => conn_in.push(Box::new(conn)),
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", file.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
+            }
+
+            let mut conn_out: Vec<Box<dyn Write>> = Vec::new();
+
+            if let Some(file) = output_file {
+                if !*stdout {
+                    match if *force { File::create(file.clone()) } else { File::create_new(file.clone()) } {
+                        Ok(out) => {
+                            conn_out.push(Box::new(out));
+                        },
+                        Err(e) => {
+                            eprintln!("ahda: can't create output file `{}`: {}", file.to_string_lossy(), e);
+                            return Err(Box::new(e))
+                        },
+                    }
+                }
+            }
+
+            if *stdout || (output_file.is_none()) {
+                conn_out.push(Box::new(std::io::stdout()));
+            }
+
+            // Read first bitmap
+            let (mut bitmap_a, header_a, flags_a, block_flags_a) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
+
+            // Read the remainning bitmaps and perform requested operation.
+            // Intersection requires reading the entire other bitmaps into memory.
+            // Other operations are performed block-wise.
+            for (idx, conn) in conn_in.iter_mut().skip(1).enumerate() {
+                match ahda::decode_from_read_into_roaring(conn, operation.as_ref().unwrap(), &mut bitmap_a) {
+                    Ok(_) => (),
+                    Err(e) => {
+                        let file = input_files[idx].clone();
+                        eprintln!("ahda: could not decode bitmap from input file `{}`: {}", file.to_string_lossy(), e);
+                        return Err(e)
+                    }
+                }
+            }
+
+            // TODO should fill this block_header correctly
             let block_header = BlockHeader{ num_records: header_a.n_queries, bitmap_type: 0, metadata_compression: 0, block_len: 0, flags_len: 0, fields_present: 0, placeholder1: 0, placeholder2: 0, placeholder3: 0 };
-            let mut iter = bitmap_a.iter();
+            let mut iter = bitmap_a.into_iter();
             let mut decoder = ahda::decoder::bitmap_decoder::BitmapDecoder::new(&mut iter, header_a.clone(), flags_a.clone(), block_header, block_flags_a);
             let printer = Printer::new_from_header_and_flags(&mut decoder, header_a.clone(), flags_a.clone(), format.as_ref().unwrap().clone());
             for line in printer {
-                std::io::stdout().write_all(&line).unwrap();
+                conn_out[0].write_all(&line)?;
             }
-            std::io::stdout().flush().unwrap();
+            conn_out[0].flush()?;
             Ok(())
 
         },
