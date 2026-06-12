@@ -156,7 +156,6 @@ pub struct Decoder<'a, R: Read> {
 
     // Internals
     block_header: Option<BlockHeader>,
-    block_flags: Option<BlockFlags>,
     block: Vec<PseudoAln>,
     block_index: usize,
 
@@ -181,7 +180,7 @@ impl<'a, R: Read> Decoder<'a, R> {
         Decoder{
             conn,
             header, flags,
-            block_header: None, block_flags: None,
+            block_header: None,
             block: Vec::new(), block_index: 0_usize,
             q_ids: IndexSet::new(),
             q_names: IndexSet::new(),
@@ -258,13 +257,13 @@ impl<R: Read> Decoder<'_, R> {
         let (bitmap, block_flags) = unpack_block_roaring32(bytes, self.block_header.as_ref().unwrap())?;
         let mut tmp = bitmap.into_iter().map(|x| x as u64);
         let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
-        self.block_flags = Some(block_flags);
-
-        self.q_names = IndexSet::from_iter(self.block_flags.as_ref().unwrap().queries.iter().cloned());
-        self.q_ids = IndexSet::from_iter(self.block_flags.as_ref().unwrap().query_ids.iter().cloned());
 
         let mut alns = self.alns_from_bitmapdecoder(&mut bitmap_decoder)?;
-        self.add_unaligned(self.block_flags.as_ref().unwrap(), &mut alns);
+        self.add_unaligned(&block_flags, &mut alns);
+
+        self.q_names = IndexSet::from_iter(block_flags.queries);
+        self.q_ids = IndexSet::from_iter(block_flags.query_ids);
+
         Ok(alns)
     }
 
@@ -275,13 +274,13 @@ impl<R: Read> Decoder<'_, R> {
         let (bitmap, block_flags) = unpack_block_roaring64(bytes, self.block_header.as_ref().unwrap())?;
         let mut tmp = bitmap.into_iter();
         let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
-        self.block_flags = Some(block_flags);
-
-        self.q_names = IndexSet::from_iter(self.block_flags.as_ref().unwrap().queries.iter().cloned());
-        self.q_ids = IndexSet::from_iter(self.block_flags.as_ref().unwrap().query_ids.iter().cloned());
 
         let mut alns = self.alns_from_bitmapdecoder(&mut bitmap_decoder)?;
-        self.add_unaligned(self.block_flags.as_ref().unwrap(), &mut alns);
+        self.add_unaligned(&block_flags, &mut alns);
+
+        self.q_names = IndexSet::from_iter(block_flags.queries);
+        self.q_ids = IndexSet::from_iter(block_flags.query_ids);
+
         Ok(alns)
     }
 
