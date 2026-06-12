@@ -158,6 +158,7 @@ pub struct Decoder<'a, R: Read> {
     block_index: usize,
     q_ids: IndexSet<u32>,
     q_names: IndexSet<Vec<u8>>,
+    t_names: IndexSet<Vec<u8>>,
 
     // What values to fill in the records
     fill_query_id: bool,
@@ -178,6 +179,7 @@ impl<'a, R: Read> Decoder<'a, R> {
             block: Vec::with_capacity(header.block_size as usize),
             q_ids: IndexSet::with_capacity(header.block_size as usize),
             q_names: IndexSet::with_capacity(header.block_size as usize),
+            t_names: IndexSet::from_iter(flags.target_names.as_ref().unwrap().iter().cloned()),
             conn,
             header, flags,
             block_index: 0_usize,
@@ -304,14 +306,15 @@ impl<R: Read> Decoder<'_, R> {
 
         if record.ones_names.is_none() && self.fill_target_names {
             let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                self.flags.target_names.as_ref().unwrap()[*target_idx as usize].clone()
+                let key = *target_idx as usize;
+                self.t_names.get_index(key).unwrap().clone()
             }).collect::<Vec<Vec<u8>>>();
             record.ones_names = Some(ones_names);
         }
 
-        if record.ones.is_none() && self.fill_target_ids{
-            let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                self.flags.target_names.as_ref().unwrap().into_iter().position(|x| x == target_name).unwrap() as u32
+        if record.ones.is_none() && self.fill_target_ids {
+            let ones = record.ones_names.as_ref().unwrap().iter().map(|key| {
+                self.t_names.get_index_of(key).unwrap() as u32
             }).collect::<Vec<u32>>();
             record.ones = Some(ones);
         }
