@@ -228,11 +228,13 @@ impl<R: Read> Decoder<'_, R> {
         self.block = bitmap_decoder.collect();
 
         let seen: HashSet<u32> = HashSet::from_iter(self.block.iter().map(|x| x.query_id.unwrap()));
-        block_flags.query_ids.iter().for_each(|idx| {
+        self.block.extend(block_flags.query_ids.iter().filter_map(|idx| {
             if !seen.contains(idx) {
-                self.block.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None });
+                Some(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None })
+            } else {
+                None
             }
-        });
+        }));
 
         self.q_names = IndexSet::from_iter(block_flags.queries);
         self.q_ids = IndexSet::from_iter(block_flags.query_ids);
