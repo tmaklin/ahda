@@ -140,6 +140,8 @@ use crate::compression::BitmapType;
 use crate::compression::roaring32::unpack_block_roaring32;
 use crate::compression::roaring64::unpack_block_roaring64;
 
+use indexmap::IndexSet;
+
 use std::collections::HashSet;
 use std::io::Read;
 
@@ -157,6 +159,9 @@ pub struct Decoder<'a, R: Read> {
     block_flags: Option<BlockFlags>,
     block: Vec<PseudoAln>,
     block_index: usize,
+
+    q_ids: IndexSet<u32>,
+    q_names: IndexSet<Vec<u8>>,
 
     // What values to fill in the records
     fill_query_id: bool,
@@ -178,6 +183,8 @@ impl<'a, R: Read> Decoder<'a, R> {
             header, flags,
             block_header: None, block_flags: None,
             block: Vec::new(), block_index: 0_usize,
+            q_ids: IndexSet::new(),
+            q_names: IndexSet::new(),
             fill_query_id: true,
             fill_query_name: true,
             fill_target_ids: true,
@@ -245,6 +252,10 @@ impl<R: Read> Decoder<'_, R> {
         let mut tmp = bitmap.into_iter().map(|x| x as u64);
         let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
         self.block_flags = Some(block_flags);
+
+        self.q_names = IndexSet::from_iter(self.block_flags.as_ref().unwrap().queries.iter().cloned());
+        self.q_ids = IndexSet::from_iter(self.block_flags.as_ref().unwrap().query_ids.iter().cloned());
+
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
     }
 
@@ -256,6 +267,10 @@ impl<R: Read> Decoder<'_, R> {
         let mut tmp = bitmap.into_iter();
         let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
         self.block_flags = Some(block_flags);
+
+        self.q_names = IndexSet::from_iter(self.block_flags.as_ref().unwrap().queries.iter().cloned());
+        self.q_ids = IndexSet::from_iter(self.block_flags.as_ref().unwrap().query_ids.iter().cloned());
+
         self.alns_from_bitmapdecoder(&mut bitmap_decoder)
     }
 
@@ -300,16 +315,18 @@ impl<R: Read> Decoder<'_, R> {
         &self,
         record: &mut PseudoAln,
     ) {
-        // TODO using .iter().position() is prob more inefficient than indexing the data when initializing a new block
         if record.query_id.is_none() && self.fill_query_id {
             let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
-            let query_index = self.block_flags.as_ref().unwrap().query_ids[self.block_flags.as_ref().unwrap().queries.iter().position(|x| x == &key).unwrap()];
-            record.query_id = Some(query_index);
+            let index = self.q_names.get_index_of(&key).unwrap();
+            let query_id = self.q_ids.get_index(index).unwrap();
+            record.query_id = Some(*query_id);
         }
 
         if record.query_name.is_none() && self.fill_query_name {
-            let query_name = self.block_flags.as_ref().unwrap().queries[self.block_flags.as_ref().unwrap().query_ids.iter().position(|x| x == &record.query_id.unwrap()).unwrap()].clone();
-            record.query_name = Some(query_name.to_vec());
+            let key: u32 = record.query_id.unwrap();
+            let index = self.q_ids.get_index_of(&key).unwrap();
+            let query_name = self.q_names.get_index(index).unwrap().clone();
+            record.query_name = Some(query_name);
         }
 
         if record.ones_names.is_none() && record.ones.is_some() && self.fill_target_names {
