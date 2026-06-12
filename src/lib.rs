@@ -375,9 +375,8 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 
     conns.iter_mut().for_each(|conn_in| {
         std::io::copy(conn_in, conn_out).unwrap();
+        conn_out.flush().unwrap();
     });
-
-    conn_out.flush()?;
 
     Ok(())
 }
@@ -629,8 +628,9 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
         conn_out.write_all(&block)?;
+        conn_out.flush().unwrap();
     }
-    conn_out.flush()?;
+
     Ok(())
 }
 
@@ -675,14 +675,36 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 ) -> Result<(), E> {
     let mut decoder = decoder::Decoder::new(conn_in);
 
+    match out_format {
+        Format::Themisto => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_name(false);
+        },
+        Format::Fulgor => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_id(false);
+        },
+        Format::Bifrost => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_id(false);
+        },
+        Format::SAM => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_id(false);
+        },
+        Format::Metagraph => {
+            decoder.fill_target_ids(false);
+        },
+    }
+
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
     let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone());
     for line in printer {
         conn_out.write_all(&line)?;
     }
+    conn_out.flush().unwrap();
 
-    conn_out.flush()?;
     Ok(())
 }
 
@@ -771,14 +793,36 @@ pub fn decode_to_write<W: Write>(
     let mut tmp = std::io::Cursor::new(&records);
     let mut decoder = decoder::Decoder::new(&mut tmp);
 
+    match out_format {
+        Format::Themisto => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_name(false);
+        },
+        Format::Fulgor => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_id(false);
+        },
+        Format::Bifrost => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_id(false);
+        },
+        Format::SAM => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_id(false);
+        },
+        Format::Metagraph => {
+            decoder.fill_target_ids(false);
+        },
+    }
+
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
     let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone());
     for line in printer {
         conn_out.write_all(&line)?;
     }
+    conn_out.flush().unwrap();
 
-    conn_out.flush()?;
     Ok(())
 }
 
