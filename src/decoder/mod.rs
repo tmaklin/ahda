@@ -222,66 +222,26 @@ impl<'a, R: Read> Decoder<'a, R> {
 
 impl<R: Read> Decoder<'_, R> {
 
-    fn add_unaligned(
-        &self,
-        block_flags: &BlockFlags,
-        alns: &mut Vec<PseudoAln>,
-    ) {
+    fn alns_from_set_bits<I: Iterator<Item=u64>>(
+        &mut self,
+        block_flags: BlockFlags,
+        it: &mut I,
+    ) -> Result<Vec<PseudoAln>, E> {
+        let bitmap_decoder = bitmap_decoder::BitmapDecoder::new(it, self.header.clone());
+        let mut alns: Vec<PseudoAln> = bitmap_decoder.collect();
+
         let seen: HashSet<u32> = HashSet::from_iter(alns.iter().map(|x| x.query_id.unwrap()));
         block_flags.query_ids.iter().for_each(|idx| {
             if !seen.contains(idx) {
                 alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None });
             }
         });
-    }
-
-    fn alns_from_bitmapdecoder<I: Iterator<Item=u64>>(
-        &self,
-        bitmap_decoder: &mut bitmap_decoder::BitmapDecoder<I>,
-    ) -> Result<Vec<PseudoAln>, E> {
-        let n_records = self.block_header.as_ref().unwrap().num_records as usize;
-        let mut alns: Vec<PseudoAln> = Vec::with_capacity(n_records);
-        let mut seen: HashSet<u32> = HashSet::with_capacity(n_records);
-        for record in bitmap_decoder.by_ref() {
-            seen.insert(*record.query_id.as_ref().unwrap());
-            alns.push(record);
-        }
-
-        Ok(alns)
-    }
-
-    fn alns_from_roaring32(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<Vec<PseudoAln>, E> {
-        let (bitmap, block_flags) = unpack_block_roaring32(bytes, self.block_header.as_ref().unwrap())?;
-        let mut tmp = bitmap.into_iter().map(|x| x as u64);
-        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
-
-        let mut alns = self.alns_from_bitmapdecoder(&mut bitmap_decoder)?;
-        self.add_unaligned(&block_flags, &mut alns);
 
         self.q_names = IndexSet::from_iter(block_flags.queries);
         self.q_ids = IndexSet::from_iter(block_flags.query_ids);
 
         Ok(alns)
-    }
 
-    fn alns_from_roaring64(
-        &mut self,
-        bytes: &[u8],
-    ) -> Result<Vec<PseudoAln>, E> {
-        let (bitmap, block_flags) = unpack_block_roaring64(bytes, self.block_header.as_ref().unwrap())?;
-        let mut tmp = bitmap.into_iter();
-        let mut bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut tmp, self.header.clone());
-
-        let mut alns = self.alns_from_bitmapdecoder(&mut bitmap_decoder)?;
-        self.add_unaligned(&block_flags, &mut alns);
-
-        self.q_names = IndexSet::from_iter(block_flags.queries);
-        self.q_ids = IndexSet::from_iter(block_flags.query_ids);
-
-        Ok(alns)
     }
 
     pub fn file_header(
@@ -307,15 +267,18 @@ impl<R: Read> Decoder<'_, R> {
                 self.block_header = Some(block_header);
                 let alns = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
                     BitmapType::Roaring32 => {
-                        self.alns_from_roaring32(&bytes).unwrap()
+                        let (bitmap, block_flags) = unpack_block_roaring32(&bytes, self.block_header.as_ref().unwrap()).unwrap();
+                        let mut tmp = bitmap.into_iter().map(|x| x as u64);
+                        self.alns_from_set_bits(block_flags, &mut tmp)
                     },
                     BitmapType::Roaring64 => {
-                        self.alns_from_roaring64(&bytes).unwrap()
+                        let (bitmap, block_flags) = unpack_block_roaring64(&bytes, self.block_header.as_ref().unwrap()).unwrap();
+                        let mut tmp = bitmap.into_iter();
+                        self.alns_from_set_bits(block_flags, &mut tmp)
                     }
                 };
 
-
-                Some(alns)
+                Some(alns.unwrap())
             },
             _ => None,
         }
