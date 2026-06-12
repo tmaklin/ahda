@@ -300,14 +300,14 @@ impl<R: Read> Decoder<'_, R> {
             record.query_name = Some(query_name);
         }
 
-        if record.ones_names.is_none() && record.ones.is_some() && self.fill_target_names {
+        if record.ones_names.is_none() && self.fill_target_names {
             let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
                 self.flags.target_names.as_ref().unwrap()[*target_idx as usize].clone()
             }).collect::<Vec<Vec<u8>>>();
             record.ones_names = Some(ones_names);
         }
 
-        if record.ones_names.is_some() && record.ones.is_none() && self.fill_target_ids{
+        if record.ones.is_none() && self.fill_target_ids{
             let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
                 self.flags.target_names.as_ref().unwrap().into_iter().position(|x| x == target_name).unwrap() as u32
             }).collect::<Vec<u32>>();
