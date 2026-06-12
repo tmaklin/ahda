@@ -223,6 +223,19 @@ impl<'a, R: Read> Decoder<'a, R> {
 
 impl<R: Read> Decoder<'_, R> {
 
+    fn add_unaligned(
+        &self,
+        block_flags: &BlockFlags,
+        alns: &mut Vec<PseudoAln>,
+    ) {
+        let seen: HashSet<u32> = HashSet::from_iter(alns.iter().map(|x| x.query_id.unwrap()));
+        block_flags.query_ids.iter().for_each(|idx| {
+            if !seen.contains(idx) {
+                alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None });
+            }
+        });
+    }
+
     fn alns_from_bitmapdecoder<I: Iterator<Item=u64>>(
         &self,
         bitmap_decoder: &mut bitmap_decoder::BitmapDecoder<I>,
@@ -234,12 +247,6 @@ impl<R: Read> Decoder<'_, R> {
             seen.insert(*record.query_id.as_ref().unwrap());
             alns.push(record);
         }
-
-        self.block_flags.as_ref().unwrap().query_ids.iter().for_each(|idx| {
-            if !seen.contains(idx) {
-                alns.push(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None });
-            }
-        });
 
         Ok(alns)
     }
@@ -256,7 +263,9 @@ impl<R: Read> Decoder<'_, R> {
         self.q_names = IndexSet::from_iter(self.block_flags.as_ref().unwrap().queries.iter().cloned());
         self.q_ids = IndexSet::from_iter(self.block_flags.as_ref().unwrap().query_ids.iter().cloned());
 
-        self.alns_from_bitmapdecoder(&mut bitmap_decoder)
+        let mut alns = self.alns_from_bitmapdecoder(&mut bitmap_decoder)?;
+        self.add_unaligned(self.block_flags.as_ref().unwrap(), &mut alns);
+        Ok(alns)
     }
 
     fn alns_from_roaring64(
@@ -271,7 +280,9 @@ impl<R: Read> Decoder<'_, R> {
         self.q_names = IndexSet::from_iter(self.block_flags.as_ref().unwrap().queries.iter().cloned());
         self.q_ids = IndexSet::from_iter(self.block_flags.as_ref().unwrap().query_ids.iter().cloned());
 
-        self.alns_from_bitmapdecoder(&mut bitmap_decoder)
+        let mut alns = self.alns_from_bitmapdecoder(&mut bitmap_decoder)?;
+        self.add_unaligned(self.block_flags.as_ref().unwrap(), &mut alns);
+        Ok(alns)
     }
 
     pub fn file_header(
