@@ -237,7 +237,7 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
 
         self.block.sort_by_key(|x| x.query_id);
 
-        let out = pack_records(&self.header, &self.block).unwrap();
+        let out = pack_records(&self.header, std::mem::take(&mut self.block)).unwrap();
 
         self.blocks_written += 1;
 

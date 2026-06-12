@@ -35,7 +35,7 @@ type E = Box<dyn std::error::Error>;
 /// Converts [PseudoAln] records to Roaring bitmaps
 pub fn convert_to_roaring32(
     file_header: &FileHeader,
-    records: &[PseudoAln],
+    records: Vec<PseudoAln>,
 ) -> Result<RoaringBitmap, E> {
     let n_targets: usize = file_header.n_targets as usize;
     let mut bits: RoaringBitmap = RoaringBitmap::new();
@@ -57,7 +57,7 @@ pub fn convert_to_roaring32(
 }
 
 pub fn serialize_roaring32(
-    bits: &RoaringBitmap,
+    bits: RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
     bits.serialize_into(&mut bytes)?;
@@ -76,7 +76,7 @@ pub fn deserialize_roaring32(
 pub fn pack_block_roaring32(
     queries: &[Vec<u8>],
     query_ids: &[u32],
-    bitmap: &RoaringBitmap,
+    bitmap: RoaringBitmap,
 ) -> Result<Vec<u8>, E> {
     let mut serialized = serialize_roaring32(bitmap)?;
 

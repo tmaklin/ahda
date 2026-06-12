@@ -173,7 +173,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
                 self.blocks_written += 1;
                 self.last_idx = end_idx as usize;
                 let bitmap = self.build_roaring32()?;
-                pack_block_roaring32(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, &bitmap).unwrap()
+                pack_block_roaring32(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, bitmap).unwrap()
             },
             BitmapType::Roaring64 => {
                 let start_idx = self.blocks_written * self.header.block_size as usize;
@@ -181,7 +181,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
                 self.blocks_written += 1;
                 self.last_idx = end_idx as usize;
                 let bitmap = self.build_roaring64()?;
-                pack_block_roaring64(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, &bitmap).unwrap()
+                pack_block_roaring64(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, bitmap).unwrap()
             }
         };
 

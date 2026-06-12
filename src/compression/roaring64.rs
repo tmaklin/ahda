@@ -35,7 +35,7 @@ type E = Box<dyn std::error::Error>;
 /// Converts [PseudoAln] records to RoaringTreemap
 pub fn convert_to_roaring64(
     file_header: &FileHeader,
-    records: &[PseudoAln],
+    records: Vec<PseudoAln>,
 ) -> Result<RoaringTreemap, E> {
     let n_targets: u64 = file_header.n_targets as u64;
     let mut bits: RoaringTreemap = RoaringTreemap::new();
@@ -56,7 +56,7 @@ pub fn convert_to_roaring64(
 }
 
 pub fn serialize_roaring64(
-    bits: &RoaringTreemap,
+    bits: RoaringTreemap,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
     bits.serialize_into(&mut bytes)?;
@@ -75,7 +75,7 @@ pub fn deserialize_roaring64(
 pub fn pack_block_roaring64(
     queries: &[Vec<u8>],
     query_ids: &[u32],
-    bitmap: &RoaringTreemap,
+    bitmap: RoaringTreemap,
 ) -> Result<Vec<u8>, E> {
     let mut serialized = serialize_roaring64(bitmap)?;
 

@@ -109,7 +109,7 @@ impl MetadataCompression {
 /// Compress a block of [PseudoAln] records.
 pub fn pack_records(
     file_header: &FileHeader,
-    records: &[PseudoAln],
+    records: Vec<PseudoAln>,
 ) -> Result<Vec<u8>, E> {
     let queries: Vec<Vec<u8>> = records.iter().filter_map(|record| {
         assert!(record.query_name.is_some());
@@ -124,11 +124,11 @@ pub fn pack_records(
     let block = match BitmapType::from_u16(file_header.bitmap_type)? {
         BitmapType::Roaring32 => {
             let bitmap = convert_to_roaring32(file_header, records)?;
-            pack_block_roaring32(&queries, &query_ids, &bitmap)?
+            pack_block_roaring32(&queries, &query_ids, bitmap)?
         },
         BitmapType::Roaring64 => {
             let bitmap = convert_to_roaring64(file_header, records)?;
-            pack_block_roaring64(&queries, &query_ids, &bitmap)?
+            pack_block_roaring64(&queries, &query_ids, bitmap)?
         }
     };
 
