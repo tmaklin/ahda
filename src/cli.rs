@@ -109,7 +109,7 @@ pub enum Commands {
         output_file: Option<PathBuf>,
 
         // Output format, defaults to Themisto
-        #[arg(short = 'F', long = "format", required = false, help = "Output plain text format")]
+        #[arg(short = 'F', long = "format", required = false, help_heading = "Outputs", help = "Output plain text format")]
         format: Option<ahda::Format>,
 
         // Sample name
@@ -148,20 +148,32 @@ pub enum Commands {
     // Set operations on .ahda files
     #[command(name = "set", about = "Set operations on binary data")]
     Set {
-        // Input file
-        #[arg(group = "input", required = true, help = "Input files")]
+        // Input files
+        #[arg(group = "input", required = true, help = "Input file(s)")]
         input_files: Vec<PathBuf>,
 
+        // Output file name
+        #[arg(short = 'o', long = "output", help_heading = "Outputs", help = "Output to file")]
+        output_file: Option<PathBuf>,
+
         // Output format, defaults to Themisto
-        #[arg(long = "format", default_value = "themisto")]
+        #[arg(short = 'F', long = "format", help_heading = "Outputs", required = false, help = "Output plain text format")]
         format: Option<ahda::Format>,
 
         // Merge operation
-        #[arg(long = "op", default_value = "union", help = "Merge operation")]
+        #[arg(short = 'm', long = "mode", default_value = "union", help = "Merge operation")]
         operation: Option<ahda::MergeOp>,
 
+        // Write to stdout
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original file")]
+        stdout: bool,
+
+        // Overwrite output file
+        #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
+        force: bool,
+
         // Verbosity
-        #[arg(long = "verbose", default_value_t = false)]
+        #[arg(short = 'v', long = "verbose", default_value_t = false, help = "Print extra information")]
         verbose: bool,
     },
 }

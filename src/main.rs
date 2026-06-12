@@ -376,8 +376,11 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
         // Set operations
         Some(cli::Commands::Set {
             input_files,
+            output_file,
             format,
             operation,
+            stdout,
+            force,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
