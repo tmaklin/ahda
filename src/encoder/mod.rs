@@ -145,7 +145,6 @@ pub mod bitmap_encoder;
 
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
-use crate::headers::file::FileFlags;
 use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
@@ -161,9 +160,9 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 
     // These are given as construtor parameters
     header: FileHeader,
-    flags: FileFlags,
 
     // Internals
+    flags_bytes: Vec<u8>,
     blocks_written: usize,
     block: Vec<PseudoAln>,
 }
@@ -177,11 +176,12 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
     ) -> Self {
 
         let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default()).unwrap();
+        let flags_bytes = encode_file_flags(&flags, &MetadataCompression::from_u8(header.metadata_compression).unwrap()).unwrap();
 
         Encoder{
             records,
             block: Vec::with_capacity(header.block_size as usize),
-            header, flags,
+            header, flags_bytes,
             blocks_written: 0_usize,
         }
     }
@@ -191,12 +191,11 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Result<Vec<u8>, E> {
-        let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression)?)?;
         let mut header_bytes = encode_file_header(&self.header)?;
 
-        let mut out: Vec<u8> = Vec::new();
+        let mut out: Vec<u8> = Vec::with_capacity(self.header.flags_len as usize + header_bytes.len());
         out.append(&mut header_bytes);
-        out.append(&mut flags_bytes);
+        out.extend(&self.flags_bytes);
 
         Ok(out)
     }
