@@ -165,6 +165,7 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 
     // Internals
     blocks_written: usize,
+    block: Vec<PseudoAln>,
 }
 
 impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
@@ -179,6 +180,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 
         Encoder{
             records,
+            block: Vec::with_capacity(header.block_size as usize),
             header, flags,
             blocks_written: 0_usize,
         }
@@ -227,16 +229,16 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
     fn next(
         &mut self,
     ) -> Option<Vec<u8>> {
-        let mut block_records: Vec<PseudoAln> = Vec::with_capacity(self.header.block_size as usize);
-        block_records.extend(self.records.take(self.header.block_size as usize).map(|mut x| { x.ones_names = None; x } ));
+        self.block.clear();
+        self.block.extend(self.records.take(self.header.block_size as usize).map(|mut x| { x.ones_names = None; x } ));
 
-        if block_records.is_empty() {
+        if self.block.is_empty() {
             return None
         }
 
-        block_records.sort_by_key(|x| x.query_id.unwrap());
+        self.block.sort_by_key(|x| x.query_id);
 
-        let out = pack_records(&self.header, &block_records).unwrap();
+        let out = pack_records(&self.header, &self.block).unwrap();
 
         self.blocks_written += 1;
 
