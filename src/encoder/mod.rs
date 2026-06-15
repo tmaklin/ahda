@@ -150,7 +150,6 @@ use crate::headers::file::FileHeader;
 use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
-use crate::headers::block::BlockFlags;
 use crate::compression::BitmapType;
 use crate::compression::MetadataCompression;
 use crate::compression::pack_records;
