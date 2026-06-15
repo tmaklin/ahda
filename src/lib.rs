@@ -39,11 +39,19 @@
 //!   - `ahda convert` convert between supported plain text formats.
 //!   - `ahda set` perform set operations on compressed pseudoalignment data.
 //!
-//! Note that `encode` needs access to the .fastq input file and the names of
+//! Note that `encode` may need access to the .fastq input file and the names of
 //! the pseudoalignment targets. These are required to create an encoded record
 //! that can be converted to any of the supported plain text formats, because
 //! the plain text formats contain varying levels of information about the input
 //! data.
+//!
+//! Encoding Themisto and Metagraph data can be performed without the .fastq
+//! file by renaming the queries because the index of each query (in the .fastq
+//! file) is provided in the plain text format.
+//!
+//! Encoding SAM and Bifrost data can be performed without the names of the
+//! pseudoalignment targets because they are provided in the plain text format.
+//!
 //!
 //! ### Rust API
 //!
