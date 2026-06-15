@@ -183,7 +183,6 @@ pub fn encode_file_header_and_flags(
     header: &mut FileHeader,
     flags: &FileFlags,
 ) -> Result<Vec<u8>, E> {
-    // TODO set fields_present in header based on flags
     let mut flags_bytes: Vec<u8> = encode_file_flags(flags, &MetadataCompression::from_u8(header.metadata_compression)?)?;
     let flags_len: u64 = flags_bytes.len() as u64;
     header.flags_len = flags_len;
