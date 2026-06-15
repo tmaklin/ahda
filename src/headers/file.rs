@@ -77,7 +77,7 @@ impl FileHeader {
     pub fn promises_query_names(
         &self,
     ) -> bool {
-        (self.fields_present & (1 << 0)) != 1
+        (self.fields_present & (1 << 0)) != 0
     }
 
     pub fn promises_query_ids(
