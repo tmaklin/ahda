@@ -266,8 +266,8 @@ impl<R: Read> Decoder<'_, R> {
         match read_block_header(self.conn) {
             Ok(block_header) => {
                 for i in 0..16 {
-                    if (self.header.fields_present & (1 << i)) == 1 {
-                        assert!((block_header.fields_present & (1 << i)) == 1);
+                    if (self.header.fields_present & (1 << i)) != 0 {
+                        assert!((block_header.fields_present & (1 << i)) != 0);
                     }
                 }
                 let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into().unwrap();
