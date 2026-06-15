@@ -47,8 +47,7 @@ pub struct BlockHeader {
     /// Number of bytes in [BlockFlags] that follow the header bytes.
     pub flags_len: u64,
 
-    /// [BlockFlags] fields that are present for records in this block, see
-    /// [Format](crate::Format) for details.
+    /// [BlockFlags] fields that are present for records in this block.
     ///
     /// Every block must contain at least the fields given in the [FileHeader]
     /// `fields_present`. A block may also contain extra fields that are not
@@ -66,13 +65,22 @@ pub struct BlockHeader {
 ///
 /// Variable length, use [BlockHeader].flags_len to get size
 ///
-/// Contents may differ between implementations.
+/// Must contain these fields:
+/// - `queries`: Names of the query sequences in the original query file.
+/// - `query_ids`: Indexes of the query sequences in the original query file.
+///
+/// `queries` and `query_ids` must be in the same order, ie. the data in both
+/// arrays at the same index corresponds to the same record.
+///
+/// The current implementation of ahda assumes that `queries` and `query_ids`
+/// are always present and filled.
 ///
 #[derive(Clone, Decode, Debug, Encode, PartialEq)]
 pub struct BlockFlags {
-    /// Names of query records
-    pub queries: Vec<Vec<u8>>,
-    pub query_ids: Vec<u32>,
+    /// Names of query records in the original query file.
+    pub queries: Option<Vec<Vec<u8>>>,
+    /// Indexes of the query records in the original query file.
+    pub query_ids: Option<Vec<u32>>,
 }
 
 pub fn encode_block_header(
@@ -203,8 +211,8 @@ mod tests {
         use super::encode_block_flags;
         use super::BlockFlags;
 
-        let data = BlockFlags{ queries: vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()], query_ids: vec![1, 0, 2] };
-        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
+        let data = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
+        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
 
         let got = encode_block_flags(&data).unwrap();
         assert_eq!(got, expected);
@@ -215,8 +223,8 @@ mod tests {
         use super::decode_block_flags;
         use super::BlockFlags;
 
-        let expected = BlockFlags{ queries: vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()], query_ids: vec![1, 0, 2] };
-        let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
+        let expected = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
+        let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
 
         let got = decode_block_flags(&data).unwrap();
         assert_eq!(got, expected);
@@ -230,8 +238,8 @@ mod tests {
 
         use std::io::Cursor;
 
-        let expected = BlockFlags{ queries: vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()], query_ids: vec![1, 0, 2] };
-        let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
+        let expected = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
+        let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
         let header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: data_bytes.len() as u64, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
@@ -248,11 +256,11 @@ mod tests {
 
         use std::io::Cursor;
 
-        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 102, 76, 100, 76, 98, 76, 102, 102, 100, 96, 2, 0, 171, 14, 139, 110, 11, 0, 0, 0];
+        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected_header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: 31, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
-        let expected_flags = BlockFlags{ queries: vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()], query_ids: vec![1, 0, 2] };
+        let expected_header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: 33, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
+        let expected_flags = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
 
         let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();
         assert_eq!(got_header, expected_header);
