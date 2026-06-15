@@ -73,6 +73,20 @@ pub struct FileHeader {
     pub flags_len: u64,
 }
 
+impl FileHeader {
+    pub fn promises_query_names(
+        &self,
+    ) -> bool {
+        (self.fields_present & (1 << 0)) != 1
+    }
+
+    pub fn promises_query_ids(
+        &self,
+    ) -> bool {
+        (self.fields_present & (1 << 1)) != 0
+    }
+}
+
 /// Data shared with all blocks
 ///
 /// Variable length, use [FileHeader].flags_len to get size

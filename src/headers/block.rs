@@ -61,6 +61,20 @@ pub struct BlockHeader {
     pub placeholder3: u64,
 }
 
+impl BlockHeader {
+    pub fn promises_query_names(
+        &self,
+    ) -> bool {
+        (self.fields_present & (1 << 0)) != 1
+    }
+
+    pub fn promises_query_ids(
+        &self,
+    ) -> bool {
+        (self.fields_present & (1 << 1)) != 0
+    }
+}
+
 /// Data about the records in this block
 ///
 /// Variable length, use [BlockHeader].flags_len to get size
