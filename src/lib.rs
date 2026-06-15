@@ -564,6 +564,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     let have_queries = queries.is_some();
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     reader.fill_target_names(false);
+    reader.fill_query_name(have_queries);
     let n_queries = reader.len();
 
     let targets = reader.get_targets().unwrap();
@@ -631,6 +632,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     let have_queries = queries.is_some();
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     reader.fill_target_names(false);
+    reader.fill_query_name(have_queries);
     let n_queries = reader.len();
 
     let targets = reader.get_targets().unwrap();

@@ -135,7 +135,7 @@ impl<'a, R: Read> Parser<'a, R> {
             fill_target_names: true,
         };
 
-        if ret.format != Format::Metagraph && conn_query_names.is_none() {
+        if ret.format != Format::Metagraph && ret.format != Format::Themisto && conn_query_names.is_none() {
             return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: ret.format }))
         }
 
