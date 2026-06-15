@@ -261,6 +261,19 @@ impl<R: Read> Parser<'_, R> {
             }).collect::<Vec<u32>>();
             record.ones = Some(ones);
         }
+
+        if !self.fill_query_id {
+            record.query_id = None;
+        }
+        if !self.fill_query_name {
+            record.query_name = None;
+        }
+        if !self.fill_target_ids {
+            record.ones = None;
+        }
+        if !self.fill_target_names {
+            record.ones_names = None;
+        }
     }
 
     pub fn fill_query_id(

@@ -56,7 +56,9 @@ pub struct FileHeader {
     /// Number of alignment targets, this must match the length of `target_names` in [FileFlags].
     pub n_targets: u32,
 
-    /// Number of query sequences, this must be greater or equal to the sum of all `num_records` in crate::headers::block::[BlockFlags].
+    /// Number of query sequences, this should be greater or equal to the sum of all `num_records` in crate::headers::block::[BlockFlags].
+    ///
+    /// Can be set to 0 if the number is not known in advance.
     pub n_queries: u32,
 
     /// Bitmap type used to encode blocks in this file, see [BitmapType](crate::compression::BitmapType) for details.
@@ -77,13 +79,13 @@ impl FileHeader {
     pub fn promises_query_names(
         &self,
     ) -> bool {
-        (self.fields_present & (1 << 0)) != 0
+        (self.fields_present & crate::MASK_QUERIES) != 0
     }
 
     pub fn promises_query_ids(
         &self,
     ) -> bool {
-        (self.fields_present & (1 << 1)) != 0
+        (self.fields_present & crate::MASK_QUERY_IDS) != 0
     }
 }
 

@@ -65,13 +65,13 @@ impl BlockHeader {
     pub fn promises_query_names(
         &self,
     ) -> bool {
-        (self.fields_present & (1 << 0)) != 1
+        (self.fields_present & crate::MASK_QUERIES) != 0
     }
 
     pub fn promises_query_ids(
         &self,
     ) -> bool {
-        (self.fields_present & (1 << 1)) != 0
+        (self.fields_present & crate::MASK_QUERY_IDS) != 0
     }
 }
 
@@ -103,10 +103,10 @@ impl BlockFlags {
     ) -> u16 {
         let mut flags = 0_u16;
         if self.queries.is_some() {
-            flags |= 1 << 0;
+            flags |= crate::MASK_QUERIES;
         }
         if self.query_ids.is_some() {
-            flags |= 1 << 1;
+            flags |= crate::MASK_QUERY_IDS;
         }
         flags
     }

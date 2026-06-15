@@ -157,7 +157,7 @@ pub struct Decoder<'a, R: Read> {
     block: Vec<PseudoAln>,
     block_index: usize,
     q_ids: IndexSet<u32>,
-    q_names: IndexSet<Vec<u8>>,
+    q_names: Option<IndexSet<Vec<u8>>>,
     t_names: IndexSet<Vec<u8>>,
 
     // What values to fill in the records
@@ -178,7 +178,7 @@ impl<'a, R: Read> Decoder<'a, R> {
         Decoder{
             block: Vec::with_capacity(header.block_size as usize),
             q_ids: IndexSet::with_capacity(header.block_size as usize),
-            q_names: IndexSet::with_capacity(header.block_size as usize),
+            q_names: if header.promises_query_names() { Some(IndexSet::with_capacity(header.block_size as usize)) } else { None },
             t_names: IndexSet::from_iter(flags.target_names.iter().cloned()),
             conn,
             header, flags,
@@ -238,7 +238,7 @@ impl<R: Read> Decoder<'_, R> {
             }
         }));
 
-        self.q_names = IndexSet::from_iter(block_flags.queries.unwrap());
+        self.q_names = if self.header.promises_query_names() { Some(IndexSet::from_iter(block_flags.queries.unwrap())) } else { None };
         self.q_ids = IndexSet::from_iter(block_flags.query_ids.unwrap());
 
         Ok(())
@@ -262,7 +262,7 @@ impl<R: Read> Decoder<'_, R> {
     ) -> Option<()> {
         self.block.clear();
         self.q_ids.clear();
-        self.q_names.clear();
+        self.q_names = if self.header.promises_query_names() { Some(IndexSet::new()) } else { None };
         match read_block_header(self.conn) {
             Ok(block_header) => {
                 for i in 0..16 {
@@ -296,8 +296,11 @@ impl<R: Read> Decoder<'_, R> {
         record: &mut PseudoAln,
     ) {
         if record.query_id.is_none() && self.fill_query_id {
+            // This branch shouldn't be reachable for a valid .ahda file
+            assert!(record.query_name.is_some());
+            assert!(self.q_names.is_some());
             let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
-            let index = self.q_names.get_index_of(&key).unwrap();
+            let index = self.q_names.as_ref().unwrap().get_index_of(&key).unwrap();
             let query_id = self.q_ids.get_index(index).unwrap();
             record.query_id = Some(*query_id);
         }
@@ -305,7 +308,14 @@ impl<R: Read> Decoder<'_, R> {
         if record.query_name.is_none() && self.fill_query_name {
             let key: u32 = record.query_id.unwrap();
             let index = self.q_ids.get_index_of(&key).unwrap();
-            let query_name = self.q_names.get_index(index).unwrap().clone();
+            let query_name = if let Some(q_names) = &self.q_names {
+                q_names.get_index(index).unwrap().clone()
+            } else {
+                let mut new_name = self.flags.query_name.clone();
+                new_name.append(&mut vec![b'.']);
+                new_name.append(&mut (key + 1).to_string().as_bytes().to_vec());
+                new_name
+            };
             record.query_name = Some(query_name);
         }
 

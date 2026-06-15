@@ -126,6 +126,9 @@ pub mod printer;
 
 type E = Box<dyn std::error::Error>;
 
+const MASK_QUERIES: u16 = 1 << 0;   // 0x0001
+const MASK_QUERY_IDS: u16 = 1 << 1; // 0x0002
+
 /// Ahda library version
 ///
 /// A new variant must be added when the release version is incremented.
@@ -494,11 +497,16 @@ pub fn encode_to_write<W: Write>(
     records: &[PseudoAln],
     conn_out: &mut W,
 ) -> Result<(), E> {
+    let have_queries = !queries.is_empty();
     assert!(!records.is_empty());
 
     let mut records_iter = records.iter().cloned();
     let mut encoder = encoder::Encoder::new(&mut records_iter, targets, sample_name, queries.len());
-    encoder.set_fields_present(3_u16);
+    if !have_queries {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS);
+    } else {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
+    }
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
@@ -553,13 +561,18 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     sample_name: &[u8],
     conn_in: &mut R,
 ) -> Result<Vec<u8>, E> {
+    let have_queries = queries.is_some();
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     reader.fill_target_names(false);
     let n_queries = reader.len();
 
     let targets = reader.get_targets().unwrap();
     let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
-    encoder.set_fields_present(3_u16);
+    if !have_queries {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS);
+    } else {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
+    }
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
     for mut block in encoder.by_ref() {
@@ -615,6 +628,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
+    let have_queries = queries.is_some();
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     reader.fill_target_names(false);
     let n_queries = reader.len();
@@ -622,7 +636,11 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     let targets = reader.get_targets().unwrap();
 
     let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
-    encoder.set_fields_present(3_u16);
+    if !have_queries {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS);
+    } else {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
+    }
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
@@ -1161,6 +1179,33 @@ mod tests {
     }
 
     #[test]
+    fn encode_to_write_without_query_names() {
+        use super::encode_to_write;
+
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: None },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: None },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: None },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: None },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: None },
+        ];
+        let mut bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let sample = "ERR4035126".as_bytes().to_vec();
+
+        encode_to_write(&targets, &Vec::new(), &sample, &data, &mut bytes).unwrap();
+
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 29, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 101, 96, 100, 98, 102, 1, 0, 59, 190, 176, 144, 9, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        assert_eq!(*bytes.get_ref(), expected);
+    }
+
+    #[test]
     fn encode_from_read() {
         use super::encode_from_read;
 
@@ -1208,6 +1253,52 @@ mod tests {
     }
 
     #[test]
+    fn encode_from_read_without_query_names() {
+        use super::encode_from_read;
+
+        use super::headers::file::build_file_header_and_flags;
+
+        use crate::PseudoAln;
+        use crate::Format;
+        use crate::compression::MetadataCompression;
+
+        use std::io::Cursor;
+        use std::io::Seek;
+        use std::io::Write;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+        ];
+
+        let mut bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
+        let query_name ="ERR4035126".as_bytes().to_vec();
+
+        let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &query_name, &MetadataCompression::default()).unwrap();
+        let format = Format::Metagraph;
+
+        let mut tmp = data.into_iter();
+        let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut tmp, header, flags, format);
+        for record in writer.by_ref() {
+            bytes.write(&record).unwrap();
+        }
+        bytes.rewind().unwrap();
+
+        let mut t_it = targets.into_iter();
+        let got = encode_from_read(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &query_name, &mut bytes).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
     fn encode_from_read_to_write() {
         use super::encode_from_read_to_write;
 
@@ -1226,6 +1317,28 @@ mod tests {
         let mut it = queries.into_iter();
         let mut t_it = targets.into_iter();
         encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &query_name, &mut data, &mut bytes_got).unwrap();
+        let got = bytes_got.get_ref();
+
+        assert_eq!(*got, expected);
+    }
+
+    #[test]
+    fn encode_from_read_to_write_without_query_names() {
+        use super::encode_from_read_to_write;
+
+        use std::io::Cursor;
+
+        let data_bytes: Vec<u8> = vec![49, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 10, 48, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 10, 50, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 58, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 10, 52, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54, 9, 10, 51, 9, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51, 9, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 10];
+        let mut data = Cursor::new(data_bytes);
+
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let query_name ="ERR4035126".as_bytes().to_vec();
+
+        let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let mut t_it = targets.into_iter();
+        encode_from_read_to_write(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &query_name, &mut data, &mut bytes_got).unwrap();
         let got = bytes_got.get_ref();
 
         assert_eq!(*got, expected);
@@ -1263,6 +1376,37 @@ mod tests {
     }
 
     #[test]
+    fn decode_from_read_without_query_names() {
+        use super::decode_from_read;
+        use super::headers::file::build_file_header_and_flags;
+        use crate::PseudoAln;
+        use crate::compression::MetadataCompression;
+
+        use std::io::Cursor;
+
+        let mut expected_alns = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.3".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.5".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.4".as_bytes().to_vec()) },
+        ];
+        expected_alns.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+        let (mut expected_header, expected_flags) = build_file_header_and_flags(&vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()], 0_usize, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
+        expected_header.fields_present = 2_u16;
+
+        let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 29, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 101, 96, 100, 98, 102, 1, 0, 59, 190, 176, 144, 9, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let (file_header, file_flags, mut got) = decode_from_read(&mut bytes).unwrap();
+        got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        assert_eq!(expected_header, file_header);
+        assert_eq!(expected_flags, file_flags);
+        assert_eq!(expected_alns, got);
+    }
+
+    #[test]
     fn decode_to_write() {
         use super::decode_to_write;
         use crate::Format;
@@ -1282,6 +1426,25 @@ mod tests {
     }
 
     #[test]
+    fn decode_to_write_without_query_names() {
+        use super::decode_to_write;
+        use crate::Format;
+
+        use std::io::Cursor;
+
+        let expected = b"0\tERR4035126.1\tchr.fasta\n1\tERR4035126.2\tchr.fasta\n2\tERR4035126.3\tchr.fasta:plasmid.fasta\n3\tERR4035126.4\tplasmid.fasta\n4\tERR4035126.5\t\n";
+        let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let format = Format::Metagraph;
+
+        let mut got_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        decode_to_write(format, &data, &mut got_bytes).unwrap();
+
+        let got = got_bytes.get_ref();
+
+        assert_eq!(*got.iter().map(|x| *x as char).collect::<String>(), *expected.iter().map(|x| *x as char).collect::<String>());
+    }
+
+    #[test]
     fn decode_from_read_to_write() {
         use super::decode_from_read_to_write;
         use crate::Format;
@@ -1290,6 +1453,28 @@ mod tests {
 
         let expected = b"0\tERR4035126.1\tchr.fasta\n1\tERR4035126.2\tchr.fasta\n2\tERR4035126.651903\tchr.fasta:plasmid.fasta\n3\tERR4035126.7543\tplasmid.fasta\n4\tERR4035126.16\t\n";
         let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+        let format = Format::Metagraph;
+
+        let mut got_bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        decode_from_read_to_write(format, &mut data, &mut got_bytes).unwrap();
+
+        let got = got_bytes.get_ref();
+
+        eprintln!("{:?}", got.iter().map(|x| *x as char).collect::<String>());
+        eprintln!("{:?}", expected.iter().map(|x| *x as char).collect::<String>());
+        assert_eq!(*got, *expected);
+    }
+
+    #[test]
+    fn decode_from_read_to_write_without_query_names() {
+        use super::decode_from_read_to_write;
+        use crate::Format;
+
+        use std::io::Cursor;
+
+        let expected = b"0\tERR4035126.1\tchr.fasta\n1\tERR4035126.2\tchr.fasta\n2\tERR4035126.3\tchr.fasta:plasmid.fasta\n3\tERR4035126.4\tplasmid.fasta\n4\tERR4035126.5\t\n";
+        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
         let format = Format::Metagraph;
 
@@ -1330,6 +1515,43 @@ mod tests {
         expected_header.fields_present = 3_u16;
 
         let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let (got, file_header, file_flags, block_flags) = decode_from_read_to_roaring(&mut bytes).unwrap();
+
+        assert_eq!(expected_header, file_header);
+        assert_eq!(expected_flags, file_flags);
+        assert_eq!(expected_block_flags, block_flags);
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn decode_from_read_to_roaring_without_query_names() {
+        use super::decode_from_read_to_roaring;
+        use super::headers::file::build_file_header_and_flags;
+        use super::headers::block::BlockFlags;
+
+        use crate::compression::MetadataCompression;
+
+        use std::io::Cursor;
+
+        use roaring::RoaringTreemap;
+
+        let mut expected = RoaringTreemap::new();
+        expected.insert(0);
+        expected.insert(2);
+        expected.insert(4);
+        expected.insert(5);
+        expected.insert(7);
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
+        let query_ids = vec![0, 1, 2, 3, 4];
+        let expected_block_flags = BlockFlags { queries: Some(queries.clone()), query_ids: Some(query_ids) };
+        let (mut expected_header, expected_flags) = build_file_header_and_flags(&targets, 0, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
+        expected_header.fields_present = 2_u16;
+
+        let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut bytes: Cursor<Vec<u8>> = Cursor::new(data);
 
         let (got, file_header, file_flags, block_flags) = decode_from_read_to_roaring(&mut bytes).unwrap();

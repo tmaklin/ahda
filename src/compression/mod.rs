@@ -112,7 +112,6 @@ pub fn pack_records(
     records: Vec<PseudoAln>,
 ) -> Result<Vec<u8>, E> {
     let queries: Vec<Vec<u8>> = records.iter().filter_map(|record| {
-        assert!(record.query_name.is_some());
         record.query_name.clone()
     }).collect();
 

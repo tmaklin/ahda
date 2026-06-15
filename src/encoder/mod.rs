@@ -73,6 +73,7 @@
 //! let targets = parser.get_targets().unwrap();
 //! let mut encoder = Encoder::new(&mut parser, &targets, &name, n_queries);
 //! encoder.set_block_size(3);
+//! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 //!
@@ -118,6 +119,7 @@
 //!
 //! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
 //! let mut encoder = Encoder::new(&mut iter, &targets, &name, queries.len());
+//! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!
 //! // Encode the file header and flags
 //! let bytes = encoder.encode_file_header_and_flags().unwrap();
