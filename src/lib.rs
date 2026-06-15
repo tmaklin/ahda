@@ -293,7 +293,7 @@ pub struct PseudoAln{
 /// ## Usage
 ///
 /// ```no_run
-/// // TODO This is not currently supported.
+/// // TODO Concatenating records is not yet implemented.
 /// use ahda::{concatenate_from_read_to_write, decode_from_read, encode_to_write};
 /// use ahda::PseudoAln;
 /// use std::io::{Cursor, Seek};
@@ -445,7 +445,6 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
 
-    // TODO See if this clone of targets can be avoided
     let targets = reader.get_targets().unwrap();
     let mut writer = crate::printer::Printer::new(&mut reader, &targets, sample_name, n_queries, format);
 
@@ -557,7 +556,6 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     reader.fill_target_names(false);
     let n_queries = reader.len();
 
-    // TODO See if this clone of targets can be avoided
     let targets = reader.get_targets().unwrap();
     let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
 
@@ -619,7 +617,6 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     reader.fill_target_names(false);
     let n_queries = reader.len();
 
-    // TODO See if this clone of targets can be avoided
     let targets = reader.get_targets().unwrap();
 
     let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);

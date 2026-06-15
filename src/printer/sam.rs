@@ -39,7 +39,7 @@ pub fn format_sam_line<W: std::io::Write>(
     conn: &mut W,
 ) -> Result<(), E> {
     todo!("Print PseudoAln in SAM format");
-    // TODO Better error messages.
+    // TODO Better error messages from formatting SAM lines.
     if aln.query_name.is_none() {
         return Err(Box::new(crate::errors::SamPrinterError{}))
     }
@@ -50,7 +50,7 @@ pub fn format_sam_line<W: std::io::Write>(
     let mut writer = noodles_sam::io::Writer::new(Vec::new());
 
 
-    // TODO print unaligned records
+    // TODO Print unaligned records when formatting SAM lines.
 
     for target_id in aln.ones.as_ref().unwrap() {
         let record = sam::alignment::RecordBuf::builder()
@@ -76,8 +76,8 @@ pub fn build_sam_header(
             Map::<ReferenceSequence>::new(std::num::NonZeroUsize::try_from(1).unwrap()),
         )
     }).collect::<IndexMap<BString, Map<ReferenceSequence>>>();
-    // builder.add_program("noodles-sam", Map::<Program>::default()) TODO match format and add
-    // builder.add_comment("noodles-sam").build(); // TODO note that this was converted with ahda
+    // builder.add_program("noodles-sam", Map::<Program>::default()) TODO Add program name to SAM header.
+    // builder.add_comment("noodles-sam").build(); // TODO Add note to SAM header about conversion using ahda.
 
     Ok(
         sam::Header::builder()
