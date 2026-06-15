@@ -83,6 +83,21 @@ pub struct BlockFlags {
     pub query_ids: Option<Vec<u32>>,
 }
 
+impl BlockFlags {
+    pub fn fields_present(
+        &self,
+    ) -> u16 {
+        let mut flags = 0_u16;
+        if self.queries.is_some() {
+            flags |= 1 << 0;
+        }
+        if self.query_ids.is_some() {
+            flags |= 1 << 1;
+        }
+        flags
+    }
+}
+
 pub fn encode_block_header(
     header: &BlockHeader,
 ) -> Result<Vec<u8>, E> {

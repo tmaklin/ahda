@@ -81,6 +81,7 @@ pub fn pack_block_roaring32(
     let mut serialized = serialize_roaring32(bitmap)?;
 
     let flags: BlockFlags = BlockFlags{ queries: Some(queries.to_vec()), query_ids: Some(query_ids.to_vec()) };
+    let fields_present = flags.fields_present();
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
     let flags_len = block_flags.len() as u64;
@@ -92,7 +93,7 @@ pub fn pack_block_roaring32(
         flags_len,
         bitmap_type: BitmapType::Roaring32.to_u16(),
         metadata_compression: MetadataCompression::default().to_u8(),
-        fields_present: 0,
+        fields_present,
         placeholder1: 0,
         placeholder2: 0,
         placeholder3: 0,
