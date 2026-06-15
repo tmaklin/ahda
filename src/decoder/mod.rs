@@ -179,7 +179,7 @@ impl<'a, R: Read> Decoder<'a, R> {
             block: Vec::with_capacity(header.block_size as usize),
             q_ids: IndexSet::with_capacity(header.block_size as usize),
             q_names: IndexSet::with_capacity(header.block_size as usize),
-            t_names: IndexSet::from_iter(flags.target_names.as_ref().unwrap().iter().cloned()),
+            t_names: IndexSet::from_iter(flags.target_names.iter().cloned()),
             conn,
             header, flags,
             block_index: 0_usize,
@@ -356,7 +356,7 @@ mod tests {
 
         use std::io::Cursor;
 
-        let expected_flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let expected_flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let expected_header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -366,10 +366,10 @@ mod tests {
             n_queries: 5_u32,
             bitmap_type: BitmapType::Roaring32.to_u16(),
             block_size: ((u32::MAX as u64) / (2_u64)).min(65536_u64) as u32,
-            flags_len: 38_u64,
+            flags_len: 36_u64,
         };
 
-        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
+        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let decoder = Decoder::new(&mut data);
@@ -397,7 +397,7 @@ mod tests {
         ];
         expected.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
-        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 32, 78, 0, 0, 38, 0, 0, 0, 0, 0, 0, 0, 1, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 1, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 103, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 177, 50, 48, 50, 49, 179, 0, 0, 164, 198, 115, 218, 81, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let mut decoder = Decoder::new(&mut data);

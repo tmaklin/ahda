@@ -185,7 +185,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         }
 
         let sam_header = if format == Format::SAM {
-            Some(sam::build_sam_header(flags.target_names.as_ref().unwrap()).unwrap())
+            Some(sam::build_sam_header(&flags.target_names).unwrap())
         } else {
             None
         };
@@ -209,11 +209,11 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
             Format::Fulgor => None,
             Format::Metagraph => None,
             Format::Bifrost => {
-                format_bifrost_header(self.flags.target_names.as_ref().unwrap(), &mut out).unwrap();
+                format_bifrost_header(&self.flags.target_names, &mut out).unwrap();
                 Some(out)
             },
             Format::SAM => {
-                self.sam_header = Some(build_sam_header(self.flags.target_names.as_ref().unwrap()).unwrap());
+                self.sam_header = Some(build_sam_header(&self.flags.target_names).unwrap());
                 format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
@@ -278,7 +278,7 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: Some(1),   ones: Some(vec![4, 2, 9, 7]), ..Default::default()},
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -344,7 +344,7 @@ mod tests {
             PseudoAln{ones_names: None,  query_id: None, ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".as_bytes().to_vec()) },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -421,7 +421,7 @@ mod tests {
             PseudoAln{ query_name: Some("ERR4035126.824748".as_bytes().to_vec()), ones: Some(vec![0]), ones_names: None, query_id: None },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -490,7 +490,7 @@ mod tests {
             PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(15084), ones: Some(vec![]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
@@ -557,7 +557,7 @@ mod tests {
             PseudoAln{ query_id: None, query_name: Some("ERR4035126.621281".as_bytes().to_vec()), ones_names: Some(vec!["OZ038621.1".as_bytes().to_vec()]), ones: Some(vec![0]) },
         ];
 
-        let flags = FileFlags { query_name: Some("ERR4035126".as_bytes().to_vec()), target_names: Some(vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]) };
+        let flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let header = FileHeader {
             ahda_header: build_ahda_header(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
