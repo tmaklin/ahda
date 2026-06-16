@@ -17,6 +17,7 @@
 //!   - Compressing plain text pseudoalignment data.
 //!   - Decompressing binary pseudoalignment data in any supported format.
 //!   - Converting between plain text pseudoalignment formats output by different tools.
+//!   - Concatenating non-overlapping binary alignment data.
 //!   - Performing set operations on compressed pseudoalignment data.
 //!
 //! The following plain text formats are supported:
@@ -37,6 +38,7 @@
 //!   - `ahda encode` compress pseudoalignment data from a supported format.
 //!   - `ahda decode` decompress pseudoalignment data to a supported format.
 //!   - `ahda convert` convert between supported plain text formats.
+//!   - `ahda cat` concatenate binary data that doesn't contain duplicated queries.
 //!   - `ahda set` perform set operations on compressed pseudoalignment data.
 //!
 //! Note that `encode` may need access to the .fastq input file and the names of
@@ -307,8 +309,7 @@ pub struct PseudoAln{
 ///
 /// ## Usage
 ///
-/// ```no_run
-/// // TODO Concatenating records is not yet implemented.
+/// ```rust
 /// use ahda::{concatenate_from_read_to_write, decode_from_read, encode_to_write};
 /// use ahda::PseudoAln;
 /// use std::io::{Cursor, Seek};
