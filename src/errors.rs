@@ -191,3 +191,13 @@ impl std::fmt::Display for DuplicatedQueriesErr {
     }
 }
 impl std::error::Error for DuplicatedQueriesErr {}
+
+/// Duplicated queries in files being concatenated.
+#[derive(Debug, Clone)]
+pub struct IncompatibleFileHeadersErr;
+impl std::fmt::Display for IncompatibleFileHeadersErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Incompatible file headers.")
+    }
+}
+impl std::error::Error for IncompatibleFileHeadersErr {}

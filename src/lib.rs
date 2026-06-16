@@ -354,6 +354,8 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conns: &mut [R],
     conn_out: &mut W,
 ) -> Result<(), E> {
+    assert!(!conns.is_empty());
+
     let headers_flags = conns.iter_mut().map(|conn_in| {
         let header = read_file_header(conn_in).unwrap();
         let flags = read_file_flags(&header, conn_in).unwrap();
@@ -364,12 +366,16 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     let n_targets = headers_flags[0].0.n_targets;
     let target_names = headers_flags[0].1.target_names.clone();
     let query_name = headers_flags[0].1.query_name.clone();
+    let fields_present = headers_flags[0].0.fields_present;
 
-    headers_flags.iter().for_each(|(header, flags)| {
+    headers_flags.iter().try_for_each(|(header, flags)| {
         n_queries += header.n_queries;
-        assert_eq!(n_targets, header.n_targets);
-        assert_eq!(target_names, flags.target_names);
-    });
+        if (n_targets != header.n_targets) || (target_names != flags.target_names) || (fields_present != header.fields_present) {
+            Err(Box::new(errors::IncompatibleFileHeadersErr{}))
+        } else {
+            Ok(())
+        }
+    })?;
 
     let (mut new_header, new_flags) = build_file_header_and_flags(&target_names, n_queries as usize, &query_name, &MetadataCompression::default())?;
     new_header.fields_present = headers_flags[0].0.fields_present;
@@ -379,7 +385,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conn_out.write_all(&new_flags_bytes)?;
 
     let mut seen_query_ids: std::collections::HashSet<u32> = HashSet::with_capacity(new_header.n_queries as usize);
-    conns.iter_mut().try_for_each(|conn_in| {
+    let ret: Result<(), E> = conns.iter_mut().try_for_each(|conn_in| {
         let (block_header, block_flags) = headers::block::read_block_header_and_flags(conn_in)?;
         let bytes = headers::block::encode_block_header_and_flags(&block_header, &block_flags)?;
         let query_ids = block_flags.query_ids.unwrap();
@@ -391,9 +397,11 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
         })?;
         conn_out.write_all(&bytes)?;
         std::io::copy(conn_in, conn_out)?;
-        conn_out.flush()?;
         Ok(())
-    })
+    });
+    ret?;
+    conn_out.flush()?;
+    Ok(())
 }
 
 /// Convert plain text data from [Read] to plain text data to [Write].
@@ -1118,6 +1126,26 @@ mod tests {
 
         let data_bytes_1: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0];
         let data_bytes_2: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0];
+        let data_bytes_3: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 1, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 228, 119, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 55, 53, 49, 102, 100, 100, 6, 0, 66, 122, 30, 150, 21, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+        let data_1 = Cursor::new(data_bytes_1);
+        let data_2 = Cursor::new(data_bytes_2);
+        let data_3 = Cursor::new(data_bytes_3);
+        let mut data = vec![data_1, data_2, data_3];
+
+        let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let got = concatenate_from_read_to_write(&mut data, &mut bytes_got);
+
+        assert!(got.is_err());
+    }
+
+    #[test]
+    fn concatenate_from_read_to_write_with_incompatible_headers_fails() {
+        use super::concatenate_from_read_to_write;
+
+        use std::io::Cursor;
+
+        let data_bytes_1: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0];
+        let data_bytes_2: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0];
         let data_bytes_3: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 1, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 228, 119, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 55, 53, 49, 102, 100, 100, 6, 0, 66, 122, 30, 150, 21, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
         let data_1 = Cursor::new(data_bytes_1);
         let data_2 = Cursor::new(data_bytes_2);
