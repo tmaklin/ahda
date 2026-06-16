@@ -243,24 +243,67 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             Ok(())
         },
 
-        // // Cat
-        // Some(cli::Commands::Cat {
-        //     input_files,
-        //     verbose,
-        // }) => {
-        //     todo!("Implement `ahda cat`");
-        //     init_log(if *verbose { 2 } else { 1 });
+        // Cat
+        Some(cli::Commands::Cat {
+            input_files,
+            output_file,
+            stdout,
+            force,
+            verbose,
+        }) => {
+            init_log(if *verbose { 2 } else { 1 });
+            assert!(!input_files.is_empty());
 
-        //     let mut inputs: Vec<Box<dyn Read>> = Vec::new();
-        //     for file in input_files {
-        //         let conn_in = File::open(file).unwrap();
-        //         inputs.push(Box::new(conn_in));
-        //     }
-        //     let mut conn_out = std::io::stdout();
+            let mut conn_in: Vec<Box<dyn Read>> = Vec::new();
 
-        //     ahda::concatenate_from_read_to_write(&mut inputs, &mut conn_out).unwrap();
-        //     Ok(())
-        // },
+            // Read first file from stdin if data is being piped in
+            if !std::io::stdin().is_terminal() {
+                conn_in.push(Box::new(std::io::stdin()));
+            }
+
+            for file in input_files {
+                match File::open(file) {
+                    Ok(conn) => conn_in.push(Box::new(conn)),
+                    Err(e) => {
+                        eprintln!("ahda: can't open input file `{}`: {}", file.to_string_lossy(), e);
+                        return Err(Box::new(e))
+                    },
+                }
+            }
+
+            let mut conn_out: Vec<Box<dyn Write>> = Vec::new();
+
+            if let Some(file) = output_file {
+                if !*stdout {
+                    match if *force { File::create(file.clone()) } else { File::create_new(file.clone()) } {
+                        Ok(out) => {
+                            conn_out.push(Box::new(out));
+                        },
+                        Err(e) => {
+                            eprintln!("ahda: can't create output file `{}`: {}", file.to_string_lossy(), e);
+                            return Err(Box::new(e))
+                        },
+                    }
+                }
+            }
+
+            if (*stdout || (output_file.is_none())) && *force {
+                conn_out.push(Box::new(std::io::stdout()));
+            } else if !*force && std::io::stdout().is_terminal() {
+                eprintln!("ahda: refusing to write binary data to terminal, use `--force` to override");
+                return Ok(());
+            }
+
+            match ahda::concatenate_from_read_to_write(&mut conn_in, &mut conn_out[0]) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    let mut msg =  input_files.iter().map(|x| x.to_string_lossy() + " ").collect::<String>();
+                    msg.remove(msg.len() - 1);
+                    eprintln!("ahda: can't concatenate input files `{}`: {}", msg, e);
+                    Err(e)
+                }
+            }
+        },
 
         // Convert
         Some(cli::Commands::Convert {

@@ -133,17 +133,29 @@ pub enum Commands {
         verbose: bool,
     },
 
-    // // Concatenate encoded data
-    // #[command(name = "cat", about = "Concatenate binary data")]
-    // Cat {
-    //     // Input file
-    //     #[arg(group = "input", required = true, help = "Input file(s)")]
-    //     input_files: Vec<PathBuf>,
+    // Concatenate encoded data
+    #[command(name = "cat", about = "Concatenate binary data")]
+    Cat {
+        // Input files
+        #[arg(group = "input", required = true, help = "Input file(s)")]
+        input_files: Vec<PathBuf>,
 
-    //     // Verbosity
-    //     #[arg(long = "verbose", default_value_t = false)]
-    //     verbose: bool,
-    // },
+        // Output file name
+        #[arg(short = 'o', long = "output", help_heading = "Outputs", help = "Output to file")]
+        output_file: Option<PathBuf>,
+
+        // Write to stdout
+        #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original file")]
+        stdout: bool,
+
+        // Overwrite output file
+        #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
+        force: bool,
+
+        // Verbosity
+        #[arg(short = 'v', long = "verbose", default_value_t = false, help = "Print extra information")]
+        verbose: bool,
+    },
 
     // Set operations on .ahda files
     #[command(name = "set", about = "Set operations on binary data")]

@@ -187,7 +187,7 @@ impl std::error::Error for BifrostHeaderNotConsumedError {}
 pub struct DuplicatedQueriesErr;
 impl std::fmt::Display for DuplicatedQueriesErr {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Can't concatenate inputs with duplicated query records, use a set operation to merge instead.")
+        write!(f, "Inputs contain duplicated query records, use a set operation to merge instead.")
     }
 }
 impl std::error::Error for DuplicatedQueriesErr {}
