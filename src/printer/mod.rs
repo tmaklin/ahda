@@ -134,7 +134,9 @@ use crate::headers::file::build_file_header_and_flags;
 use crate::compression::MetadataCompression;
 
 use bifrost::format_bifrost_header;
+use ahda_tsv::format_ahda_tsv_header;
 
+use ahda_tsv::format_ahda_tsv_line;
 use bifrost::format_bifrost_line;
 use fulgor::format_fulgor_line;
 use metagraph::format_metagraph_line;
@@ -144,6 +146,7 @@ use sam::format_sam_header;
 use themisto::format_themisto_line;
 
 // Format specific implementations
+pub mod ahda_tsv;
 pub mod bifrost;
 pub mod fulgor;
 pub mod metagraph;
@@ -218,6 +221,10 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
                 format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
                 Some(out)
             },
+            Format::AhdaTSV => {
+                format_ahda_tsv_header(&self.flags.target_names, &mut out).unwrap();
+                Some(out)
+            }
         }
     }
 }
@@ -242,6 +249,7 @@ impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoA
                 Format::Metagraph => format_metagraph_line(&record, &mut out).unwrap(),
                 Format::Bifrost => format_bifrost_line(&record, self.header.n_targets as usize, &mut out).unwrap(),
                 Format::SAM => format_sam_line(&record, self.sam_header.as_ref().unwrap(), &mut out).unwrap(),
+                Format::AhdaTSV => format_ahda_tsv_line(&record, self.header.n_targets as usize, &mut out).unwrap(),
             }
             self.index += 1;
             Some(out)

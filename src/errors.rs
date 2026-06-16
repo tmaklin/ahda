@@ -86,6 +86,16 @@ impl std::fmt::Display for FulgorPrinterError {
 }
 impl std::error::Error for FulgorPrinterError {}
 
+/// Could not format [PseudoAln](crate::PseudoAln) as a ahda .tsv plain text line.
+#[derive(Debug, Clone)]
+pub struct AhdaTSVPrinterError;
+impl std::fmt::Display for AhdaTSVPrinterError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "invalid input to encode")
+    }
+}
+impl std::error::Error for AhdaTSVPrinterError {}
+
 /// Could not format [PseudoAln](crate::PseudoAln) as a Bifrost plain text line.
 #[derive(Debug, Clone)]
 pub struct BifrostPrinterError;
@@ -201,3 +211,13 @@ impl std::fmt::Display for IncompatibleFileHeadersErr {
     }
 }
 impl std::error::Error for IncompatibleFileHeadersErr {}
+
+/// Ahda .tsv header line was not consumed before calling [read_ahda_tsv](crate::parser::ahda_tsv::ahda_tsv).
+#[derive(Debug, Clone)]
+pub struct AhdaTSVHeaderNotConsumedError;
+impl std::fmt::Display for AhdaTSVHeaderNotConsumedError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "AhdaTSV header not consumed from input `Read`.")
+    }
+}
+impl std::error::Error for AhdaTSVHeaderNotConsumedError {}

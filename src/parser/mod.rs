@@ -72,6 +72,7 @@
 //! ```
 
 // Format specific implementations
+pub mod ahda_tsv;
 pub mod bifrost;
 pub mod fulgor;
 pub mod metagraph;
@@ -81,6 +82,7 @@ pub mod themisto;
 use crate::Format;
 use crate::PseudoAln;
 
+use crate::parser::ahda_tsv::read_ahda_tsv;
 use crate::parser::bifrost::read_bifrost;
 use crate::parser::fulgor::read_fulgor;
 use crate::parser::metagraph::read_metagraph;
@@ -135,7 +137,7 @@ impl<'a, R: Read> Parser<'a, R> {
             fill_target_names: true,
         };
 
-        if ret.format != Format::Metagraph && ret.format != Format::Themisto && conn_query_names.is_none() {
+        if ret.format != Format::Metagraph && ret.format != Format::Themisto && conn_query_names.is_none() && ret.format != Format::AhdaTSV {
             return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: ret.format }))
         }
 
@@ -208,6 +210,24 @@ impl<R: Read> Parser<'_, R> {
                 let mut reader = noodles_sam::io::reader::Builder::default().build_from_reader(&mut header_contents)?;
                 let header = reader.read_header()?;
                 let target_names: Vec<Vec<u8>> = header.reference_sequences().iter().map(|x| x.0.to_vec()).collect();
+                Ok(Some(target_names))
+            },
+            Format::AhdaTSV => {
+                let separator: char = '\t';
+                let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
+                let mut records = contents.split(separator);
+                // Consume `query_index`
+                records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+                // Consume `query_name`
+                records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+                let mut target_names: Vec<Vec<u8>> = Vec::new();
+                for record in records {
+                    target_names.push(record.as_bytes().to_vec());
+                }
+                let n_targets = target_names.len();
+                target_names[n_targets - 1].pop();
+                self.buf.get_mut().clear();
+
                 Ok(Some(target_names))
             },
         }
@@ -326,6 +346,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
             Format::Metagraph => read_metagraph(&mut self.buf).unwrap(),
             Format::Bifrost => read_bifrost(&mut self.buf).unwrap(),
             Format::SAM => read_sam(&mut self.buf).unwrap(),
+            Format::AhdaTSV => read_ahda_tsv(&mut self.buf).unwrap(),
         };
 
         self.buf.get_mut().clear();
@@ -383,6 +404,10 @@ pub fn guess_format(
     let bifrost: bool = first_record == "query_name";
     if bifrost {
         return Ok(Format::Bifrost)
+    }
+    let ahda_tsv: bool = first_record == "query_index";
+    if ahda_tsv {
+        return Ok(Format::AhdaTSV)
     }
 
     let maybe_metagraph: bool = first_record.parse::<u32>().is_ok();

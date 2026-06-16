@@ -27,6 +27,11 @@
 //!   - [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) (input only)
 //!   - [Themisto](https://github.com/algbio/themisto)
 //!
+//! An additional custom plain text format meant to display all data contained in the records is also provided:
+//!   - [Ahda .tsv](parser::ahda_tsv)
+//!
+//! The default format for plain text outputs is Ahda .tsv.
+//!
 //! Internally, ahda uses [roaring bitmaps](https://roaringbitmap.org/) to store
 //! the pseudoalignments.
 //!
@@ -208,6 +213,7 @@ impl AhdaFormatVersion {
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Format {
+    AhdaTSV,
     #[default] // TODO more sensible default
     Bifrost,
     Fulgor,
@@ -226,6 +232,7 @@ impl std::str::FromStr for Format {
             "metagraph" => Ok(Format::Metagraph),
             "sam" => Ok(Format::SAM),
             "themisto" => Ok(Format::Themisto),
+            "ahda-tsv" => Ok(Format::AhdaTSV),
             _ => Err(format!("'{}' is not a valid Format", s)),
         }
     }
@@ -239,6 +246,7 @@ impl std::fmt::Display for Format {
             Format::Metagraph => write!(f, "metagraph"),
             Format::SAM => write!(f, "SAM"),
             Format::Themisto => write!(f, "themisto"),
+            Format::AhdaTSV => write!(f, "ahda-tsv"),
         }
     }
 }
@@ -736,6 +744,9 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
         Format::Metagraph => {
             decoder.fill_target_ids(false);
         },
+        Format::AhdaTSV => {
+            decoder.fill_target_names(false);
+        },
     }
 
     let header = decoder.file_header().clone();
@@ -853,6 +864,9 @@ pub fn decode_to_write<W: Write>(
         },
         Format::Metagraph => {
             decoder.fill_target_ids(false);
+        },
+        Format::AhdaTSV => {
+            decoder.fill_target_names(false);
         },
     }
 
