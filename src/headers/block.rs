@@ -23,6 +23,22 @@ use bincode::decode_from_slice;
 type E = Box<dyn std::error::Error>;
 
 /// Block header for encoded data
+///
+/// Always the first 32 bytes at the beginning of a .ahda block.
+///
+/// Must always conform to this format.
+///
+/// The BlockHeader contains the following data:
+/// - Number of records stored in this block.
+/// - The metadata compression method used for [BlockFlags].
+/// - Type of bitmap stored in this block.
+/// - A 1 byte unused placeholder value.
+/// - The number of bytes in the block contents that follow the [BlockFlags] bytes.
+/// - Number of bytes containing the [BlockFlags] that follow the header.
+/// - Fields that are present in the [BlockFlags].
+/// - A 2 byte unused placeholder value.
+/// - A 8 byte unused placeholder value.
+///
 #[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct BlockHeader {
     /// Number of records (queries) stored in this block

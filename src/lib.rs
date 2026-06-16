@@ -104,9 +104,61 @@
 //!
 //! ## File format specification
 //!
-//! The .ahda file format has the following structure:
+//! The binary .ahda file format has the following structure:
 //!
-//! **TODO** Write file format specification
+//! ### File header and flags
+//!
+//! - A [FileHeader](headers::file::FileHeader) consisting of exactly 32 bytes.
+//!   The header must start with the bytes `97, 104, 100, 97` indicating that
+//!   the binary file is an .ahda record, and must be followed by two bytes
+//!   indicating the [ahda library version](AhdaVersion). The library version is
+//!   followed by a single byte indicating the [ahda file format
+//!   version](AhdaFormatVersion). The remaining bytes in the header contain
+//!   information about the binary data contained in the file.
+//!
+//! - A [FileFlags](headers::file::FileFlags) consisting of a variable number of
+//!   bytes. The number of bytes must be given in the `flags_len` field of
+//!   FileHeader. The FileFlags block may be compressed, in which case
+//!   `flags_len` must provide the number of compressed bytes. The [compression
+//!   method](compression::MetadataCompression) used must be provided in the
+//!   `metadata_compression` field of FileHeader.
+//!
+//! The FileFlags block contains the name of the sample stored
+//! within the file and the names of the alignment target sequences. The
+//! alignment target sequences must be provided in the order that they appear in
+//! the alignment.
+//!
+//! Each .ahda file must only have one FileHeader and FileFlags.
+//!
+//! ### Blocks
+//!
+//! Alignment data is stored in a number of blocks that follow the file header
+//! and flags. Each block has the following structure:
+//!
+//! - A [BlockHeader](headers::block::BlockHeader) consisting of exactly 32 bytes. The
+//!   header contains information about the records stored in this block.
+//!
+//! - A [BlockFlags](headers::block::BlockFlags) consisting of a variable number of
+//!   bytes. The number of bytes must be given in the `flags_len` field of
+//!   BlockHeader. The BlockFlags block may be compressed, in which case
+//!   `flags_len` must provide the number of compressed bytes. The [compression
+//!   method](compression::MetadataCompression) used must be provided in the
+//!   `metadata_compression` field of BlockHeader.
+//!
+//! - A block containing the (compressed) bitmap corresponding to the alignment
+//!   data. The [type of the bitmap](compression::BitmapType) must match the
+//!   `bitmap_type` field of BlockHeader. The number of bytes containing the
+//!   bitmap must be provided in the `block_len` field of BlockHeader.
+//!
+//! The BlockFlags block must contain the fields promised by the
+//! `fields_present` field of FileHeader. The BlockFlags may contain additional
+//! fields that are promised by the `fields_present` field of BlockHeader but
+//! not by the FileHeader.
+//!
+//! Each .ahda block must consist of exactly one BlockHeader and BlockFlags. An
+//! .ahda file may have any number of blocks.
+//!
+//! A valid .ahda file ends with a block and must not include a footer.
 //!
 
 use headers::file::FileHeader;

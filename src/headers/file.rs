@@ -26,12 +26,23 @@ use crate::compression::gzwrapper::inflate_bytes;
 
 type E = Box<dyn std::error::Error>;
 
-// File header for encoded data
-//
-// Always the first 32 bytes at the beginning of a .ahda file.
-//
-// Must always conform to this format.
-//
+/// File header for encoded data
+///
+/// Always the first 32 bytes at the beginning of a .ahda file.
+///
+/// Must always conform to this format.
+///
+/// The FileHeader contains the following data:
+/// - Bytes identifying the data as a .ahda file.
+/// - Bytes providing the ahda library version.
+/// - The metadata compression method used for [FileFlags].
+/// - Fields that must be present in every [BlockFlags] that follows.
+/// - Number of target sequences in the alignment.
+/// - Number of query sequences in the alignment. This may be 0 if the number was not known in advance.
+/// - Type of bitmap stored in the blocks. This may differ for each block if they were not generated with the ahda encode API.
+/// - Number of records stored in each block. This may be lower for each individual block.
+/// - The number of bytes containing the [FileFlags] that follow the header.
+///
 #[derive(Clone, Debug, Decode, Encode, PartialEq)]
 pub struct FileHeader {
     /// Ahda header, consists of four ASCII bytes spelling "ahda" and two bytes specifying the version.
