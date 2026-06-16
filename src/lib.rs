@@ -213,8 +213,8 @@ impl AhdaFormatVersion {
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Format {
+    #[default]
     AhdaTSV,
-    #[default] // TODO more sensible default
     Bifrost,
     Fulgor,
     Metagraph,
