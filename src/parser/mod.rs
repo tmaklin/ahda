@@ -137,10 +137,6 @@ impl<'a, R: Read> Parser<'a, R> {
             fill_target_names: true,
         };
 
-        if ret.format != Format::Metagraph && ret.format != Format::Themisto && conn_query_names.is_none() && ret.format != Format::AhdaTSV {
-            return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: ret.format }))
-        }
-
         let targets_from_header = ret.read_header()?;
         if let Some(targets) = targets {
             ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
@@ -177,10 +173,6 @@ impl<'a, R: Read> Parser<'a, R> {
             fill_target_ids: true,
             fill_target_names: true,
         };
-
-        if ret.format != Format::Metagraph && ret.format != Format::Themisto && conn_query_names.is_none() && ret.format != Format::AhdaTSV {
-            return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: ret.format }))
-        }
 
         let targets_from_header = ret.read_header()?;
         if let Some(targets) = targets {
