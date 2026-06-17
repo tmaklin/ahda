@@ -136,7 +136,7 @@ pub fn encode_block32(
 ) -> Vec<u8> {
     let bitmap = RoaringBitmap::from_iter(set_bits.iter());
     let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
-    let block = pack_block_roaring32(&query_names, query_ids.as_slice(), &bitmap);
+    let block = pack_block_roaring32(&query_names, query_ids.as_slice(), bitmap);
     block.unwrap()
 }
 
@@ -155,7 +155,7 @@ pub fn encode_block64(
 ) -> Vec<u8> {
     let bitmap = RoaringTreemap::from_iter(set_bits.iter());
     let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
-    let block = pack_block_roaring64(&query_names, query_ids.as_slice(), &bitmap);
+    let block = pack_block_roaring64(&query_names, query_ids.as_slice(), bitmap);
     block.unwrap()
 }
 
@@ -182,8 +182,8 @@ pub fn encode_bitmap(
     let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_names, &query_name);
 
     let mut bytes: Vec<u8> = encoder.encode_file_header_and_flags().unwrap();
-    for mut block in encoder.by_ref() {
-        bytes.append(&mut block.unwrap());
+    for block in encoder {
+        bytes.extend(block.unwrap());
     }
 
     bytes
@@ -222,8 +222,8 @@ pub fn decode_target_names(
 ) -> Vec<String> {
     let mut cursor = Cursor::new(bytes.as_slice());
     let (header, flags) = read_file_header_and_flags(&mut cursor).unwrap();
-    assert_eq!(header.n_targets as usize, flags.target_names.as_ref().unwrap().len());
-    flags.target_names.unwrap().iter().map(|x| String::from_utf8(x.to_vec()).unwrap()).collect()
+    assert_eq!(header.n_targets as usize, flags.target_names.len());
+    flags.target_names.into_iter().map(|x| String::from_utf8(x.to_vec()).unwrap()).collect()
 }
 
 /// Decodes the query sequence names from the block flags in an .ahda record.
@@ -242,10 +242,10 @@ pub fn decode_query_names(
     let (header, _) = read_file_header_and_flags(&mut cursor).unwrap();
 
     let mut query_names: Vec<String> = Vec::with_capacity(header.n_queries as usize);
-    while let Ok((header, mut flags)) = read_block_header_and_flags(&mut cursor) {
+    while let Ok((header, flags)) = read_block_header_and_flags(&mut cursor) {
         assert_eq!(header.num_records as usize, query_names.len());
-        assert_eq!(flags.query_ids.len(), query_names.len());
-        let mut queries_str = flags.queries.iter().map(|x| String::from_utf8(x.to_vec()).unwrap());
+        assert_eq!(flags.query_ids.as_ref().unwrap().len(), query_names.len());
+        let mut queries_str = flags.queries.unwrap().into_iter().map(|x| String::from_utf8(x.to_vec()).unwrap());
         query_names.extend(&mut queries_str);
         cursor.set_position(cursor.position() + header.block_len as u64);
     }
@@ -270,10 +270,10 @@ pub fn decode_query_ids(
     let (header, _) = read_file_header_and_flags(&mut cursor).unwrap();
 
     let mut query_ids: Vec<u32> = Vec::with_capacity(header.n_queries as usize);
-    while let Ok((header, mut flags)) = read_block_header_and_flags(&mut cursor) {
+    while let Ok((header, flags)) = read_block_header_and_flags(&mut cursor) {
         assert_eq!(header.num_records as usize, query_ids.len());
-        assert_eq!(flags.query_ids.len(), query_ids.len());
-        query_ids.append(&mut flags.query_ids);
+        assert_eq!(flags.query_ids.as_ref().unwrap().len(), query_ids.len());
+        query_ids.append(&mut flags.query_ids.unwrap());
         cursor.set_position(cursor.position() + header.block_len as u64);
     }
 
