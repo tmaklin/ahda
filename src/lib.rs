@@ -702,7 +702,12 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     opts: EncodeOpts,
 ) -> Result<Vec<u8>, E> {
     let have_queries = queries.is_some();
-    let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
+    let mut reader = if let Some(format) = opts.format {
+        crate::parser::Parser::new_with_format(conn_in, queries, targets, format)?
+    } else {
+        crate::parser::Parser::new(conn_in, queries, targets)?
+    };
+
     reader.fill_target_names(opts.encode_target_names);
     reader.fill_query_name(opts.encode_query_names && have_queries);
     let n_queries = reader.len();
@@ -774,7 +779,11 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     opts: EncodeOpts,
 ) -> Result<(), E> {
     let have_queries = queries.is_some();
-    let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
+    let mut reader = if let Some(format) = opts.format {
+        crate::parser::Parser::new_with_format(conn_in, queries, targets, format)?
+    } else {
+        crate::parser::Parser::new(conn_in, queries, targets)?
+    };
     reader.fill_target_names(opts.encode_target_names);
     reader.fill_query_name(opts.encode_query_names && have_queries);
     let n_queries = reader.len();

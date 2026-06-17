@@ -73,6 +73,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
         // Encode
         Some(cli::Commands::Encode {
             input_file,
+            input_format,
             query_file,
             target_list,
             sample_name,
@@ -149,6 +150,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             let mut opts = EncodeOpts::default();
+            opts.format = input_format.clone();
+            opts.encode_query_names = query_file.is_some();
             opts.accession = if let Some(name) = sample_name {
                 name.as_bytes().to_vec()
             } else {

@@ -44,6 +44,10 @@ pub enum Commands {
         #[arg(short = 'n', long = "name", help_heading = "Inputs", help = "Sample name (default: .fastX file path)")]
         sample_name: Option<String>,
 
+        // Override input format detection
+        #[arg(short = 'F', long = "format", help_heading = "Inputs", help = "Force input format for plain text parser")]
+        input_format: Option<ahda::Format>,
+
         // Write to stdout
         #[arg(short = 'c', long = "stdout", default_value_t = false, help = "Write to stdout, keep original file")]
         stdout: bool,
