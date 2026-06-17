@@ -80,6 +80,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             stdout,
             force,
             keep,
+            rename,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -151,7 +152,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut opts = EncodeOpts::default();
             opts.format = input_format.clone();
-            opts.encode_query_names = query_file.is_some();
+            opts.encode_query_names = query_file.is_some() && !*rename;
+            opts.rename_queries = *rename;
             opts.accession = if let Some(name) = sample_name {
                 name.as_bytes().to_vec()
             } else {

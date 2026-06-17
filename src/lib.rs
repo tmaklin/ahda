@@ -347,6 +347,9 @@ pub struct EncodeOpts {
     pub bitmap_type: Option<BitmapType>,
     /// Metadata compression method, see [compression].
     pub metadata_compression: MetadataCompression,
+
+    /// Rename queries using the scheme `accession`.`query_id`
+    pub rename_queries: bool,
 }
 
 impl Default for EncodeOpts {
@@ -359,6 +362,7 @@ impl Default for EncodeOpts {
     /// opts.encode_target_names = false;
     /// opts.bitmap_type = None;
     /// opts.metadata_compression = ahda::compression::MetadataCompression::BincodeStandard;
+    /// opts.rename_queries = false;
     /// # let expected = ahda::EncodeOpts::default();
     /// # assert_eq!(opts, expected);
     /// ```
@@ -371,6 +375,7 @@ impl Default for EncodeOpts {
             encode_target_names: false,
             bitmap_type: None,
             metadata_compression: MetadataCompression::default(),
+            rename_queries: false,
         }
     }
 }
@@ -712,6 +717,10 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     reader.fill_query_name(opts.encode_query_names && have_queries);
     let n_queries = reader.len();
 
+    if !have_queries && reader.format != Format::Metagraph && reader.format != Format::Themisto && reader.format != Format::AhdaTSV {
+        return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: reader.format }))
+    }
+
     let targets = reader.get_targets().unwrap();
     let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries);
     if opts.encode_query_names && have_queries {
@@ -779,14 +788,19 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     opts: EncodeOpts,
 ) -> Result<(), E> {
     let have_queries = queries.is_some();
+
     let mut reader = if let Some(format) = opts.format {
         crate::parser::Parser::new_with_format(conn_in, queries, targets, format)?
     } else {
         crate::parser::Parser::new(conn_in, queries, targets)?
     };
     reader.fill_target_names(opts.encode_target_names);
-    reader.fill_query_name(opts.encode_query_names && have_queries);
+    reader.fill_query_name(opts.encode_query_names && have_queries && !opts.rename_queries);
     let n_queries = reader.len();
+
+    if !have_queries && reader.format != Format::Metagraph && reader.format != Format::Themisto && reader.format != Format::AhdaTSV {
+        return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: reader.format }))
+    }
 
     let targets = reader.get_targets().unwrap();
 

@@ -56,6 +56,10 @@ pub enum Commands {
         #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
         force: bool,
 
+        // Overwrite query names
+        #[arg(long = "rename", default_value_t = false, help = "Overwrite query names with `sample_name`.`query_id`")]
+        rename: bool,
+
         // Keep original file
         #[arg(short = 'k', long = "keep", default_value_t = false, help = "Don't delete input file after finishing")]
         keep: bool,
