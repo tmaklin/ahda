@@ -36,7 +36,7 @@ type E = Box<dyn std::error::Error>;
 /// - Bytes identifying the data as a .ahda file.
 /// - Bytes providing the ahda library version.
 /// - The metadata compression method used for [FileFlags].
-/// - Fields that must be present in every [BlockFlags] that follows.
+/// - Fields that must be present in every [crate::headers::block::BlockFlags] that follows.
 /// - Number of target sequences in the alignment.
 /// - Number of query sequences in the alignment. This may be 0 if the number was not known in advance.
 /// - Type of bitmap stored in the blocks. This may differ for each block if they were not generated with the ahda encode API.
@@ -54,10 +54,10 @@ pub struct FileHeader {
     /// File format version, indicates (in)compatible versions of the file format.
     pub file_format: u8,
 
-    /// Compression method used for [FileFlags], see [MetadataCompression](crate::compression::MetadataCompression).
+    /// Compression method used for [FileFlags], see [MetadataCompression].
     pub metadata_compression: u8,
 
-    /// Fields of [BlockFlags] that must be present for all blocks in this file,
+    /// Fields of [crate::headers::block::BlockFlags] that must be present for all blocks in this file,
     /// see [Format](crate::Format) for details.
     ///
     /// Every block must contain the fields specified here. Blocks may include
@@ -67,19 +67,19 @@ pub struct FileHeader {
     /// Number of alignment targets, this must match the length of `target_names` in [FileFlags].
     pub n_targets: u32,
 
-    /// Number of query sequences, this should be greater or equal to the sum of all `num_records` in crate::headers::block::[BlockFlags].
+    /// Number of query sequences, this should be greater or equal to the sum of all `num_records` in [BlockFlags](crate::headers::block::BlockFlags).
     ///
     /// Can be set to 0 if the number is not known in advance.
     pub n_queries: u32,
 
-    /// Bitmap type used to encode blocks in this file, see [BitmapType](crate::compression::BitmapType) for details.
+    /// Bitmap type used to encode blocks in this file, see [BitmapType].
     ///
     /// The address space of the file bitmap type must be large enough to store
     /// data from all blocks in this file. The block bitmap types may differ
     /// from the file bitmap type.
     pub bitmap_type: u16,
 
-    /// Block size (number of [PseudoAln] records) used to encode blocks in this file. Actual number of records per block may be different.
+    /// Block size (number of [crate::PseudoAln] records) used to encode blocks in this file. Actual number of records per block may be different.
     pub block_size: u32,
 
     /// Number of bytes in [FileFlags] that follow the header bytes.

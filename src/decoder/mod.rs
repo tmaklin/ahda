@@ -17,7 +17,7 @@
 //! Contains implementations for two core classes:
 //!
 //! - [Decoder]: reads the .ahda binary format from a connection implementing
-//!   [Read] and returns blocks of [PseudoAln] records when [next] is called.
+//!   [Read] and returns blocks of [PseudoAln] records when [Decoder::next] is called.
 //!
 //! - [BitmapDecoder](bitmap_decoder::BitmapDecoder): decodes a [PseudoAln] record from
 //!   any struct that returns u64 indexes of aligned bits in a flattened

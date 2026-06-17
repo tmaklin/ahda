@@ -22,7 +22,7 @@
 //!
 //! To create a valid .ahda record, [Encoder::encode_file_header_and_flags] should be
 //! called first and its output included as the first bytes in the record. This
-//! method encodes the [FileHeader] and [FileFlags] corresponding to the data
+//! method encodes the [FileHeader] and [FileFlags](crate::headers::file::FileFlags) corresponding to the data
 //! stored in the Encoder.
 //!
 //! Block size can be controlled using [Encoder::set_block_size]. Larger blocks may
@@ -38,7 +38,7 @@
 //!
 //! ### Encoding plain text data
 //!
-//! Create a [Parser](ahda::parser::Parser) on the plaintext input and pass it to Encoder
+//! Create a [Parser](crate::parser::Parser) on the plaintext input and pass it to Encoder
 //!
 //! ```rust
 //! use ahda::encoder::Encoder;
@@ -99,7 +99,7 @@
 //!
 //! ### Encoding alignments stored in memory
 //!
-//! Create an iterator over some container storing [PseudoAln](ahda::PseudoAln) and pass it to a new Encoder
+//! Create an iterator over some container storing [PseudoAln] and pass it to a new Encoder
 //!
 //! ```rust
 //! use ahda::encoder::Encoder;
@@ -224,7 +224,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 
     /// Update `fields_present` in stored FileHeader.
     ///
-    /// Should be called before using [encode_file_header_and_flags] to obtain the bytes.
+    /// Should be called before using [encode_file_header_and_flags](crate::headers::file::encode_file_header_and_flags) to obtain the bytes.
     pub fn set_fields_present(
         &mut self,
         fields_present: u16,

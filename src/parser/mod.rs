@@ -14,8 +14,8 @@
 
 //! Parser for reading plain text data into memory from [Read].
 //!
-//! Reads in 1 [PseudoAln](ahda::PseudoAln) at a time using next(), in the order
-//! they appear in the input.
+//! Reads in 1 [PseudoAln] at a time using next(), in the order they appear in
+//! the input.
 //!
 //! The input format is detected automatically based on rules in [guess_format].
 //! Some input formats may be ambiguous, in which case the format needs to be
@@ -164,7 +164,7 @@ impl<R: Read> Parser<'_, R> {
     /// The header line is only present in Bifrost and Metagraph output. For
     /// Themisto and Fulgor, this will return None.
     ///
-    /// Returns None if the header has already been consumed by calling [next].
+    /// Returns None if the header has already been consumed by calling [Parser::next].
     /// This is checked by looking whether target_to_pos contains anything.
     pub fn read_header(
         &mut self,
@@ -366,13 +366,13 @@ impl<R: Read> Iterator for Parser<'_, R> {
 /// - Metagraph
 ///
 /// ## Errors
-/// ### [crate::errors::CorruptedInputErr]
+/// ### [CorruptedInputErr](crate::errors::CorruptedInputErr)
 /// Input bytes do not contain the expected data.
 ///
-/// ### [AmbiguousInputFormatErr]
+/// ### [AmbiguousInputFormatErr](crate::errors::AmbiguousInputFormatErr)
 /// Input format is either fulgor or metagraph but cannot be inferred with certainty.
 ///
-/// ### [UnrecognizedInputFormatErr]
+/// ### [UnrecognizedInputFormatErr](crate::errors::UnrecognizedInputFormatErr)
 /// Could not infer input format.
 ///
 pub fn guess_format(

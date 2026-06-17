@@ -212,7 +212,7 @@ impl std::fmt::Display for IncompatibleFileHeadersErr {
 }
 impl std::error::Error for IncompatibleFileHeadersErr {}
 
-/// Ahda .tsv header line was not consumed before calling [read_ahda_tsv](crate::parser::ahda_tsv::ahda_tsv).
+/// Ahda .tsv header line was not consumed before calling [read_ahda_tsv](crate::parser::ahda_tsv::read_ahda_tsv).
 #[derive(Debug, Clone)]
 pub struct AhdaTSVHeaderNotConsumedError;
 impl std::fmt::Display for AhdaTSVHeaderNotConsumedError {

@@ -69,7 +69,7 @@
 //!
 //! ### Print encoded PseudoAln records
 //!
-//! Initialize a [Decoder](ahda::decoder::Decoder) on the encoded bytes and pass
+//! Initialize a [Decoder](crate::decoder::Decoder) on the encoded bytes and pass
 //! this to a Printer to print all records.
 //!
 //! ```rust

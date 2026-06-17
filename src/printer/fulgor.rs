@@ -22,7 +22,9 @@ type E = Box<dyn std::error::Error>;
 /// Writes bytes containing the formatted line containing the contents of
 /// `aln` to `conn`.
 ///
-/// Terminates with a [FulgorPrinterError] if [PseudoAln::query_id] or [PseudoAln::ones] is None.
+/// Terminates with a [FulgorPrinterError](crate::errors::FulgorPrinterError) if
+/// if the `query_id` field of [PseudoAln] or the `ones` field
+/// of [PseudoAln] is None.
 ///
 pub fn format_fulgor_line<W: Write>(
     aln: &PseudoAln,

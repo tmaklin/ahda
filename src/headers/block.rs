@@ -50,7 +50,7 @@ pub struct BlockHeader {
     /// Bitmap type used to encode this block, see [BitmapType](crate::compression::BitmapType) for details.
     ///
     /// The address space of the block bitmap type must fit within the file
-    /// bitmap type specified in [FileHeader]. Given that this is satisfied, the
+    /// bitmap type specified in [crate::headers::file::FileHeader]. Given that this is satisfied, the
     /// block bitmap type may differ from the file bitmap type.
     pub bitmap_type: u16,
 
@@ -65,9 +65,9 @@ pub struct BlockHeader {
 
     /// [BlockFlags] fields that are present for records in this block.
     ///
-    /// Every block must contain at least the fields given in the [FileHeader]
+    /// Every block must contain at least the fields given in the [crate::headers::file::FileHeader]
     /// `fields_present`. A block may also contain extra fields that are not
-    /// specified in [FileHeader].
+    /// specified in [crate::headers::file::FileHeader].
     pub fields_present: u16,
 
     /// Placeholder

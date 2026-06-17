@@ -67,7 +67,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
 
     /// Update `fields_present` in stored FileHeader.
     ///
-    /// Should be called before using [encode_file_header_and_flags] to obtain the bytes.
+    /// Should be called before using [encode_file_header_and_flags](crate::headers::file::encode_file_header_and_flags) to obtain the bytes.
     pub fn set_fields_present(
         &mut self,
         fields_present: u16,

@@ -29,8 +29,9 @@ type E = Box<dyn std::error::Error>;
 /// Writes bytes containing the formatted line containing the contents of
 /// `aln` to `conn`.
 ///
-/// Terminates with a [SamPrinterError] if [PseudoAln::query_id] or
-/// [PseudoAln::ones] is None.
+/// Terminates with a [SamPrinterError](crate::errors::SamPrinterError)
+/// if the `query_id` field of [PseudoAln] or the `ones` field
+/// of [PseudoAln] is None.
 ///
 #[allow(unreachable_code, unused_variables)]
 pub fn format_sam_line<W: std::io::Write>(

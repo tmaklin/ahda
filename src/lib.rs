@@ -70,8 +70,8 @@
 //! structs are provided:
 //!
 //!   - [Decoder](decoder::Decoder): takes a [Read] containing the encoded bytes and decodes them into [PseudoAln].
-//!   - [BitmapDecoder](decoder::bitmap::BitmapDecoder): takes an iterator over the indexes of set bits and decodes them into [PseudoAln].
-//!   - [Encoder](encoder::Encoder): takes an iterator over [PseudoAln] records and encodes them into a Vec<u8>.
+//!   - [BitmapDecoder](decoder::bitmap_decoder::BitmapDecoder): takes an iterator over the indexes of set bits and decodes them into [PseudoAln].
+//!   - [Encoder](encoder::Encoder): takes an iterator over [PseudoAln] records and encodes them into a `Vec<u8>`.
 //!   - [Parser](parser::Parser): takes a [Read] containing plain text pseudoalignment bytes and converts them into [PseudoAln].
 //!   - [Printer](printer::Printer): takes an iterator over [PseudoAln] records and formats them into plain text data.
 //!
@@ -108,7 +108,7 @@
 //!
 //! ### File header and flags
 //!
-//! - A [FileHeader](headers::file::FileHeader) consisting of exactly 32 bytes.
+//! - A [FileHeader] consisting of exactly 32 bytes.
 //!   The header must start with the bytes `97, 104, 100, 97` indicating that
 //!   the binary file is an .ahda record, and must be followed by two bytes
 //!   indicating the [ahda library version](AhdaVersion). The library version is
@@ -116,11 +116,11 @@
 //!   version](AhdaFormatVersion). The remaining bytes in the header contain
 //!   information about the binary data contained in the file.
 //!
-//! - A [FileFlags](headers::file::FileFlags) consisting of a variable number of
+//! - A [FileFlags] consisting of a variable number of
 //!   bytes. The number of bytes must be given in the `flags_len` field of
 //!   FileHeader. The FileFlags block may be compressed, in which case
 //!   `flags_len` must provide the number of compressed bytes. The [compression
-//!   method](compression::MetadataCompression) used must be provided in the
+//!   method](MetadataCompression) used must be provided in the
 //!   `metadata_compression` field of FileHeader.
 //!
 //! The FileFlags block contains the name of the sample stored
@@ -138,11 +138,11 @@
 //! - A [BlockHeader](headers::block::BlockHeader) consisting of exactly 32 bytes. The
 //!   header contains information about the records stored in this block.
 //!
-//! - A [BlockFlags](headers::block::BlockFlags) consisting of a variable number of
+//! - A [BlockFlags] consisting of a variable number of
 //!   bytes. The number of bytes must be given in the `flags_len` field of
 //!   BlockHeader. The BlockFlags block may be compressed, in which case
 //!   `flags_len` must provide the number of compressed bytes. The [compression
-//!   method](compression::MetadataCompression) used must be provided in the
+//!   method](MetadataCompression) used must be provided in the
 //!   `metadata_compression` field of BlockHeader.
 //!
 //! - A block containing the (compressed) bitmap corresponding to the alignment
@@ -333,7 +333,7 @@ impl std::str::FromStr for MergeOp {
 /// The fields are stored as Option to enable parsing them from incomplete
 /// plaintext formats. If an incomplete alignment is parsed without using the
 /// ahda API, this data must be filled in to create a valid .ahda record from
-/// the encode API calls or with the [Encoder] class.
+/// the encode API calls or with the [Encoder](crate::encoder::Encoder) class.
 ///
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct PseudoAln{
@@ -538,7 +538,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
     Ok(())
 }
 
-/// Encode from memory to something that implements [Write](std::io::Write).
+/// Encode from memory to something that implements [Write].
 ///
 /// ## Errors and panics
 ///
@@ -598,7 +598,7 @@ pub fn encode_to_write<W: Write>(
     Ok(())
 }
 
-/// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to memory.
+/// Parse all plain-text pseudoalignments from [Read] and encode to memory.
 ///
 /// ## Usage
 /// ```rust
@@ -663,7 +663,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     Ok(bytes)
 }
 
-/// Parse all plain-text pseudoalignments from [Read](std::io::Read) and encode to [Write](std::io::Write).
+/// Parse all plain-text pseudoalignments from [Read] and encode to [Write].
 ///
 /// ## Usage
 /// ```rust
@@ -735,7 +735,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     Ok(())
 }
 
-/// Decode all pseudoalignments from [Read](std::io::Read) and format to [Write](std::io::Write).
+/// Decode all pseudoalignments from [Read] and format to [Write].
 ///
 /// ## Usage
 /// ```rust
@@ -812,7 +812,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
     Ok(())
 }
 
-/// Decode all pseudoalignments from [Read](std::io::Read) to memory.
+/// Decode all pseudoalignments from [Read] to memory.
 ///
 /// ## Usage
 /// ```rust
@@ -854,7 +854,7 @@ pub fn decode_from_read<R: Read>(
     Ok((header, flags, alns))
 }
 
-/// Decode from memory and format to [Write](std::io::Write).
+/// Decode from memory and format to [Write].
 ///
 /// ## Usage
 /// ```rust
@@ -935,9 +935,9 @@ pub fn decode_to_write<W: Write>(
 
 /// Reads the full bitmap and combined block flags from a file
 ///
-/// Returns the [RoaringBitmap] containing all alignments from every block in
-/// the input, and the corresponding file header, file flags, and block flags
-/// for a single block containing all the data.
+/// Returns the [RoaringBitmap](roaring::RoaringBitmap) containing all
+/// alignments from every block in the input, and the corresponding file header,
+/// file flags, and block flags for a single block containing all the data.
 ///
 /// ## Usage
 ///
