@@ -1,0 +1,212 @@
+// ahda: Pseudoalignment compression and conversion between formats.
+//
+// Copyright 2025 Tommi Mäklin [tommi@maklin.fi].
+//
+// Copyrights in this project are retained by contributors. No copyright assignment
+// is required to contribute to this project.
+//
+// Except as otherwise noted (below and/or in individual files), this
+// project is licensed under the Apache License, Version 2.0
+// <LICENSE-APACHE> or <http://www.apache.org/licenses/LICENSE-2.0> or
+// the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
+// at your option.
+//
+use std::io::Write;
+
+use crate::PseudoAln;
+
+type E = Box<dyn std::error::Error>;
+
+/// Format a single pseudoalignment in ahda .tsv format
+///
+/// Writes bytes containing the formatted line containing the contents of
+/// `aln` to `conn`.
+///
+/// Terminates with a [AhdaTSVPrinterError](crate::errors::AhdaTSVPrinterError)
+/// if the `query_id` field of [PseudoAln] or the `ones` field of [PseudoAln] is
+/// None.
+///
+pub fn format_ahda_tsv_line<W: Write>(
+    aln: &PseudoAln,
+    n_targets: usize,
+    conn: &mut W,
+) -> Result<(), E> {
+    let separator: char = '\t';
+    let mut formatted: String = String::new();
+
+    if aln.ones.is_none() || aln.query_name.is_none() || aln.query_id.is_none() {
+        return Err(Box::new(crate::errors::AhdaTSVPrinterError{}))
+    }
+
+    formatted += &aln.query_id.as_ref().unwrap().to_string();
+    formatted += "\t";
+    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
+
+    let ones: &Vec<u32> = aln.ones.as_ref().unwrap();
+    let mut ones_bits: Vec<bool> = vec![false; n_targets];
+    ones.iter().for_each(|is_set_idx| ones_bits[*is_set_idx as usize] = true);
+
+    ones_bits.iter().for_each(|is_set| {
+        formatted += &separator.to_string();
+            formatted += &(*is_set as u32).to_string();
+
+    });
+    formatted += "\n";
+
+    conn.write_all(formatted.as_bytes())?;
+    Ok(())
+}
+
+/// Format a ahda.tsv header line
+///
+/// Writes bytes containing the string `query_index    query_name` and a tab separated list of
+/// all target sequence names.
+///
+pub fn format_ahda_tsv_header<W: Write>(
+    targets: &[Vec<u8>],
+    conn: &mut W,
+) -> Result<(), E> {
+    let separator: char = '\t';
+    let mut formatted: String = String::new();
+
+    if targets.is_empty() {
+        return Err(Box::new(crate::errors::AhdaTSVPrinterError{}))
+    }
+
+    formatted += "query_index\tquery_name";
+
+    targets.iter().for_each(|target| {
+        formatted += &separator.to_string();
+        formatted += &target.iter().map(|x| *x as char).collect::<String>();
+    });
+    formatted += "\n";
+
+    conn.write_all(formatted.as_bytes())?;
+    Ok(())
+}
+
+// Tests
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn format_ahda_tsv_line_1st_aligned() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None,  query_id: Some(2), ones: Some(vec![0]), query_name: Some("FastqQuery.3".as_bytes().to_vec()) };
+
+        let expected: Vec<u8> = b"2\tFastqQuery.3\t1\t0\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_ahda_tsv_line(&data, 2, &mut got).unwrap();
+
+        assert_eq!(got.iter().map(|x| *x as char).collect::<String>(), expected.iter().map(|x| *x as char).collect::<String>())
+    }
+
+    #[test]
+    fn format_ahda_tsv_line_2nd_aligned() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None,  query_id: Some(2), ones: Some(vec![1]), query_name: Some("FastqQuery.3".as_bytes().to_vec()) };
+
+        let expected: Vec<u8> = b"2\tFastqQuery.3\t0\t1\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_ahda_tsv_line(&data, 2, &mut got).unwrap();
+
+        assert_eq!(got, expected)
+    }
+
+    #[test]
+    fn format_ahda_tsv_line_both_aligned() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None,  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("FastqQuery.3".as_bytes().to_vec()) };
+
+        let expected: Vec<u8> = b"2\tFastqQuery.3\t1\t1\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_ahda_tsv_line(&data, 2, &mut got).unwrap();
+
+        assert_eq!(got, expected)
+    }
+
+    #[test]
+    fn format_ahda_tsv_line_no_alignments() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None,  query_id: Some(2), ones: Some(vec![]), query_name: Some("FastqQuery.3".as_bytes().to_vec()) };
+
+        let expected: Vec<u8> = b"2\tFastqQuery.3\t0\t0\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_ahda_tsv_line(&data, 2, &mut got).unwrap();
+
+        assert_eq!(got, expected)
+    }
+
+    #[test]
+    fn format_ahda_tsv_header() {
+        use super::format_ahda_tsv_header;
+
+        let data = vec!["chromosome.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+
+        let expected: Vec<u8> = b"query_index\tquery_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_ahda_tsv_header(&data, &mut got).unwrap();
+
+        assert_eq!(got, expected)
+    }
+
+        #[test]
+    fn header_error_if_no_targets() {
+        use super::format_ahda_tsv_header;
+
+        let data: Vec<Vec<u8>> = Vec::new();
+
+        let got = format_ahda_tsv_header(&data, &mut Vec::new());
+
+        assert!(!got.is_ok());
+    }
+
+    #[test]
+    fn line_error_if_no_query_name() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None, query_name: None, ones: Some(vec![0, 3, 7, 11]), query_id: None};
+
+        let got = format_ahda_tsv_line(&data, 2, &mut Vec::new());
+
+        assert!(!got.is_ok());
+    }
+
+    #[test]
+    fn line_error_if_no_ones() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None, query_name: Some("ERR4035126.1262954".as_bytes().to_vec()), query_id: Some(128), ones: None};
+
+        let got = format_ahda_tsv_line(&data, 2, &mut Vec::new());
+
+        assert!(!got.is_ok());
+    }
+
+    #[test]
+    fn line_error_if_no_query_index() {
+        use crate::PseudoAln;
+        use super::format_ahda_tsv_line;
+
+        let data = PseudoAln{ones_names: None, query_name: Some("ERR4035126.1262954".as_bytes().to_vec()), query_id: None, ones: Some(vec![1])};
+
+        let got = format_ahda_tsv_line(&data, 2, &mut Vec::new());
+
+        assert!(!got.is_ok());
+    }
+}
