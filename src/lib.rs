@@ -84,7 +84,7 @@
 //! ### C++ API
 //!
 //! ahda provides a C++ API for encoding and decoding pseudoalignment data into
-//! memory. The API is available in [cxx_api].
+//! memory. The API is available with the feature `cxxbridge`.
 //!
 //! Encoding requires converting the pseudoalignment to a flattened form
 //! and obtaining the indexes of the set bits (positive alignments) that should
