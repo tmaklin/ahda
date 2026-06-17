@@ -42,6 +42,7 @@
 //!
 //! ```rust
 //! use ahda::{encode_from_read_to_write, decode_from_read_to_write};
+//! use ahda::EncodeOpts;
 //! use ahda::{Format, PseudoAln};
 //! use ahda::decoder::Decoder;
 //! use std::io::{Cursor, Seek};
@@ -68,7 +69,10 @@
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 //! let mut it = queries.into_iter();
 //! let mut t_it = targets.into_iter();
-//! encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut input, &mut output).unwrap();
+//! let mut opts = EncodeOpts::default();
+//! opts.accession = name;
+//! opts.encode_query_names = true;
+//! encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut input, &mut output, opts).unwrap();
 //! output.rewind();
 //!
 //! // Then, create a Decoder from `output` and retrieve the original data

@@ -328,6 +328,52 @@ impl std::str::FromStr for MergeOp {
     }
 }
 
+/// Options to functions that encode input data.
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq)]
+pub struct EncodeOpts {
+    /// Force input data format for parsing plain text data.
+    pub format: Option<Format>,
+
+    /// Sample name to store in [FileFlags].
+    pub accession: Vec<u8>,
+
+    /// Store query names in the output [BlockFlags].
+    pub encode_query_names: bool,
+    /// Store alignment target name in the output records.
+    pub encode_target_names: bool,
+
+    /// Force bitmap type to use, see [BitmapType].
+    pub bitmap_type: Option<BitmapType>,
+    /// Metadata compression method, see [compression].
+    pub metadata_compression: MetadataCompression,
+}
+
+impl Default for EncodeOpts {
+    /// Default to these values:
+    /// ```rust
+    /// let mut opts = ahda::EncodeOpts::default();
+    /// opts.format = None;
+    /// opts.accession = Vec::new();
+    /// opts.encode_query_names = false;
+    /// opts.encode_target_names = false;
+    /// opts.bitmap_type = None;
+    /// opts.metadata_compression = ahda::compression::MetadataCompression::BincodeStandard;
+    /// # let expected = ahda::EncodeOpts::default();
+    /// # assert_eq!(opts, expected);
+    /// ```
+    ///
+    fn default() -> EncodeOpts {
+        EncodeOpts {
+            format: None,
+            accession: Vec::new(),
+            encode_query_names: false,
+            encode_target_names: false,
+            bitmap_type: None,
+            metadata_compression: MetadataCompression::default(),
+        }
+    }}
+
 /// A decompressed pseudoalignment record.
 ///
 /// The fields are stored as Option to enable parsing them from incomplete
@@ -371,6 +417,7 @@ pub struct PseudoAln{
 ///
 /// ```rust
 /// use ahda::{concatenate_from_read_to_write, decode_from_read, encode_to_write};
+/// use ahda::EncodeOpts;
 /// use ahda::PseudoAln;
 /// use std::io::{Cursor, Seek};
 ///
@@ -390,10 +437,13 @@ pub struct PseudoAln{
 ///
 /// let mut data_bytes_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut data_bytes_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
 ///
 /// // Encode the mock inputs to data_bytes_1 and data_bytes_2.
-/// encode_to_write(&targets, &queries, &name, &data_1, &mut data_bytes_1).unwrap();
-/// encode_to_write(&targets, &queries, &name, &data_2, &mut data_bytes_2).unwrap();
+/// encode_to_write(&targets, &queries, &data_1, &mut data_bytes_1, opts.clone()).unwrap();
+/// encode_to_write(&targets, &queries, &data_2, &mut data_bytes_2, opts).unwrap();
 ///
 /// data_bytes_1.rewind();
 /// data_bytes_2.rewind();
@@ -547,6 +597,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
 /// ## Usage
 /// ```rust
 /// use ahda::{encode_to_write, decode_from_read};
+/// use ahda::EncodeOpts;
 /// use ahda::PseudoAln;
 /// use std::io::{Cursor, Seek};
 ///
@@ -559,10 +610,13 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".as_bytes().to_vec();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
 ///
 /// // Encode to `output`
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_to_write(&targets, &queries, &name, &data, &mut output).unwrap();
+/// encode_to_write(&targets, &queries, &data, &mut output, opts).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// output.rewind();
@@ -574,19 +628,19 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
 pub fn encode_to_write<W: Write>(
     targets: &[Vec<u8>],
     queries: &[Vec<u8>],
-    sample_name: &[u8],
     records: &[PseudoAln],
     conn_out: &mut W,
+    opts: EncodeOpts,
 ) -> Result<(), E> {
-    let have_queries = !queries.is_empty();
     assert!(!records.is_empty());
+    let have_queries = !queries.is_empty();
 
     let mut records_iter = records.iter().cloned();
-    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, sample_name, queries.len());
-    if !have_queries {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS);
-    } else {
+    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len());
+    if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
+    } else {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS);
     }
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -603,6 +657,7 @@ pub fn encode_to_write<W: Write>(
 /// ## Usage
 /// ```rust
 /// use ahda::{encode_from_read, decode_from_read_to_write};
+/// use ahda::EncodeOpts;
 /// use ahda::Format;
 /// use std::io::{Cursor, Seek};
 ///
@@ -610,6 +665,9 @@ pub fn encode_to_write<W: Write>(
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
 /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
 /// let name = "sample".as_bytes().to_vec();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
 ///
 /// // Have this input data:
 /// //   3    r7543    chr.fasta:virus.fasta
@@ -626,7 +684,7 @@ pub fn encode_to_write<W: Write>(
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(input_bytes.clone());
 /// let mut it = queries.into_iter();
 /// let mut t_it = targets.into_iter();
-/// let output = encode_from_read(Some(&mut t_it), Some(&mut it), &name, &mut input).unwrap();
+/// let output = encode_from_read(Some(&mut t_it), Some(&mut it), &mut input, opts).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// let mut encoded: Cursor<Vec<u8>> = Cursor::new(output);
@@ -639,21 +697,21 @@ pub fn encode_to_write<W: Write>(
 pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
     targets: Option<&mut T>,
     queries: Option<&mut Q>,
-    sample_name: &[u8],
     conn_in: &mut R,
+    opts: EncodeOpts,
 ) -> Result<Vec<u8>, E> {
     let have_queries = queries.is_some();
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
-    reader.fill_target_names(false);
-    reader.fill_query_name(have_queries);
+    reader.fill_target_names(opts.encode_target_names);
+    reader.fill_query_name(opts.encode_query_names && have_queries);
     let n_queries = reader.len();
 
     let targets = reader.get_targets().unwrap();
-    let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
-    if !have_queries {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS);
-    } else {
+    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries);
+    if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
+    } else {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS);
     }
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -669,6 +727,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
 /// ```rust
 /// use ahda::{encode_from_read_to_write, decode_from_read_to_write};
 /// use ahda::Format;
+/// use ahda::EncodeOpts;
 /// use std::io::{Cursor, Seek};
 ///
 /// // Mock inputs
@@ -693,7 +752,10 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.into_iter();
 /// let mut t_it = targets.into_iter();
-/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut input, &mut output).unwrap();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut input, &mut output, opts).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// output.rewind();
@@ -706,23 +768,24 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
 pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
     targets: Option<&mut T>,
     queries: Option<&mut Q>,
-    sample_name: &[u8],
     conn_in: &mut R,
     conn_out: &mut W,
+    opts: EncodeOpts,
 ) -> Result<(), E> {
     let have_queries = queries.is_some();
     let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
-    reader.fill_target_names(false);
-    reader.fill_query_name(have_queries);
+    reader.fill_target_names(opts.encode_target_names);
+    reader.fill_query_name(opts.encode_query_names && have_queries);
     let n_queries = reader.len();
 
     let targets = reader.get_targets().unwrap();
 
-    let mut encoder = encoder::Encoder::new(&mut reader, &targets, sample_name, n_queries);
-    if !have_queries {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS);
-    } else {
+    // TODO remove unwrap
+    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries);
+    if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
+    } else {
+        encoder.set_fields_present(crate::MASK_QUERY_IDS);
     }
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -741,6 +804,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
 /// ```rust
 /// use ahda::{decode_from_read_to_write, encode_from_read_to_write};
 /// use ahda::Format;
+/// use ahda::EncodeOpts;
 /// use std::io::{Cursor, Seek};
 ///
 /// // Set up mock inputs
@@ -759,7 +823,10 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.into_iter();
 /// let mut t_it = targets.into_iter();
-/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut plaintext, &mut input, opts).unwrap();
 /// input.rewind();
 ///
 /// // Decode all alignments and compare against the original inputs
@@ -817,6 +884,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 /// ## Usage
 /// ```rust
 /// use ahda::{decode_from_read, encode_to_write};
+/// use ahda::EncodeOpts;
 /// use ahda::PseudoAln;
 /// use std::io::{Cursor, Seek};
 ///
@@ -829,10 +897,13 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".as_bytes().to_vec();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
 ///
 /// // Encode mock data
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_to_write(&targets, &queries, &name, &data, &mut input).unwrap();
+/// encode_to_write(&targets, &queries, &data, &mut input, opts).unwrap();
 /// input.rewind();
 ///
 /// // Decode to recover the original data
@@ -859,7 +930,7 @@ pub fn decode_from_read<R: Read>(
 /// ## Usage
 /// ```rust
 /// use ahda::{decode_to_write, encode_to_write};
-/// use ahda::{Format, PseudoAln};
+/// use ahda::{Format, PseudoAln, EncodeOpts};
 /// use std::io::{Cursor, Seek};
 ///
 /// // Mock data
@@ -871,10 +942,13 @@ pub fn decode_from_read<R: Read>(
 /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
 /// let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
 /// let name = "ERR4035126".as_bytes().to_vec();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = false;
 ///
 /// // Encode mock data
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_to_write(&targets, &queries, &name, &data, &mut input).unwrap();
+/// encode_to_write(&targets, &queries, &data, &mut input, opts).unwrap();
 ///
 /// // Decode to recover the original data
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -944,6 +1018,7 @@ pub fn decode_to_write<W: Write>(
 /// ```rust
 /// use ahda::{decode_from_read_to_roaring, encode_from_read_to_write};
 /// use ahda::Format;
+/// use ahda::EncodeOpts;
 /// use ahda::headers::file::{FileHeader, FileFlags};
 /// use ahda::headers::block::{BlockHeader, BlockFlags};
 /// use roaring::RoaringTreemap;
@@ -965,7 +1040,10 @@ pub fn decode_to_write<W: Write>(
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.into_iter();
 /// let mut t_it = targets.into_iter();
-/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext, &mut input).unwrap();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut plaintext, &mut input, opts).unwrap();
 /// input.rewind();
 ///
 /// // Decode all alignments and compare against the original inputs
@@ -1054,6 +1132,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// ```rust
 /// use ahda::{decode_from_read_into_roaring, decode_from_read_to_roaring, encode_from_read_to_write};
 /// use ahda::MergeOp;
+/// use ahda::EncodeOpts;
 /// use roaring::RoaringTreemap;
 /// use std::io::{Cursor, Seek};
 ///
@@ -1084,14 +1163,17 @@ pub fn decode_from_read_to_roaring<R: Read>(
 /// let mut input_1: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut t_it = targets.iter().cloned();
 /// let mut it = queries.iter().cloned();
-/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext_1, &mut input_1).unwrap();
+/// let mut opts = EncodeOpts::default();
+/// opts.accession = name;
+/// opts.encode_query_names = true;
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut plaintext_1, &mut input_1, opts.clone()).unwrap();
 /// input_1.rewind();
 ///
 /// let mut plaintext_2: Cursor<Vec<u8>> = Cursor::new(plaintext_bytes_2.clone());
 /// let mut input_2: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 /// let mut it = queries.into_iter();
 /// let mut t_it = targets.into_iter();
-/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &name, &mut plaintext_2, &mut input_2).unwrap();
+/// encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut plaintext_2, &mut input_2, opts).unwrap();
 /// input_2.rewind();
 ///
 /// // Decode data from `input_1`
@@ -1256,6 +1338,7 @@ mod tests {
     #[test]
     fn encode_to_write() {
         use super::encode_to_write;
+        use super::EncodeOpts;
 
         use crate::PseudoAln;
 
@@ -1273,8 +1356,11 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let sample = "ERR4035126".as_bytes().to_vec();
+        let mut opts = EncodeOpts::default();
+        opts.accession = sample;
+        opts.encode_query_names = true;
 
-        encode_to_write(&targets, &queries, &sample, &data, &mut bytes).unwrap();
+        encode_to_write(&targets, &queries, &data, &mut bytes, opts).unwrap();
 
         let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
@@ -1284,6 +1370,7 @@ mod tests {
     #[test]
     fn encode_to_write_without_query_names() {
         use super::encode_to_write;
+        use super::EncodeOpts;
 
         use crate::PseudoAln;
 
@@ -1300,8 +1387,10 @@ mod tests {
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let sample = "ERR4035126".as_bytes().to_vec();
+        let mut opts = EncodeOpts::default();
+        opts.accession = sample;
 
-        encode_to_write(&targets, &Vec::new(), &sample, &data, &mut bytes).unwrap();
+        encode_to_write(&targets, &Vec::new(), &data, &mut bytes, opts).unwrap();
 
         let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 29, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 101, 96, 100, 98, 102, 1, 0, 59, 190, 176, 144, 9, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
@@ -1311,6 +1400,7 @@ mod tests {
     #[test]
     fn encode_from_read() {
         use super::encode_from_read;
+        use super::EncodeOpts;
 
         use super::headers::file::build_file_header_and_flags;
 
@@ -1337,6 +1427,9 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let mut opts = EncodeOpts::default();
+        opts.accession = query_name.clone();
+        opts.encode_query_names = true;
 
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &query_name, &MetadataCompression::default()).unwrap();
         let format = Format::Metagraph;
@@ -1350,7 +1443,7 @@ mod tests {
 
         let mut it = queries.into_iter();
         let mut t_it = targets.into_iter();
-        let got = encode_from_read(Some(&mut t_it), Some(&mut it), &query_name, &mut bytes).unwrap();
+        let got = encode_from_read(Some(&mut t_it), Some(&mut it), &mut bytes, opts).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -1358,6 +1451,7 @@ mod tests {
     #[test]
     fn encode_from_read_without_query_names() {
         use super::encode_from_read;
+        use super::EncodeOpts;
 
         use super::headers::file::build_file_header_and_flags;
 
@@ -1384,6 +1478,9 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let mut opts = EncodeOpts::default();
+        opts.accession = query_name.clone();
+        opts.encode_query_names = true;
 
         let (header, flags) = build_file_header_and_flags(&targets, queries.len(), &query_name, &MetadataCompression::default()).unwrap();
         let format = Format::Themisto;
@@ -1396,7 +1493,7 @@ mod tests {
         bytes.rewind().unwrap();
 
         let mut t_it = targets.into_iter();
-        let got = encode_from_read(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &query_name, &mut bytes).unwrap();
+        let got = encode_from_read(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &mut bytes, opts).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -1404,6 +1501,7 @@ mod tests {
     #[test]
     fn encode_from_read_to_write() {
         use super::encode_from_read_to_write;
+        use super::EncodeOpts;
 
         use std::io::Cursor;
 
@@ -1419,7 +1517,10 @@ mod tests {
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         let mut it = queries.into_iter();
         let mut t_it = targets.into_iter();
-        encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &query_name, &mut data, &mut bytes_got).unwrap();
+        let mut opts = EncodeOpts::default();
+        opts.encode_query_names = true;
+        opts.accession = query_name;
+        encode_from_read_to_write(Some(&mut t_it), Some(&mut it), &mut data, &mut bytes_got, opts).unwrap();
         let got = bytes_got.get_ref();
 
         assert_eq!(*got, expected);
@@ -1428,6 +1529,7 @@ mod tests {
     #[test]
     fn encode_from_read_to_write_without_query_names() {
         use super::encode_from_read_to_write;
+        use super::EncodeOpts;
 
         use std::io::Cursor;
 
@@ -1441,7 +1543,9 @@ mod tests {
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         let mut t_it = targets.into_iter();
-        encode_from_read_to_write(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &query_name, &mut data, &mut bytes_got).unwrap();
+        let mut opts = EncodeOpts::default();
+        opts.accession = query_name;
+        encode_from_read_to_write(Some(&mut t_it), None::<&mut std::iter::Empty<Vec<u8>>>, &mut data, &mut bytes_got, opts).unwrap();
         let got = bytes_got.get_ref();
 
         assert_eq!(*got, expected);
