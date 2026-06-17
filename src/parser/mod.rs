@@ -156,6 +156,47 @@ impl<'a, R: Read> Parser<'a, R> {
 
         Ok(ret)
     }
+
+    pub fn new_with_format<T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
+        conn_pseudoalns: &'a mut R,
+        conn_query_names: Option<&mut Q>,
+        targets: Option<&mut T>,
+        format: Format,
+    ) -> Result<Self, E> {
+        // Guess the input format
+        let mut reader = BufReader::new(conn_pseudoalns);
+        let mut buf = Cursor::new(Vec::<u8>::new());
+        reader.read_until(b'\n', buf.get_mut())?;
+
+        let mut ret = Self {
+            reader, buf, format,
+            query_to_pos: IndexSet::new(),
+            target_to_pos: IndexSet::new(),
+            fill_query_id: true,
+            fill_query_name: true,
+            fill_target_ids: true,
+            fill_target_names: true,
+        };
+
+        if ret.format != Format::Metagraph && ret.format != Format::Themisto && conn_query_names.is_none() && ret.format != Format::AhdaTSV {
+            return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: ret.format }))
+        }
+
+        let targets_from_header = ret.read_header()?;
+        if let Some(targets) = targets {
+            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
+        } else if let Some(targets) = targets_from_header {
+            ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
+        } else {
+            return Err(Box::new(crate::errors::NeedTargetSequencesErr{ format: ret.format }))
+        }
+
+        if let Some(conn_query_names) = conn_query_names {
+            ret.query_to_pos = IndexSet::<Vec<u8>>::from_iter(conn_query_names);
+        }
+
+        Ok(ret)
+    }
 }
 
 impl<R: Read> Parser<'_, R> {
