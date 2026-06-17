@@ -89,8 +89,6 @@ mod tests {
         use crate::PseudoAln;
         use crate::compression::MetadataCompression;
         use crate::headers::file::build_file_header_and_flags;
-        use crate::headers::block::BlockFlags;
-        use crate::headers::block::BlockHeader;
 
         use roaring::RoaringBitmap;
 
@@ -112,7 +110,6 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec()];
         let n_queries = queries.len();
-        let query_ids = vec![0, 1, 2, 3];
         let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
@@ -133,8 +130,6 @@ mod tests {
         use crate::PseudoAln;
         use crate::compression::MetadataCompression;
         use crate::headers::file::build_file_header_and_flags;
-        use crate::headers::block::BlockFlags;
-        use crate::headers::block::BlockHeader;
 
         use roaring::RoaringBitmap;
 
@@ -154,7 +149,6 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let n_queries = queries.len();
-        let query_ids = vec![0, 1, 2, 3, 4];
         let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
@@ -175,8 +169,6 @@ mod tests {
         use crate::PseudoAln;
         use crate::compression::MetadataCompression;
         use crate::headers::file::build_file_header_and_flags;
-        use crate::headers::block::BlockFlags;
-        use crate::headers::block::BlockHeader;
 
         use roaring::RoaringBitmap;
 
@@ -195,7 +187,6 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let n_queries = queries.len();
-        let query_ids = vec![0, 1, 2, 3, 4];
         let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);
@@ -217,8 +208,6 @@ mod tests {
         use crate::PseudoAln;
         use crate::compression::MetadataCompression;
         use crate::headers::file::build_file_header_and_flags;
-        use crate::headers::block::BlockFlags;
-        use crate::headers::block::BlockHeader;
 
         use roaring::RoaringBitmap;
 
@@ -235,7 +224,6 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let n_queries = queries.len();
-        let query_ids = vec![0, 1, 2, 3, 4];
         let (header, _) = build_file_header_and_flags(&targets, n_queries, &"ERR4035126".as_bytes().to_vec(), &MetadataCompression::default()).unwrap();
 
         let mut tmp = data.iter().map(|x| x as u64);

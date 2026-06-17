@@ -1180,7 +1180,7 @@ mod tests {
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         concatenate_from_read_to_write(&mut data, &mut bytes_got).unwrap();
 
-        let mut got = bytes_got.get_mut();
+        let got = bytes_got.get_mut();
 
         assert_eq!(*got, expected);
     }
