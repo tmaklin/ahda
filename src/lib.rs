@@ -372,7 +372,8 @@ impl Default for EncodeOpts {
             bitmap_type: None,
             metadata_compression: MetadataCompression::default(),
         }
-    }}
+    }
+}
 
 /// A decompressed pseudoalignment record.
 ///
