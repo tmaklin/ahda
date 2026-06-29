@@ -176,10 +176,6 @@ pub enum Commands {
         #[arg(short = 'o', long = "output", help_heading = "Outputs", help = "Output to file")]
         output_file: Option<PathBuf>,
 
-        // Output format, defaults to Themisto
-        #[arg(short = 'F', long = "format", help_heading = "Outputs", required = false, help = "Output plain text format")]
-        format: Option<ahda::Format>,
-
         // Merge operation
         #[arg(short = 'm', long = "mode", default_value = "union", help = "Merge operation")]
         operation: Option<ahda::MergeOp>,

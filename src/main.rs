@@ -432,7 +432,6 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
         Some(cli::Commands::Set {
             input_files,
             output_file,
-            format,
             operation,
             stdout,
             force,
@@ -479,7 +478,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             // Read first bitmap
-            let (mut bitmap_a, header_a, flags_a, _) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
+            let (mut bitmap_a, header_a, flags_a, block_flags) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
 
             // Read the remainning bitmaps and perform requested operation.
             // Intersection requires reading the entire other bitmaps into memory.
@@ -496,10 +495,11 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             let mut iter = bitmap_a.into_iter();
-            let mut decoder = ahda::decoder::bitmap_decoder::BitmapDecoder::new(&mut iter, header_a.clone());
-            let printer = Printer::new_from_header_and_flags(&mut decoder, header_a.clone(), flags_a.clone(), format.as_ref().unwrap().clone());
-            for line in printer {
-                conn_out[0].write_all(&line)?;
+            let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &block_flags.queries.unwrap(), &flags_a.query_name);
+            encoder.set_fields_present(3_u16);
+            conn_out[0].write_all(&encoder.encode_file_header_and_flags()?)?;
+            for block in encoder {
+                conn_out[0].write_all(&block?)?;
             }
             conn_out[0].flush()?;
             Ok(())
