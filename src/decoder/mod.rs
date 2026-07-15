@@ -261,7 +261,8 @@ impl<R: Read> Decoder<'_, R> {
         &self.flags
     }
 
-    fn next_block(
+    /// Read next block and update internal state.
+    pub fn next_block(
         &mut self,
     ) -> Option<()> {
         self.block.clear();
@@ -293,6 +294,27 @@ impl<R: Read> Decoder<'_, R> {
             },
             _ => None,
         }
+    }
+
+    /// Get query ids in the current block, use [next_block] to advance.
+    pub fn query_ids(
+        &self,
+    ) -> Vec<u32> {
+        self.q_ids.iter().cloned().collect()
+    }
+
+    /// Get query names in the current block if present, use [next_block] to advance.
+    pub fn query_names(
+        &self,
+    ) -> Option<Vec<Vec<u8>>> {
+        Some(self.q_names.clone()?.iter().cloned().collect::<Vec<Vec<u8>>>())
+    }
+
+    /// Get records in the current block, use [next_block] to advance.
+    pub fn records(
+        &self,
+    ) -> &Vec<PseudoAln> {
+        &self.block
     }
 
     fn fill_record(
