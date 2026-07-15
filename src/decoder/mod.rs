@@ -145,10 +145,18 @@ use crate::compression::roaring64::unpack_block_roaring64;
 
 use indexmap::IndexSet;
 
+use roaring::RoaringBitmap;
+use roaring::RoaringTreemap;
+
 use std::collections::HashSet;
 use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
+
+pub enum Bitmap {
+    Roaring32(RoaringBitmap),
+    Roaring64(RoaringTreemap),
+}
 
 pub struct Decoder<'a, R: Read> {
     // Inputs
@@ -159,7 +167,9 @@ pub struct Decoder<'a, R: Read> {
 
     // Internals
     block: Vec<PseudoAln>,
+    block_flags: Option<BlockFlags>,
     block_index: usize,
+    bitmap: Bitmap,
     q_ids: IndexSet<u32>,
     q_names: Option<IndexSet<Vec<u8>>>,
     t_names: IndexSet<Vec<u8>>,
@@ -179,6 +189,11 @@ impl<'a, R: Read> Decoder<'a, R> {
         let header = read_file_header(conn).unwrap();
         let flags = read_file_flags(&header, conn).unwrap();
 
+        let bitmap = match BitmapType::from_u16(header.bitmap_type).unwrap() {
+            BitmapType::Roaring32 => Bitmap::Roaring32(RoaringBitmap::new()),
+            BitmapType::Roaring64 => Bitmap::Roaring64(RoaringTreemap::new()),
+        };
+
         Decoder{
             block: Vec::with_capacity(header.block_size as usize),
             q_ids: IndexSet::with_capacity(header.block_size as usize),
@@ -187,6 +202,8 @@ impl<'a, R: Read> Decoder<'a, R> {
             conn,
             header, flags,
             block_index: 0_usize,
+            block_flags: None,
+            bitmap,
             fill_query_id: true,
             fill_query_name: true,
             fill_target_ids: true,
@@ -225,16 +242,27 @@ impl<'a, R: Read> Decoder<'a, R> {
 
 impl<R: Read> Decoder<'_, R> {
 
-    fn alns_from_set_bits<I: Iterator<Item=u64>>(
+    fn alns_from_set_bits(
         &mut self,
-        block_flags: BlockFlags,
-        it: &mut I,
     ) -> Result<(), E> {
-        let bitmap_decoder = bitmap_decoder::BitmapDecoder::new(it, self.header.clone());
+        let mut it: Box<dyn Iterator<Item=u64>> = match &mut self.bitmap {
+            Bitmap::Roaring32(bits) => {
+                let tmp = bits.iter().map(|x| x as u64);
+                Box::new(tmp)
+            },
+            Bitmap::Roaring64(bits) => {
+                let tmp = bits.iter();
+                Box::new(tmp)
+            },
+        };
+
+        let bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut it, self.header.clone());
         self.block = bitmap_decoder.collect();
 
+        let query_ids = self.block_flags.as_ref().unwrap().query_ids.as_ref().unwrap();
+        let query_names = self.block_flags.as_ref().unwrap().queries.as_ref().unwrap();
         let seen: HashSet<u32> = HashSet::from_iter(self.block.iter().map(|x| x.query_id.unwrap()));
-        self.block.extend(block_flags.query_ids.as_ref().unwrap().iter().filter_map(|idx| {
+        self.block.extend(query_ids.iter().filter_map(|idx| {
             if !seen.contains(idx) {
                 Some(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None })
             } else {
@@ -242,8 +270,8 @@ impl<R: Read> Decoder<'_, R> {
             }
         }));
 
-        self.q_names = if self.header.promises_query_names() { Some(IndexSet::from_iter(block_flags.queries.unwrap())) } else { None };
-        self.q_ids = IndexSet::from_iter(block_flags.query_ids.unwrap());
+        self.q_names = if self.header.promises_query_names() { Some(IndexSet::from_iter(query_names.iter().cloned())) } else { None };
+        self.q_ids = IndexSet::from_iter(query_ids.iter().cloned());
 
         Ok(())
 
@@ -281,13 +309,13 @@ impl<R: Read> Decoder<'_, R> {
                 match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
                     BitmapType::Roaring32 => {
                         let (bitmap, block_flags) = unpack_block_roaring32(&bytes, &block_header).unwrap();
-                        let mut tmp = bitmap.into_iter().map(|x| x as u64);
-                        self.alns_from_set_bits(block_flags, &mut tmp).unwrap();
+                        self.bitmap = Bitmap::Roaring32(bitmap);
+                        self.block_flags = Some(block_flags);
                     },
                     BitmapType::Roaring64 => {
                         let (bitmap, block_flags) = unpack_block_roaring64(&bytes, &block_header).unwrap();
-                        let mut tmp = bitmap.into_iter();
-                        self.alns_from_set_bits(block_flags, &mut tmp).unwrap();
+                        self.bitmap = Bitmap::Roaring64(bitmap);
+                        self.block_flags = Some(block_flags);
                     }
                 }
                 Some(())
@@ -315,6 +343,12 @@ impl<R: Read> Decoder<'_, R> {
         &self,
     ) -> &Vec<PseudoAln> {
         &self.block
+    }
+
+    pub fn bitmap(
+        &self,
+    ) -> &Bitmap {
+        &self.bitmap
     }
 
     fn fill_record(
@@ -376,6 +410,7 @@ impl<R: Read> Iterator for Decoder<'_, R> {
             Some(ret)
         } else {
             self.next_block()?;
+            self.alns_from_set_bits();
             self.block_index = 0;
             self.next()
         }
