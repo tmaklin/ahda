@@ -12,7 +12,6 @@
 // at your option.
 //
 use ahda::EncodeOpts;
-use ahda::printer::Printer;
 
 use std::fs::File;
 use std::io::BufRead;
@@ -478,7 +477,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             // Read first bitmap
-            let (mut bitmap_a, header_a, flags_a, block_flags) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
+            let (mut bitmap_a, _, flags_a, block_flags) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
 
             // Read the remainning bitmaps and perform requested operation.
             // Intersection requires reading the entire other bitmaps into memory.
