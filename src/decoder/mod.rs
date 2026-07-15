@@ -345,10 +345,18 @@ impl<R: Read> Decoder<'_, R> {
         &self.block
     }
 
+    /// Get bitmap in the current block, use [next_block] to advance.
     pub fn bitmap(
         &self,
     ) -> &Bitmap {
         &self.bitmap
+    }
+
+    /// Get bitmap in the current block, use [next_block] to advance.
+    pub fn block_flags(
+        &self,
+    ) -> &BlockFlags {
+        self.block_flags.as_ref().unwrap()
     }
 
     fn fill_record(
