@@ -44,6 +44,7 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     bits_buffer: Vec<u64>,
     last_idx: usize,
     prev_idx: u64,
+    bitmap_type: BitmapType,
 }
 
 impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
@@ -54,7 +55,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         sample_name: &[u8],
     ) -> Result<Self, E> {
         let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default())?;
-
+        let bitmap_type = BitmapType::from_u16(header.bitmap_type)?;
         Ok(BitmapEncoder{
             set_bits, end: false,
             header, flags,
@@ -62,6 +63,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
             blocks_written: 0_usize,
             bits_buffer: Vec::new(), last_idx: 0_usize,
             prev_idx: 0,
+            bitmap_type,
         })
     }
 
@@ -176,20 +178,17 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
             }
         }
 
-        let bytes = match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
+        let start_idx = self.blocks_written * self.header.block_size as usize;
+        let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
+        self.blocks_written += 1;
+        self.last_idx = end_idx;
+
+        let bytes = match self.bitmap_type {
             BitmapType::Roaring32 => {
-                let start_idx = self.blocks_written * self.header.block_size as usize;
-                let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
-                self.blocks_written += 1;
-                self.last_idx = end_idx;
                 let bitmap = self.build_roaring32()?;
                 pack_block_roaring32(&self.queries[start_idx..end_idx], &block_ids, bitmap)
             },
             BitmapType::Roaring64 => {
-                let start_idx = self.blocks_written * self.header.block_size as usize;
-                let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
-                self.blocks_written += 1;
-                self.last_idx = end_idx;
                 let bitmap = self.build_roaring64()?;
                 pack_block_roaring64(&self.queries[start_idx..end_idx], &block_ids, bitmap)
             }
