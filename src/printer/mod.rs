@@ -102,7 +102,7 @@
 //!
 //! // Decode from `bytes` to Metagraph plaintext format
 //! let mut input = Cursor::new(&bytes);
-//! let mut decoder = Decoder::new(&mut input);
+//! let mut decoder = Decoder::new(&mut input).unwrap().map(|block| block.unwrap());
 //! let mut printer = Printer::new(&mut decoder, &targets, &name, queries.len(), Format::Metagraph).unwrap();
 //!
 //! let mut output: Vec<u8> = Vec::new();

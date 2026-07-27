@@ -76,7 +76,7 @@
 //! output.rewind();
 //!
 //! // Then, create a Decoder from `output` and retrieve the original data
-//! let mut decoder = Decoder::new(&mut output);
+//! let mut decoder = Decoder::new(&mut output).unwrap().map(|block| block.unwrap());
 //!
 //! let mut alns: Vec<PseudoAln> = Vec::new();
 //! alns.extend(decoder); // Use Iterator to read all alignments from Decoder
@@ -184,17 +184,17 @@ pub struct Decoder<'a, R: Read> {
 impl<'a, R: Read> Decoder<'a, R> {
     pub fn new(
         conn: &'a mut R,
-    ) -> Self {
+    ) -> Result<Self, E> {
 
-        let header = read_file_header(conn).unwrap();
-        let flags = read_file_flags(&header, conn).unwrap();
+        let header = read_file_header(conn)?;
+        let flags = read_file_flags(&header, conn)?;
 
-        let bitmap = match BitmapType::from_u16(header.bitmap_type).unwrap() {
+        let bitmap = match BitmapType::from_u16(header.bitmap_type)? {
             BitmapType::Roaring32 => Bitmap::Roaring32(RoaringBitmap::new()),
             BitmapType::Roaring64 => Bitmap::Roaring64(RoaringTreemap::new()),
         };
 
-        Decoder{
+        Ok(Decoder{
             block: Vec::with_capacity(header.block_size as usize),
             q_ids: IndexSet::with_capacity(header.block_size as usize),
             q_names: if header.promises_query_names() { Some(IndexSet::with_capacity(header.block_size as usize)) } else { None },
@@ -208,7 +208,7 @@ impl<'a, R: Read> Decoder<'a, R> {
             fill_query_name: true,
             fill_target_ids: true,
             fill_target_names: true,
-        }
+        })
     }
 
     pub fn fill_query_id(
@@ -362,22 +362,37 @@ impl<R: Read> Decoder<'_, R> {
     fn fill_record(
         &self,
         record: &mut PseudoAln,
-    ) {
+    ) -> Result<(), E> {
         if record.query_id.is_none() && self.fill_query_id {
             // This branch shouldn't be reachable for a valid .ahda file
+            // Reason: query_id should always be filled
             assert!(record.query_name.is_some());
             assert!(self.q_names.is_some());
-            let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
-            let index = self.q_names.as_ref().unwrap().get_index_of(&key).unwrap();
-            let query_id = self.q_ids.get_index(index).unwrap();
-            record.query_id = Some(*query_id);
+            match &record.query_name {
+                Some(key) => {
+                    match self.q_names.as_ref().unwrap().get_index_of(key) {
+                        Some(query_id) => record.query_id = Some(query_id.try_into()?),
+                        None => return Err(Box::new(crate::errors::KeyNotFound { key: key.clone(), map_name: "Decoder::q_names".to_string() })),
+                    }
+                },
+                None => return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{})),
+            }
         }
 
         if record.query_name.is_none() && self.fill_query_name {
-            let key: u32 = record.query_id.unwrap();
-            let index = self.q_ids.get_index_of(&key).unwrap();
+            let key: u32 = match record.query_id {
+                Some(query_id) => query_id,
+                None => return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{})),
+            };
+            let index = match self.q_ids.get_index_of(&key) {
+                Some(index) => index,
+                None => return Err(Box::new(crate::errors::KeyNotFound { key: key.to_string().as_bytes().to_vec(), map_name: "Decoder::q_ids".to_string() }))
+            };
             let query_name = if let Some(q_names) = &self.q_names {
-                q_names.get_index(index).unwrap().clone()
+                match q_names.get_index(index) {
+                    Some(q_name) => q_name.clone(),
+                    None => return Err(Box::new(crate::errors::MapDoesNotContainIndex { index, map_name: "Decoder::q_names".to_string() }))
+                }
             } else {
                 let mut new_name = self.flags.query_name.clone();
                 new_name.append(&mut vec![b'.']);
@@ -388,25 +403,42 @@ impl<R: Read> Decoder<'_, R> {
         }
 
         if record.ones_names.is_none() && self.fill_target_names {
-            let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                let key = *target_idx as usize;
-                self.t_names.get_index(key).unwrap().clone()
-            }).collect::<Vec<Vec<u8>>>();
-            record.ones_names = Some(ones_names);
+            if let Some(ones) = record.ones.as_ref() {
+                let mut ones_names: Vec<Vec<u8>> = Vec::with_capacity(ones.len());
+                for target_idx in ones {
+                    let key: usize = (*target_idx).try_into()?;
+                    match self.t_names.get_index(key) {
+                        Some(target_name) => ones_names.push(target_name.clone()),
+                        None => return Err(Box::new(crate::errors::MapDoesNotContainIndex { index: key, map_name: "Decoder::t_names".to_string() })),
+                    }
+                }
+                record.ones_names = Some(ones_names);
+            } else {
+                return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+            }
         }
 
         if record.ones.is_none() && self.fill_target_ids {
-            let ones = record.ones_names.as_ref().unwrap().iter().map(|key| {
-                self.t_names.get_index_of(key).unwrap() as u32
-            }).collect::<Vec<u32>>();
-            record.ones = Some(ones);
+            if let Some(ones_names) = record.ones_names.as_ref() {
+                let mut ones: Vec<u32> = Vec::with_capacity(ones_names.len());
+                for target_name in ones_names {
+                    match self.t_names.get_index_of(target_name) {
+                        Some(target_idx) => ones.push(target_idx.try_into()?),
+                        None => return Err(Box::new(crate::errors::KeyNotFound { key: target_name.clone(), map_name: "Decoder::t_names".to_string() })),
+                    }
+                }
+                record.ones = Some(ones);
+            } else {
+                return Err(Box::new(crate::errors::PseudoAlnOnesNamesIsEmpty{}))
+            }
         }
+        Ok(())
     }
 
 }
 
 impl<R: Read> Iterator for Decoder<'_, R> {
-    type Item = PseudoAln;
+    type Item = Result<PseudoAln, E>;
 
     fn next(
         &mut self,
@@ -414,8 +446,10 @@ impl<R: Read> Iterator for Decoder<'_, R> {
         if self.block_index < self.block.len() {
             self.block_index += 1;
             let mut ret = self.block[self.block_index - 1].clone();
-            self.fill_record(&mut ret);
-            Some(ret)
+            match self.fill_record(&mut ret) {
+                Ok(_) => Some(Ok(ret)),
+                Err(e) => Some(Err(e)),
+            }
         } else {
             self.next_block()?;
             self.alns_from_set_bits();
@@ -456,7 +490,7 @@ mod tests {
         let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let decoder = Decoder::new(&mut data);
+        let decoder = Decoder::new(&mut data).unwrap();
 
         let got_header = decoder.file_header().clone();
         let got_flags = decoder.file_flags().clone();
@@ -484,13 +518,13 @@ mod tests {
         let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let mut decoder = Decoder::new(&mut data);
+        let mut decoder = Decoder::new(&mut data).unwrap();
 
         for i in 0..expected.len() {
-            let got = decoder.next().unwrap();
+            let got = decoder.next().unwrap().unwrap();
             assert_eq!(got, expected[i]);
         }
-        assert_eq!(decoder.next(), None);
+        assert!(decoder.next().is_none());
     }
 
     // #[test]
@@ -539,10 +573,10 @@ mod tests {
         let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 69, 18, 49, 52, 99, 100, 98, 98, 1, 0, 148, 139, 255, 106, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 22, 6, 86, 6, 0, 21, 37, 56, 88, 20, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 228, 119, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 55, 53, 49, 102, 100, 100, 6, 0, 66, 122, 30, 150, 21, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let decoder = Decoder::new(&mut data);
+        let decoder = Decoder::new(&mut data).unwrap();
 
         let mut got: Vec<PseudoAln> = Vec::new();
-        got.extend(decoder);
+        got.extend(decoder.map(|block| block.unwrap()));
         got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
         assert_eq!(got, expected);
@@ -567,11 +601,11 @@ mod tests {
         let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 98, 96, 4, 0, 155, 241, 161, 182, 6, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 98, 98, 1, 0, 150, 103, 253, 244, 6, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 22, 6, 86, 6, 0, 21, 37, 56, 88, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 100, 6, 0, 97, 212, 146, 122, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let mut decoder = Decoder::new(&mut data);
+        let mut decoder = Decoder::new(&mut data).unwrap();
         decoder.fill_query_name(false);
 
         let mut got: Vec<PseudoAln> = Vec::new();
-        got.extend(decoder);
+        got.extend(decoder.map(|block| block.unwrap()));
         got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
 
         assert_eq!(got, expected);

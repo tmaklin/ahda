@@ -868,7 +868,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut decoder = decoder::Decoder::new(conn_in);
+    let mut decoder = decoder::Decoder::new(conn_in)?;
 
     match out_format {
         Format::Themisto => {
@@ -897,7 +897,8 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone())?;
+    let mut decoder_unwrapped = decoder.map(|block| block.unwrap());
+    let printer = printer::Printer::new_from_header_and_flags(&mut decoder_unwrapped, header.clone(), flags.clone(), out_format.clone())?;
     for line in printer {
         conn_out.write_all(&line?)?;
     }
@@ -941,13 +942,14 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 pub fn decode_from_read<R: Read>(
     conn_in: &mut R,
 ) -> Result<(FileHeader, FileFlags, Vec<PseudoAln>), E> {
-    let decoder = decoder::Decoder::new(conn_in);
+    let decoder = decoder::Decoder::new(conn_in)?;
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
 
     let mut alns: Vec<PseudoAln> = Vec::with_capacity(header.n_queries as usize);
-    alns.extend(decoder);
+    let decoder_unwrapped = decoder.map(|block| block.unwrap());
+    alns.extend(decoder_unwrapped);
 
     Ok((header, flags, alns))
 }
@@ -996,7 +998,7 @@ pub fn decode_to_write<W: Write>(
     conn_out: &mut W,
 ) -> Result<(), E> {
     let mut tmp = std::io::Cursor::new(&records);
-    let mut decoder = decoder::Decoder::new(&mut tmp);
+    let mut decoder = decoder::Decoder::new(&mut tmp)?;
 
     match out_format {
         Format::Themisto => {
@@ -1025,7 +1027,8 @@ pub fn decode_to_write<W: Write>(
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone())?;
+    let mut decoder_unwrapped = decoder.map(|block| block.unwrap());
+    let printer = printer::Printer::new_from_header_and_flags(&mut decoder_unwrapped, header.clone(), flags.clone(), out_format.clone())?;
     for line in printer {
         conn_out.write_all(&line?)?;
     }
