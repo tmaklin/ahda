@@ -582,11 +582,12 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
     conn_in: &mut R,
     conn_out: &mut W,
 ) -> Result<(), E> {
-    let mut reader = crate::parser::Parser::new(conn_in, queries, targets)?;
+    let reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
-
     let targets = reader.get_targets().unwrap();
-    let mut writer = crate::printer::Printer::new(&mut reader, &targets, sample_name, n_queries, format);
+
+    let mut reader_unwrapped = reader.map(|record| record.unwrap());
+    let mut writer = crate::printer::Printer::new(&mut reader_unwrapped, &targets, sample_name, n_queries, format);
 
     for record in writer.by_ref() {
         conn_out.write_all(&record)?;
@@ -722,7 +723,8 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     }
 
     let targets = reader.get_targets().unwrap();
-    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries)?;
+    let mut reader_unwrapped = reader.map(|record| record.unwrap());
+    let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
     if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
     } else {
@@ -805,7 +807,8 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     let targets = reader.get_targets().unwrap();
 
     // TODO remove unwrap
-    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries)?;
+    let mut reader_unwrapped = reader.map(|record| record.unwrap());
+    let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
     if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
     } else {

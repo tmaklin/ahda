@@ -221,3 +221,71 @@ impl std::fmt::Display for AhdaTSVHeaderNotConsumedError {
     }
 }
 impl std::error::Error for AhdaTSVHeaderNotConsumedError {}
+
+/// Expected [PseudoAln].ones to be filled but it was empty
+#[derive(Debug, Clone)]
+pub struct PseudoAlnOnesIsEmpty;
+impl std::fmt::Display for PseudoAlnOnesIsEmpty {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `ones` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnOnesIsEmpty {}
+
+/// Expected [PseudoAln].ones_names to be filled but it was empty
+#[derive(Debug, Clone)]
+pub struct PseudoAlnOnesNamesIsEmpty;
+impl std::fmt::Display for PseudoAlnOnesNamesIsEmpty {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `ones_names` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnOnesNamesIsEmpty {}
+
+/// Expected [PseudoAln].query_name to be filled but it was empty
+#[derive(Debug, Clone)]
+pub struct PseudoAlnQueryNameIsEmpty;
+impl std::fmt::Display for PseudoAlnQueryNameIsEmpty {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `query_name` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnQueryNameIsEmpty {}
+
+/// Expected [PseudoAln].query_id to be filled but it was empty
+#[derive(Debug, Clone)]
+pub struct PseudoAlnQueryIdIsEmpty;
+impl std::fmt::Display for PseudoAlnQueryIdIsEmpty {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `query_id` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnQueryIdIsEmpty {}
+
+/// Key was not found in a map
+#[derive(Debug, Clone)]
+pub struct KeyNotFound {
+    pub key: Vec<u8>,
+    pub map_name: String,
+}
+
+impl std::fmt::Display for KeyNotFound {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Key {} was not found in map {}.", String::from_utf8(self.key.clone()).unwrap(), self.map_name)
+    }
+}
+impl std::error::Error for KeyNotFound {}
+
+/// Key was not found in a map
+#[derive(Debug, Clone)]
+pub struct MapDoesNotContainIndex {
+    pub index: usize,
+    pub map_name: String,
+}
+
+impl std::fmt::Display for MapDoesNotContainIndex {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Map {} does not contain index {}.", self.map_name, self.index.to_string())
+    }
+}
+impl std::error::Error for MapDoesNotContainIndex {}

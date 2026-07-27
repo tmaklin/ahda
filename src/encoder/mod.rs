@@ -71,7 +71,8 @@
 //! let mut t_it = targets.into_iter();
 //! let mut parser = Parser::new(&mut input, Some(&mut it), Some(&mut t_it)).unwrap();
 //! let targets = parser.get_targets().unwrap();
-//! let mut encoder = Encoder::new(&mut parser, &targets, &name, n_queries).unwrap();
+//! let mut parser_unwrapped = parser.map(|record| record.unwrap());
+//! let mut encoder = Encoder::new(&mut parser_unwrapped, &targets, &name, n_queries).unwrap();
 //! encoder.set_block_size(3);
 //! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!

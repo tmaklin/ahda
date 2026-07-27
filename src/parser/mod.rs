@@ -61,7 +61,7 @@
 //!
 //! // Push all records to `alns`
 //! for record in parser.by_ref() {
-//!     alns.push(record);
+//!     alns.push(record.unwrap());
 //! }
 //!
 //! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0, 2]), ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
@@ -285,34 +285,71 @@ impl<R: Read> Parser<'_, R> {
         Some(self.target_to_pos.iter().cloned().collect())
     }
 
-    #[allow(clippy::unnecessary_unwrap)]
     fn fill_record(
         &mut self,
         record: &mut PseudoAln,
-    ) {
+    ) -> Result<(), E> {
         if record.query_id.is_none() && self.fill_query_id {
-            let key: Vec<u8> = record.query_name.as_ref().unwrap().to_vec();
-            let query_index = self.query_to_pos.get_index_of(&key).unwrap();
-            record.query_id = Some(query_index as u32);
+            if let Some(query_name) = record.query_name.as_ref() {
+                let key: Vec<u8> = query_name.to_vec();
+                match self.query_to_pos.get_index_of(&key) {
+                    Some(query_index) => {
+                        record.query_id = Some(query_index as u32);
+                    },
+                    None => {
+                        return Err(Box::new(crate::errors::KeyNotFound { key, map_name: "Parser::query_to_pos".to_string() }))
+                    },
+                }
+            } else {
+                return Err(Box::new(crate::errors::PseudoAlnQueryNameIsEmpty{}))
+            }
         }
 
         if record.query_name.is_none() && self.fill_query_name {
-            let query_name = self.query_to_pos.get_index(record.query_id.unwrap() as usize).unwrap();
-            record.query_name = Some(query_name.to_vec());
+            if let Some(query_id) = record.query_id.as_ref() {
+                match self.query_to_pos.get_index(*query_id as usize) {
+                    Some(query_name) => {
+                        record.query_name = Some(query_name.to_vec());
+                    },
+                    None => {
+                        return Err(Box::new(crate::errors::MapDoesNotContainIndex { index: *query_id as usize, map_name: "Parser::query_to_pos".to_string() }))
+                    }
+                }
+            } else {
+                return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+            }
         }
 
         if record.ones_names.is_none() && record.ones.is_some() && self.fill_target_names {
-            let ones_names = record.ones.as_ref().unwrap().iter().map(|target_idx| {
-                self.target_to_pos.get_index(*target_idx as usize).unwrap().clone()
-            }).collect::<Vec<Vec<u8>>>();
-            record.ones_names = Some(ones_names);
+            if let Some(ones) = record.ones.as_ref() {
+                let mut ones_names: Vec<Vec<u8>> = Vec::with_capacity(ones.len());
+                for target_idx in ones {
+                    let target_name = match self.target_to_pos.get_index(*target_idx as usize) {
+                        Some(target_name) => target_name,
+                        None => return Err(Box::new(crate::errors::MapDoesNotContainIndex { index: *target_idx as usize, map_name: "Parser::target_to_pos".to_string() })),
+                    };
+                    ones_names.push(target_name.clone());
+                }
+                record.ones_names = Some(ones_names);
+            } else {
+                return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+            }
         }
 
         if record.ones_names.is_some() && record.ones.is_none() && self.fill_target_ids{
-            let ones = record.ones_names.as_ref().unwrap().iter().map(|target_name| {
-                self.target_to_pos.get_index_of(target_name).unwrap() as u32
-            }).collect::<Vec<u32>>();
-            record.ones = Some(ones);
+            if let Some(ones_names) = record.ones_names.as_ref() {
+                let mut ones: Vec<u32> = Vec::with_capacity(ones_names.len());
+                for target_name in ones_names {
+                    let target_idx = match self.target_to_pos.get_index_of(target_name) {
+                        Some(target_idx) => target_idx,
+                        None => return Err(Box::new(crate::errors::KeyNotFound { key: target_name.clone(), map_name: "Parser::target_to_pos".to_string() })),
+                    };
+                    ones.push(target_idx as u32);
+                }
+                record.ones = Some(ones);
+            } else {
+                return Err(Box::new(crate::errors::PseudoAlnOnesNamesIsEmpty{}))
+            }
         }
 
         if !self.fill_query_id {
@@ -327,6 +364,7 @@ impl<R: Read> Parser<'_, R> {
         if !self.fill_target_names {
             record.ones_names = None;
         }
+        Ok(())
     }
 
     pub fn fill_query_id(
@@ -359,11 +397,11 @@ impl<R: Read> Parser<'_, R> {
 }
 
 impl<R: Read> Iterator for Parser<'_, R> {
-    type Item = PseudoAln;
+    type Item = Result<PseudoAln, E>;
 
     fn next(
         &mut self,
-    ) -> Option<PseudoAln> {
+    ) -> Option<Result<PseudoAln, E>> {
         if self.buf.get_ref().is_empty() {
             let ret = self.reader.read_until(b'\n', self.buf.get_mut());
             if ret.is_err() || self.buf.get_ref().is_empty() {
@@ -373,19 +411,25 @@ impl<R: Read> Iterator for Parser<'_, R> {
         }
         self.buf.get_mut().pop();
 
-        let mut record = match self.format {
-            Format::Themisto => read_themisto(&mut self.buf).unwrap(),
-            Format::Fulgor => read_fulgor(&mut self.buf).unwrap(),
-            Format::Metagraph => read_metagraph(&mut self.buf).unwrap(),
-            Format::Bifrost => read_bifrost(&mut self.buf).unwrap(),
-            Format::SAM => read_sam(&mut self.buf).unwrap(),
-            Format::AhdaTSV => read_ahda_tsv(&mut self.buf).unwrap(),
+        let try_record = match self.format {
+            Format::Themisto => read_themisto(&mut self.buf),
+            Format::Fulgor => read_fulgor(&mut self.buf),
+            Format::Metagraph => read_metagraph(&mut self.buf),
+            Format::Bifrost => read_bifrost(&mut self.buf),
+            Format::SAM => read_sam(&mut self.buf),
+            Format::AhdaTSV => read_ahda_tsv(&mut self.buf),
+        };
+        let mut record = match try_record {
+            Ok(record) => record,
+            Err(e) => return Some(Err(e)),
         };
 
         self.buf.get_mut().clear();
 
-        self.fill_record(&mut record);
-        Some(record)
+        match self.fill_record(&mut record) {
+            Ok(_) => Some(Ok(record)),
+            Err(e) => Some(Err(e)),
+        }
     }
 }
 
@@ -560,7 +604,7 @@ mod tests {
         let mut t_it = targets.into_iter();
         let mut reader = Parser::new(&mut cursor, Some(&mut it), Some(&mut t_it)).unwrap();
 
-        let got: PseudoAln = reader.next().unwrap();
+        let got: PseudoAln = reader.next().unwrap().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -635,7 +679,7 @@ mod tests {
         let mut t_it = targets.into_iter();
         let mut reader = Parser::new(&mut cursor, Some(&mut it), Some(&mut t_it)).unwrap();
 
-        let got: PseudoAln = reader.next().unwrap();
+        let got: PseudoAln = reader.next().unwrap().unwrap();
 
         assert_eq!(got, expected);
     }
@@ -666,7 +710,7 @@ mod tests {
         let got_header = reader.get_targets().unwrap();
         assert_eq!(got_header, expected_header);
 
-        let got_aln: PseudoAln = reader.next().unwrap();
+        let got_aln: PseudoAln = reader.next().unwrap().unwrap();
         assert_eq!(got_aln, expected_aln);
     }
 
@@ -700,7 +744,7 @@ mod tests {
 
         let mut got: Vec<PseudoAln> = Vec::new();
         while let Some(record) = reader.next() {
-            got.push(record);
+            got.push(record.unwrap());
         }
 
         assert_eq!(got, expected);
@@ -753,7 +797,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
@@ -827,7 +871,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
@@ -912,7 +956,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
@@ -995,7 +1039,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
@@ -1043,7 +1087,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
@@ -1121,7 +1165,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
@@ -1200,7 +1244,7 @@ mod tests {
 
         let mut res: Vec<PseudoAln> = Vec::new();
         for record in reader.by_ref() {
-            res.push(record);
+            res.push(record.unwrap());
         }
 
         let (got, got_format) = (res, reader.format);
