@@ -494,7 +494,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             let mut iter = bitmap_a.into_iter();
-            let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &block_flags.queries.unwrap(), &flags_a.query_name);
+            let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &block_flags.queries.unwrap(), &flags_a.query_name)?;
             encoder.set_fields_present(3_u16);
             conn_out[0].write_all(&encoder.encode_file_header_and_flags()?)?;
             for block in encoder {

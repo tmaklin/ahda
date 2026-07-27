@@ -52,17 +52,17 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         targets: &[Vec<u8>],
         queries: &[Vec<u8>],
         sample_name: &[u8],
-    ) -> Self {
-        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default()).unwrap();
+    ) -> Result<Self, E> {
+        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default())?;
 
-        BitmapEncoder{
+        Ok(BitmapEncoder{
             set_bits, end: false,
             header, flags,
             queries: queries.to_vec(),
             blocks_written: 0_usize,
             bits_buffer: Vec::new(), last_idx: 0_usize,
             prev_idx: 0,
-        }
+        })
     }
 
     /// Update `fields_present` in stored FileHeader.
@@ -157,7 +157,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
     fn next(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {
-        let end_idx = ((self.blocks_written + 1) * self.header.block_size as usize).min(self.header.n_queries as usize) as u64;
+        let end_idx = ((self.blocks_written + 1) * self.header.block_size as usize).min(self.header.n_queries as usize);
         let n_targets = self.header.n_targets as u64;
         loop {
             if let Some(next_idx) = self.set_bits.next() {
@@ -167,7 +167,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
                 self.prev_idx = next_idx;
 
                 self.bits_buffer.push(next_idx);
-                if next_idx > end_idx * n_targets {
+                if next_idx > end_idx as u64 * n_targets {
                     break;
                 }
             } else {
@@ -181,21 +181,24 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
                 let start_idx = self.blocks_written * self.header.block_size as usize;
                 let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
                 self.blocks_written += 1;
-                self.last_idx = end_idx as usize;
+                self.last_idx = end_idx;
                 let bitmap = self.build_roaring32()?;
-                pack_block_roaring32(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, bitmap).unwrap()
+                pack_block_roaring32(&self.queries[start_idx..end_idx], &block_ids, bitmap)
             },
             BitmapType::Roaring64 => {
                 let start_idx = self.blocks_written * self.header.block_size as usize;
                 let block_ids = ((start_idx as u32)..(end_idx as u32)).collect::<Vec<u32>>();
                 self.blocks_written += 1;
-                self.last_idx = end_idx as usize;
+                self.last_idx = end_idx;
                 let bitmap = self.build_roaring64()?;
-                pack_block_roaring64(&self.queries[start_idx..(end_idx.try_into().unwrap())], &block_ids, bitmap).unwrap()
+                pack_block_roaring64(&self.queries[start_idx..end_idx], &block_ids, bitmap)
             }
         };
 
-        Some(Ok(bytes))
+        match bytes {
+            Ok(bytes) => Some(Ok(bytes)),
+            Err(e) => Some(Err(e)),
+        }
     }
 
 }
@@ -216,7 +219,7 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 
@@ -236,7 +239,7 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
         encoder.set_fields_present(3_u16);
         encoder.set_block_size(1000).unwrap();
 
@@ -256,7 +259,7 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
         encoder.set_block_size(1000).unwrap();
 
         let _ = encoder.next().unwrap();
@@ -278,7 +281,7 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
         encoder.set_fields_present(3_u16);
         encoder.set_block_size(2).unwrap();
 
@@ -302,7 +305,7 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
         encoder.set_block_size(2).unwrap();
 
         let blocks_iter = encoder.by_ref();
