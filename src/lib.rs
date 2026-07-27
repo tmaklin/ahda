@@ -642,7 +642,7 @@ pub fn encode_to_write<W: Write>(
     let have_queries = !queries.is_empty();
 
     let mut records_iter = records.iter().cloned();
-    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len());
+    let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len())?;
     if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
     } else {
@@ -652,7 +652,7 @@ pub fn encode_to_write<W: Write>(
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
-        conn_out.write_all(&block)?;
+        conn_out.write_all(&block?)?;
     }
 
     Ok(())
@@ -722,7 +722,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     }
 
     let targets = reader.get_targets().unwrap();
-    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries);
+    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries)?;
     if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
     } else {
@@ -730,8 +730,8 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     }
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
-    for mut block in encoder.by_ref() {
-        bytes.append(&mut block);
+    for block in encoder.by_ref() {
+        bytes.append(&mut block?);
     }
     Ok(bytes)
 }
@@ -805,7 +805,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     let targets = reader.get_targets().unwrap();
 
     // TODO remove unwrap
-    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries);
+    let mut encoder = encoder::Encoder::new(&mut reader, &targets, &opts.accession, n_queries)?;
     if opts.encode_query_names && have_queries {
         encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
     } else {
@@ -815,7 +815,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     let bytes = encoder.encode_file_header_and_flags().unwrap();
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
-        conn_out.write_all(&block)?;
+        conn_out.write_all(&block?)?;
         conn_out.flush().unwrap();
     }
 

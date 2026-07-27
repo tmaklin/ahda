@@ -71,7 +71,7 @@
 //! let mut t_it = targets.into_iter();
 //! let mut parser = Parser::new(&mut input, Some(&mut it), Some(&mut t_it)).unwrap();
 //! let targets = parser.get_targets().unwrap();
-//! let mut encoder = Encoder::new(&mut parser, &targets, &name, n_queries);
+//! let mut encoder = Encoder::new(&mut parser, &targets, &name, n_queries).unwrap();
 //! encoder.set_block_size(3);
 //! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!
@@ -83,7 +83,7 @@
 //!
 //! // Iterate over `encoder` to get the 2 encoded blocks
 //! for block in encoder.by_ref() {
-//!     output.write_all(&block).unwrap();
+//!     output.write_all(&block.unwrap()).unwrap();
 //! }
 //!
 //! // The alignments can be decoded from `output`
@@ -118,7 +118,7 @@
 //!                                ];
 //!
 //! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
-//! let mut encoder = Encoder::new(&mut iter, &targets, &name, queries.len());
+//! let mut encoder = Encoder::new(&mut iter, &targets, &name, queries.len()).unwrap();
 //! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!
 //! // Encode the file header and flags
@@ -128,7 +128,7 @@
 //!
 //! // Iterate over `encoder` to get the 2 encoded blocks
 //! for block in encoder.by_ref() {
-//!     output.write_all(&block).unwrap();
+//!     output.write_all(&block.unwrap()).unwrap();
 //! }
 //!
 //! // The alignments can be decoded from `output`
@@ -175,17 +175,17 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         targets: &[Vec<u8>],
         sample_name: &[u8],
         n_queries: usize,
-    ) -> Self {
+    ) -> Result<Self, E> {
 
-        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default()).unwrap();
-        let flags_bytes = encode_file_flags(&flags, &MetadataCompression::from_u8(header.metadata_compression).unwrap()).unwrap();
+        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
+        let flags_bytes = encode_file_flags(&flags, &MetadataCompression::from_u8(header.metadata_compression).unwrap())?;
 
-        Encoder{
+        Ok(Encoder{
             records,
             block: Vec::with_capacity(header.block_size as usize),
             header, flags_bytes,
             blocks_written: 0_usize,
-        }
+        })
     }
 }
 
@@ -234,11 +234,11 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
-    type Item = Vec<u8>;
+    type Item = Result<Vec<u8>, E>;
 
     fn next(
         &mut self,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<Result<Vec<u8>, E>> {
         self.block.clear();
         self.block.extend(self.records.take(self.header.block_size as usize).map(|mut x| { x.ones_names = None; x } ));
 
@@ -248,9 +248,14 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
 
         self.block.sort_by_key(|x| x.query_id);
 
-        let out = pack_records(&self.header, std::mem::take(&mut self.block)).unwrap();
+        let out = pack_records(&self.header, std::mem::take(&mut self.block));
 
-        self.blocks_written += 1;
+        match out {
+            Ok(_) => {
+                self.blocks_written += 1;
+            },
+            _ => (),
+        }
 
         Some(out)
     }
@@ -280,7 +285,7 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 
@@ -307,13 +312,13 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
         encoder.set_fields_present(3_u16);
         encoder.set_block_size(1000).unwrap();
 
-        let got = encoder.next().unwrap();
+        let got = encoder.next().unwrap().unwrap();
 
-        assert_eq!(encoder.next(), None);
+        assert!(encoder.next().is_none());
         assert_eq!(got, expected);
     }
 
@@ -337,14 +342,14 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
-        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len());
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
         encoder.set_fields_present(3_u16);
         encoder.set_block_size(2).unwrap();
 
         let mut got: Vec<u8> = Vec::new();
         got.append(&mut encoder.encode_file_header_and_flags().unwrap());
         for block in encoder.by_ref() {
-            got.append(&mut block.clone());
+            got.append(&mut block.unwrap());
         }
 
         assert_eq!(got, expected);
