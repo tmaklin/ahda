@@ -44,12 +44,12 @@
 //!
 //! let mut iter = data.into_iter(); // Printer expectes PseudoAln, not &PseudoAln
 //!
-//! let mut printer = Printer::new(&mut iter, &targets, &name, queries.len(), Format::Metagraph);
+//! let mut printer = Printer::new(&mut iter, &targets, &name, queries.len(), Format::Metagraph).unwrap();
 //!
 //! // Print the records in Metagraph format
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 //! for line in printer.by_ref() {
-//!     output.write_all(&line).unwrap()
+//!     output.write_all(&line.unwrap()).unwrap()
 //! }
 //!
 //! // Expect this plain text output
@@ -103,11 +103,11 @@
 //! // Decode from `bytes` to Metagraph plaintext format
 //! let mut input = Cursor::new(&bytes);
 //! let mut decoder = Decoder::new(&mut input);
-//! let mut printer = Printer::new(&mut decoder, &targets, &name, queries.len(), Format::Metagraph);
+//! let mut printer = Printer::new(&mut decoder, &targets, &name, queries.len(), Format::Metagraph).unwrap();
 //!
 //! let mut output: Vec<u8> = Vec::new();
 //! for mut line in printer.by_ref() {
-//!     output.append(&mut line);
+//!     output.append(&mut line.unwrap());
 //! }
 //!
 //! // Expect this plain text output
@@ -153,6 +153,8 @@ pub mod metagraph;
 pub mod sam;
 pub mod themisto;
 
+type E = Box<dyn std::error::Error>;
+
 pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
     records: &'a mut I,
@@ -173,8 +175,8 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         sample_name: &[u8],
         n_queries: usize,
         format: Format,
-    ) -> Self {
-        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default()).unwrap();
+    ) -> Result<Self, E> {
+        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
         Printer::new_from_header_and_flags(records, header, flags, format)
     }
 
@@ -183,76 +185,93 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         header: FileHeader,
         flags: FileFlags,
         format: Format,
-    ) -> Self {
+    ) -> Result<Self, E> {
         if format == Format::SAM {
             todo!("printing .sam plain text data.")
         }
 
         let sam_header = if format == Format::SAM {
-            Some(sam::build_sam_header(&flags.target_names).unwrap())
+            Some(sam::build_sam_header(&flags.target_names)?)
         } else {
             None
         };
 
-        Printer{
+        Ok(Printer{
             records,
             header, flags,
             sam_header, index: 0,
             format,
-        }
+        })
     }
 }
 
 impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     pub fn print_header(
         &mut self,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<Result<Vec<u8>, E>> {
         let mut out: Vec<u8> = Vec::new();
         match self.format {
             Format::Themisto => None,
             Format::Fulgor => None,
             Format::Metagraph => None,
             Format::Bifrost => {
-                format_bifrost_header(&self.flags.target_names, &mut out).unwrap();
-                Some(out)
+                match format_bifrost_header(&self.flags.target_names, &mut out) {
+                    Ok(_) => Some(Ok(out)),
+                    Err(e) => return Some(Err(e)),
+                }
             },
             Format::SAM => {
-                self.sam_header = Some(build_sam_header(&self.flags.target_names).unwrap());
-                format_sam_header(self.sam_header.as_ref().unwrap(), &mut out).unwrap();
-                Some(out)
+                match build_sam_header(&self.flags.target_names) {
+                    Ok(header) => self.sam_header = Some(header),
+                    Err(e) => return Some(Err(e)),
+                }
+                match format_sam_header(self.sam_header.as_ref().unwrap(), &mut out) {
+                    Ok(_) => Some(Ok(out)),
+                    Err(e) => return Some(Err(e)),
+                }
             },
             Format::AhdaTSV => {
-                format_ahda_tsv_header(&self.flags.target_names, &mut out).unwrap();
-                Some(out)
+                match format_ahda_tsv_header(&self.flags.target_names, &mut out) {
+                    Ok(_) => Some(Ok(out)),
+                    Err(e) => return Some(Err(e)),
+                }
             }
         }
     }
 }
 
 impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoAln> {
-    type Item = Vec<u8>;
+    type Item = Result<Vec<u8>, E>;
 
     fn next(
         &mut self,
-    ) -> Option<Vec<u8>> {
+    ) -> Option<Result<Vec<u8>, E>> {
         let mut out: Vec<u8> = Vec::new();
         if self.index == 0 {
-            if let Some(mut header) = self.print_header() {
-                out.append(&mut header);
+            if let Some(header) = self.print_header() {
+                match header {
+                    Ok(header) => out.append(&mut header.clone()),
+                    Err(e) => return Some(Err(e)),
+                }
             }
         }
 
         if let Some(record) = self.records.next() {
-            match self.format {
-                Format::Themisto => format_themisto_line(&record, &mut out).unwrap(),
-                Format::Fulgor => format_fulgor_line(&record, &mut out).unwrap(),
-                Format::Metagraph => format_metagraph_line(&record, &mut out).unwrap(),
-                Format::Bifrost => format_bifrost_line(&record, self.header.n_targets as usize, &mut out).unwrap(),
-                Format::SAM => format_sam_line(&record, self.sam_header.as_ref().unwrap(), &mut out).unwrap(),
-                Format::AhdaTSV => format_ahda_tsv_line(&record, self.header.n_targets as usize, &mut out).unwrap(),
+            let ret = match self.format {
+                Format::Themisto => format_themisto_line(&record, &mut out),
+                Format::Fulgor => format_fulgor_line(&record, &mut out),
+                Format::Metagraph => format_metagraph_line(&record, &mut out),
+                Format::Bifrost => format_bifrost_line(&record, self.header.n_targets as usize, &mut out),
+                Format::SAM => format_sam_line(&record, self.sam_header.as_ref().unwrap(), &mut out),
+                Format::AhdaTSV => format_ahda_tsv_line(&record, self.header.n_targets as usize, &mut out),
+            };
+            match ret {
+                Ok(_) => {
+                    self.index += 1;
+                    return Some(Ok(out))
+                },
+                Err(e) => return Some(Err(e)),
             }
-            self.index += 1;
-            Some(out)
         } else {
             None
         }
@@ -310,9 +329,9 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Themisto);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Themisto).unwrap();
         for bytes in printer.by_ref() {
-            cursor.write_all(&bytes).unwrap();
+            cursor.write_all(&bytes.unwrap()).unwrap();
         }
 
         let got = cursor.get_ref();
@@ -384,9 +403,9 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Fulgor);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Fulgor).unwrap();
         for bytes in printer.by_ref() {
-            cursor.write_all(&bytes).unwrap();
+            cursor.write_all(&bytes.unwrap()).unwrap();
         }
 
         let got = cursor.get_ref();
@@ -465,9 +484,9 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Bifrost);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Bifrost).unwrap();
         for bytes in printer.by_ref() {
-            cursor.write_all(&bytes).unwrap();
+            cursor.write_all(&bytes.unwrap()).unwrap();
         }
 
         let got = cursor.get_ref();
@@ -521,9 +540,9 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Metagraph);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::Metagraph).unwrap();
         for bytes in printer.by_ref() {
-            cursor.write_all(&bytes).unwrap();
+            cursor.write_all(&bytes.unwrap()).unwrap();
         }
 
         let got = cursor.get_ref();
@@ -601,9 +620,9 @@ mod tests {
         let mut cursor: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
         let mut data_iter = data.into_iter();
-        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::SAM);
+        let mut printer = Printer::new_from_header_and_flags(&mut data_iter, header, flags, Format::SAM).unwrap();
         for bytes in printer.by_ref() {
-            cursor.write_all(&bytes).unwrap();
+            cursor.write_all(&bytes.unwrap()).unwrap();
         }
 
         let got = cursor.get_ref();

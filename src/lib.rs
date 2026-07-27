@@ -587,10 +587,10 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
     let targets = reader.get_targets().unwrap();
 
     let mut reader_unwrapped = reader.map(|record| record.unwrap());
-    let mut writer = crate::printer::Printer::new(&mut reader_unwrapped, &targets, sample_name, n_queries, format);
+    let writer = crate::printer::Printer::new(&mut reader_unwrapped, &targets, sample_name, n_queries, format)?;
 
-    for record in writer.by_ref() {
-        conn_out.write_all(&record)?;
+    for record in writer {
+        conn_out.write_all(&record?)?;
     }
     Ok(())
 }
@@ -897,9 +897,9 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone());
+    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone())?;
     for line in printer {
-        conn_out.write_all(&line)?;
+        conn_out.write_all(&line?)?;
     }
     conn_out.flush().unwrap();
 
@@ -1025,9 +1025,9 @@ pub fn decode_to_write<W: Write>(
 
     let header = decoder.file_header().clone();
     let flags = decoder.file_flags().clone();
-    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone());
+    let printer = printer::Printer::new_from_header_and_flags(&mut decoder, header.clone(), flags.clone(), out_format.clone())?;
     for line in printer {
-        conn_out.write_all(&line)?;
+        conn_out.write_all(&line?)?;
     }
     conn_out.flush().unwrap();
 
@@ -1462,9 +1462,9 @@ mod tests {
         let format = Format::Metagraph;
 
         let mut tmp = data.into_iter();
-        let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut tmp, header, flags, format);
+        let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut tmp, header, flags, format).unwrap();
         for record in writer.by_ref() {
-            bytes.write(&record).unwrap();
+            bytes.write(&record.unwrap()).unwrap();
         }
         bytes.rewind().unwrap();
 
@@ -1513,9 +1513,9 @@ mod tests {
         let format = Format::Themisto;
 
         let mut tmp = data.into_iter();
-        let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut tmp, header, flags, format);
+        let mut writer = crate::printer::Printer::new_from_header_and_flags(&mut tmp, header, flags, format).unwrap();
         for record in writer.by_ref() {
-            bytes.write(&record).unwrap();
+            bytes.write(&record.unwrap()).unwrap();
         }
         bytes.rewind().unwrap();
 
