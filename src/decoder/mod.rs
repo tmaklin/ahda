@@ -141,8 +141,7 @@ use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use crate::compression::BitmapType;
 use crate::compression::BitmapHolder;
-use crate::compression::roaring32::unpack_block_roaring32;
-use crate::compression::roaring64::unpack_block_roaring64;
+use crate::compression::roaringwrapper::unpack_block_roaring;
 
 use indexmap::IndexSet;
 
@@ -302,18 +301,9 @@ impl<R: Read> Decoder<'_, R> {
                 let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into().unwrap();
                 let mut bytes: Vec<u8> = vec![0; deflated_len];
                 self.conn.read_exact(&mut bytes).unwrap();
-                match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
-                    BitmapType::Roaring32 => {
-                        let (bitmap, block_flags) = unpack_block_roaring32(&bytes, &block_header).unwrap();
-                        self.bitmap = BitmapHolder::Roaring32(bitmap);
-                        self.block_flags = Some(block_flags);
-                    },
-                    BitmapType::Roaring64 => {
-                        let (bitmap, block_flags) = unpack_block_roaring64(&bytes, &block_header).unwrap();
-                        self.bitmap = BitmapHolder::Roaring64(bitmap);
-                        self.block_flags = Some(block_flags);
-                    }
-                }
+                let (bitmap, block_flags) = unpack_block_roaring(&bytes, &block_header).unwrap();
+                self.bitmap = bitmap;
+                self.block_flags = Some(block_flags);
                 Some(())
             },
             _ => None,

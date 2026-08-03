@@ -20,9 +20,9 @@ use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::encode_file_header;
 use crate::headers::file::encode_file_flags;
 use crate::compression::BitmapType;
+use crate::compression::BitmapHolder;
 use crate::compression::MetadataCompression;
-use crate::compression::roaring32::pack_block_roaring32;
-use crate::compression::roaring64::pack_block_roaring64;
+use crate::compression::roaringwrapper::pack_block_roaring;
 
 use roaring::RoaringBitmap;
 use roaring::RoaringTreemap;
@@ -183,16 +183,16 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
         self.blocks_written += 1;
         self.last_idx = end_idx;
 
-        let bytes = match self.bitmap_type {
+        let bitmap = match self.bitmap_type {
             BitmapType::Roaring32 => {
-                let bitmap = self.build_roaring32()?;
-                pack_block_roaring32(&self.queries[start_idx..end_idx], &block_ids, bitmap)
+                BitmapHolder::Roaring32(self.build_roaring32()?)
             },
             BitmapType::Roaring64 => {
-                let bitmap = self.build_roaring64()?;
-                pack_block_roaring64(&self.queries[start_idx..end_idx], &block_ids, bitmap)
+                BitmapHolder::Roaring64(self.build_roaring64()?)
             }
         };
+
+        let bytes = pack_block_roaring(&self.queries[start_idx..end_idx], &block_ids, bitmap);
 
         match bytes {
             Ok(bytes) => Some(Ok(bytes)),

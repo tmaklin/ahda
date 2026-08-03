@@ -171,9 +171,9 @@ use headers::file::build_file_header_and_flags;
 use headers::file::encode_file_header;
 use headers::file::encode_file_flags;
 use compression::BitmapType;
+use compression::BitmapHolder;
 use compression::MetadataCompression;
-use compression::roaring32::unpack_block_roaring32;
-use compression::roaring64::unpack_block_roaring64;
+use compression::roaringwrapper::unpack_block_roaring;
 
 use std::collections::HashSet;
 use std::io::Read;
@@ -1128,14 +1128,11 @@ pub fn decode_from_read_to_roaring<R: Read>(
         let mut block_bytes: Vec<u8> = vec![0; deflated_len];
         conn_in.read_exact(&mut block_bytes)?;
 
-        let (bitmap, mut block_flags) = match BitmapType::from_u16(header.bitmap_type)? {
-            BitmapType::Roaring32 => {
-                let (bitmap, block_flags) = unpack_block_roaring32(&block_bytes, &block_header)?;
-                (RoaringTreemap::from_bitmaps([(0, bitmap)]), block_flags)
-            },
-            BitmapType::Roaring64 => {
-                unpack_block_roaring64(&block_bytes, &block_header)?
-            },
+        let (bits, mut block_flags) = unpack_block_roaring(&block_bytes, &block_header)?;
+
+        let bitmap = match bits {
+            BitmapHolder::Roaring32(bitmap) => RoaringTreemap::from_bitmaps([(0, bitmap)]),
+            BitmapHolder::Roaring64(bitmap) => bitmap,
         };
 
         queries.append(block_flags.queries.as_mut().unwrap());
@@ -1239,14 +1236,11 @@ pub fn decode_from_read_into_roaring<R: Read>(
                 let mut block_bytes: Vec<u8> = vec![0; deflated_len];
                 conn_in.read_exact(&mut block_bytes)?;
 
-                let bitmap_b = match BitmapType::from_u16(header.bitmap_type)? {
-                    BitmapType::Roaring32 => {
-                        let (bitmap, _) = unpack_block_roaring32(&block_bytes, &block_header)?;
-                        RoaringTreemap::from_bitmaps([(0, bitmap)])
-                    },
-                    BitmapType::Roaring64 => {
-                        unpack_block_roaring64(&block_bytes, &block_header)?.0
-                    },
+                let (bits, _) = unpack_block_roaring(&block_bytes, &block_header)?;
+
+                let bitmap_b = match bits {
+                    BitmapHolder::Roaring32(bitmap) => RoaringTreemap::from_bitmaps([(0, bitmap)]),
+                    BitmapHolder::Roaring64(bitmap) => bitmap,
                 };
 
                 match merge_op {
