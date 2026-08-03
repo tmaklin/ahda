@@ -20,6 +20,8 @@ use std::io::Read;
 use std::io::Write;
 use std::io::IsTerminal;
 use std::path::PathBuf;
+use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::FileTypeExt;
 
 use clap::Parser;
 
