@@ -143,9 +143,15 @@ pub fn unpack_block_roaring(
     block_header: &BlockHeader,
 ) -> Result<(BitmapHolder, BlockFlags), E> {
     let block_flags = decode_block_flags(&bytes[0..(block_header.flags_len as usize)])?;
+
+    let start_idx: usize = block_header.flags_len.try_into()?;
+    let block_len: u64 = block_header.block_len as u64;
+    let end_idx: usize = (block_header.flags_len + block_len).try_into()?;
+
+    let block_bytes = &bytes[start_idx..end_idx];
     let bitmap = match BitmapType::from_u16(block_header.bitmap_type)? {
-        BitmapType::Roaring32 => BitmapHolder::Roaring32(deserialize_roaring32(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len as u64).try_into()?)])?),
-        BitmapType::Roaring64 => BitmapHolder::Roaring64(deserialize_roaring64(&bytes[(block_header.flags_len as usize)..((block_header.flags_len + block_header.block_len as u64).try_into()?)])?),
+        BitmapType::Roaring32 => BitmapHolder::Roaring32(deserialize_roaring32(block_bytes)?),
+        BitmapType::Roaring64 => BitmapHolder::Roaring64(deserialize_roaring64(block_bytes)?),
     };
 
     Ok((bitmap, block_flags))
