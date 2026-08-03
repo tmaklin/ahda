@@ -64,6 +64,19 @@ impl Iterator for FastxNameReader {
     }
 }
 
+fn stdin_is_piped_data() -> bool {
+    if std::io::stdin().is_terminal() {
+        false
+    } else {
+        std::fs::metadata("/dev/stdin")
+            .map(|meta| {
+                let file_type = meta.file_type();
+                file_type.is_fifo() || (file_type.is_file() && meta.size() > 0)
+            })
+            .unwrap_or(false)
+    }
+}
+
 fn main() -> Result<(),  Box<dyn std::error::Error>> {
     let cli = cli::Cli::parse();
 
@@ -268,8 +281,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut conn_in: Vec<Box<dyn Read>> = Vec::new();
 
-            // Read first file from stdin if data is being piped in
-            if !std::io::stdin().is_terminal() {
+            let has_piped_data = stdin_is_piped_data();
+            if has_piped_data {
                 conn_in.push(Box::new(std::io::stdin()));
             }
 
@@ -441,8 +454,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
 
             let mut conn_in: Vec<Box<dyn Read>> = Vec::new();
 
-            // Read first file from stdin if data is being piped in
-            if !std::io::stdin().is_terminal() {
+            let has_piped_data = stdin_is_piped_data();
+            if has_piped_data {
                 conn_in.push(Box::new(std::io::stdin()));
             }
 
