@@ -131,14 +131,21 @@ pub fn pack_records(
         record.query_id
     }).collect();
 
-    let block = match BitmapType::from_u16(file_header.bitmap_type)? {
+    let bitmap = match BitmapType::from_u16(file_header.bitmap_type)? {
         BitmapType::Roaring32 => {
-            let bitmap = convert_to_roaring32(file_header, records)?;
-            pack_block_roaring32(&queries, &query_ids, bitmap)?
+            BitmapHolder::Roaring32(convert_to_roaring32(file_header, records)?)
         },
         BitmapType::Roaring64 => {
-            let bitmap = convert_to_roaring64(file_header, records)?;
-            pack_block_roaring64(&queries, &query_ids, bitmap)?
+            BitmapHolder::Roaring64(convert_to_roaring64(file_header, records)?)
+        }
+    };
+
+    let block = match bitmap {
+        BitmapHolder::Roaring32(bits) => {
+            pack_block_roaring32(&queries, &query_ids, bits)?
+        },
+        BitmapHolder::Roaring64(bits) => {
+            pack_block_roaring64(&queries, &query_ids, bits)?
         }
     };
 
