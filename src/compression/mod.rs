@@ -83,7 +83,7 @@ impl BitmapType {
 /// Holder for supported [BitmapTypes](BitmapType)
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
-pub enum Bitmap {
+pub enum BitmapHolder {
     Roaring32(RoaringBitmap),
     Roaring64(RoaringTreemap),
 }

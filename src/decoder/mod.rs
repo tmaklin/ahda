@@ -140,7 +140,7 @@ use crate::headers::file::read_file_flags;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use crate::compression::BitmapType;
-use crate::compression::Bitmap;
+use crate::compression::BitmapHolder;
 use crate::compression::roaring32::unpack_block_roaring32;
 use crate::compression::roaring64::unpack_block_roaring64;
 
@@ -165,7 +165,7 @@ pub struct Decoder<'a, R: Read> {
     block: Vec<PseudoAln>,
     block_flags: Option<BlockFlags>,
     block_index: usize,
-    bitmap: Bitmap,
+    bitmap: BitmapHolder,
     q_ids: IndexSet<u32>,
     q_names: Option<IndexSet<Vec<u8>>>,
     t_names: IndexSet<Vec<u8>>,
@@ -186,8 +186,8 @@ impl<'a, R: Read> Decoder<'a, R> {
         let flags = read_file_flags(&header, conn)?;
 
         let bitmap = match BitmapType::from_u16(header.bitmap_type)? {
-            BitmapType::Roaring32 => Bitmap::Roaring32(RoaringBitmap::new()),
-            BitmapType::Roaring64 => Bitmap::Roaring64(RoaringTreemap::new()),
+            BitmapType::Roaring32 => BitmapHolder::Roaring32(RoaringBitmap::new()),
+            BitmapType::Roaring64 => BitmapHolder::Roaring64(RoaringTreemap::new()),
         };
 
         Ok(Decoder{
@@ -242,11 +242,11 @@ impl<R: Read> Decoder<'_, R> {
         &mut self,
     ) -> Result<(), E> {
         let mut it: Box<dyn Iterator<Item=u64>> = match &mut self.bitmap {
-            Bitmap::Roaring32(bits) => {
+            BitmapHolder::Roaring32(bits) => {
                 let tmp = bits.iter().map(|x| x as u64);
                 Box::new(tmp)
             },
-            Bitmap::Roaring64(bits) => {
+            BitmapHolder::Roaring64(bits) => {
                 let tmp = bits.iter();
                 Box::new(tmp)
             },
@@ -305,12 +305,12 @@ impl<R: Read> Decoder<'_, R> {
                 match BitmapType::from_u16(self.header.bitmap_type).unwrap() {
                     BitmapType::Roaring32 => {
                         let (bitmap, block_flags) = unpack_block_roaring32(&bytes, &block_header).unwrap();
-                        self.bitmap = Bitmap::Roaring32(bitmap);
+                        self.bitmap = BitmapHolder::Roaring32(bitmap);
                         self.block_flags = Some(block_flags);
                     },
                     BitmapType::Roaring64 => {
                         let (bitmap, block_flags) = unpack_block_roaring64(&bytes, &block_header).unwrap();
-                        self.bitmap = Bitmap::Roaring64(bitmap);
+                        self.bitmap = BitmapHolder::Roaring64(bitmap);
                         self.block_flags = Some(block_flags);
                     }
                 }
@@ -344,7 +344,7 @@ impl<R: Read> Decoder<'_, R> {
     /// Get bitmap in the current block, use [next_block] to advance.
     pub fn bitmap(
         &self,
-    ) -> &Bitmap {
+    ) -> &BitmapHolder {
         &self.bitmap
     }
 
