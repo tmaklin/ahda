@@ -140,6 +140,7 @@ use crate::headers::file::read_file_flags;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::read_block_header;
 use crate::compression::BitmapType;
+use crate::compression::Bitmap;
 use crate::compression::roaring32::unpack_block_roaring32;
 use crate::compression::roaring64::unpack_block_roaring64;
 
@@ -152,11 +153,6 @@ use std::collections::HashSet;
 use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
-
-pub enum Bitmap {
-    Roaring32(RoaringBitmap),
-    Roaring64(RoaringTreemap),
-}
 
 pub struct Decoder<'a, R: Read> {
     // Inputs

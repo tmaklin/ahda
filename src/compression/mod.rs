@@ -38,6 +38,9 @@ pub mod gzwrapper;
 pub mod roaring32;
 pub mod roaring64;
 
+use roaring::RoaringBitmap;
+use roaring::RoaringTreemap;
+
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 
@@ -75,6 +78,14 @@ impl BitmapType {
             BitmapType::Roaring64 => 1,
         }
     }
+}
+
+/// Holder for supported [BitmapTypes](BitmapType)
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq)]
+pub enum Bitmap {
+    Roaring32(RoaringBitmap),
+    Roaring64(RoaringTreemap),
 }
 
 /// Supported compression methods for [FileFlags](crate::headers::file::FileFlags) and [BlockFlags](crate::headers::block::BlockFlags).
