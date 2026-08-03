@@ -35,8 +35,7 @@
 //! - Decompress bytes (u8).
 
 pub mod gzwrapper;
-pub mod roaring32;
-pub mod roaring64;
+pub mod roaringwrapper;
 
 use roaring::RoaringBitmap;
 use roaring::RoaringTreemap;
@@ -44,10 +43,8 @@ use roaring::RoaringTreemap;
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 
-use roaring32::convert_to_roaring32;
-use roaring32::pack_block_roaring32;
-use roaring64::convert_to_roaring64;
-use roaring64::pack_block_roaring64;
+use roaringwrapper::convert_to_roaring;
+use roaringwrapper::pack_block_roaring;
 
 type E = Box<dyn std::error::Error>;
 
@@ -131,23 +128,8 @@ pub fn pack_records(
         record.query_id
     }).collect();
 
-    let bitmap = match BitmapType::from_u16(file_header.bitmap_type)? {
-        BitmapType::Roaring32 => {
-            BitmapHolder::Roaring32(convert_to_roaring32(file_header, records)?)
-        },
-        BitmapType::Roaring64 => {
-            BitmapHolder::Roaring64(convert_to_roaring64(file_header, records)?)
-        }
-    };
-
-    let block = match bitmap {
-        BitmapHolder::Roaring32(bits) => {
-            pack_block_roaring32(&queries, &query_ids, bits)?
-        },
-        BitmapHolder::Roaring64(bits) => {
-            pack_block_roaring64(&queries, &query_ids, bits)?
-        }
-    };
+    let bits = convert_to_roaring(file_header, records)?;
+    let block = pack_block_roaring(&queries, &query_ids, bits)?;
 
     Ok(block)
 }
