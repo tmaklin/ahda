@@ -37,7 +37,6 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // These are given as construtor parameters
     header: FileHeader,
     flags: FileFlags,
-    queries: Vec<Vec<u8>>,
 
     // Internals
     blocks_written: usize,
@@ -51,15 +50,14 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     pub fn new(
         set_bits: &'a mut I,
         targets: &[Vec<u8>],
-        queries: &[Vec<u8>],
         sample_name: &[u8],
+        n_queries: usize,
     ) -> Result<Self, E> {
-        let (header, flags) = build_file_header_and_flags(targets, queries.len(), sample_name, &MetadataCompression::default())?;
+        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
         let bitmap_type = BitmapType::from_u16(header.bitmap_type)?;
         Ok(BitmapEncoder{
             set_bits, end: false,
             header, flags,
-            queries: queries.to_vec(),
             blocks_written: 0_usize,
             bits_buffer: Vec::new(), last_idx: 0_usize,
             prev_idx: 0,
@@ -192,12 +190,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
             }
         };
 
-        let query_names = if self.header.promises_query_names() {
-            Some(self.queries[start_idx..end_idx].to_vec())
-        } else {
-            None
-        };
-
+        let query_names = None;
         let bytes = pack_block_roaring(&block_ids, query_names, bitmap);
 
         match bytes {

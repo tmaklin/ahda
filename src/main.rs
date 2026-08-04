@@ -492,7 +492,7 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             // Read first bitmap
-            let (mut bitmap_a, _, flags_a, block_flags) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
+            let (mut bitmap_a, header_a, flags_a, block_flags) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
 
             // Read the remainning bitmaps and perform requested operation.
             // Intersection requires reading the entire other bitmaps into memory.
@@ -509,7 +509,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             let mut iter = bitmap_a.into_iter();
-            let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &block_flags.queries.unwrap(), &flags_a.query_name)?;
+            let n_queries = header_a.n_queries as usize;
+            let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &flags_a.query_name, n_queries)?;
             encoder.set_fields_present(3_u16);
             conn_out[0].write_all(&encoder.encode_file_header_and_flags()?)?;
             for block in encoder {
