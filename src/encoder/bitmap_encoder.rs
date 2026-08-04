@@ -34,9 +34,12 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     set_bits: &'a mut I,
     end: bool,
 
-    // These are given as construtor parameters
+    // These built from constructor parameters
     header: FileHeader,
     flags: FileFlags,
+
+    // Can be optionally given to the encoder
+    query_names: Option<Vec<Vec<u8>>>,
 
     // Internals
     blocks_written: usize,
@@ -53,7 +56,8 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         sample_name: &[u8],
         n_queries: usize,
     ) -> Result<Self, E> {
-        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
+        let (mut header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
+        header.fields_present = crate::MASK_QUERY_IDS;
         let bitmap_type = BitmapType::from_u16(header.bitmap_type)?;
         Ok(BitmapEncoder{
             set_bits, end: false,
@@ -62,6 +66,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
             bits_buffer: Vec::new(), last_idx: 0_usize,
             prev_idx: 0,
             bitmap_type,
+            query_names: None,
         })
     }
 
@@ -73,6 +78,15 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         fields_present: u16,
     ) {
         self.header.fields_present = fields_present;
+    }
+
+    /// Make the encoder write query names
+    pub fn set_query_names(
+        &mut self,
+        query_names: &[Vec<u8>],
+    ) {
+        self.query_names = Some(query_names.to_vec());
+        self.set_fields_present(self.header.fields_present | crate::MASK_QUERIES);
     }
 }
 
@@ -190,7 +204,12 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
             }
         };
 
-        let query_names = None;
+        let query_names = if let Some(queries) = &self.query_names {
+            Some(queries[start_idx..end_idx].to_vec())
+        } else {
+            None
+        };
+
         let bytes = pack_block_roaring(&block_ids, query_names, bitmap);
 
         match bytes {
