@@ -255,7 +255,6 @@ impl<R: Read> Decoder<'_, R> {
         self.block = bitmap_decoder.collect();
 
         let query_ids = self.block_flags.as_ref().unwrap().query_ids.as_ref().unwrap();
-        let query_names = self.block_flags.as_ref().unwrap().queries.as_ref().unwrap();
         let seen: HashSet<u32> = HashSet::from_iter(self.block.iter().map(|x| x.query_id.unwrap()));
         self.block.extend(query_ids.iter().filter_map(|idx| {
             if !seen.contains(idx) {
@@ -265,7 +264,13 @@ impl<R: Read> Decoder<'_, R> {
             }
         }));
 
-        self.q_names = if self.header.promises_query_names() { Some(IndexSet::from_iter(query_names.iter().cloned())) } else { None };
+        self.q_names = if self.header.promises_query_names() {
+            let query_names = self.block_flags.as_ref().unwrap().queries.as_ref().unwrap();
+            Some(IndexSet::from_iter(query_names.iter().cloned()))
+        } else {
+            None
+        };
+
         self.q_ids = IndexSet::from_iter(query_ids.iter().cloned());
 
         Ok(())

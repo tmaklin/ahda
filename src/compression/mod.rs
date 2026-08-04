@@ -123,13 +123,19 @@ pub fn pack_records(
         record.query_name.clone()
     }).collect();
 
+    let query_names = if queries.is_empty() { None } else { Some(queries) };
+
+    if query_names.is_none() && file_header.promises_query_names() {
+        panic!("File header specifies that query names must be filled but they are empty.")
+    }
+
     let query_ids: Vec<u32> = records.iter().filter_map(|record| {
         assert!(record.query_id.is_some());
         record.query_id
     }).collect();
 
     let bits = convert_to_roaring(file_header, records)?;
-    let block = pack_block_roaring(&queries, &query_ids, bits)?;
+    let block = pack_block_roaring(&query_ids, query_names, bits)?;
 
     Ok(block)
 }

@@ -100,8 +100,8 @@ pub fn deserialize_roaring64(
 }
 
 pub fn pack_block_roaring(
-    queries: &[Vec<u8>],
     query_ids: &[u32],
+    queries: Option<Vec<Vec<u8>>>,
     bitmap: BitmapHolder,
 ) -> Result<Vec<u8>, E> {
     let bitmap_type = match bitmap {
@@ -111,16 +111,20 @@ pub fn pack_block_roaring(
 
     let mut serialized = serialize_roaring(bitmap)?;
 
-    let flags: BlockFlags = BlockFlags{ queries: Some(queries.to_vec()), query_ids: Some(query_ids.to_vec()) };
+    let n_queries = query_ids.len();
+    if let Some(query_names) = &queries {
+        assert_eq!(query_ids.len(), query_names.len());
+    }
+
+    let flags: BlockFlags = BlockFlags{ queries, query_ids: Some(query_ids.to_vec()) };
     let fields_present = flags.fields_present();
     let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
 
     let flags_len = block_flags.len() as u64;
     let block_len = serialized.len() as u32;
 
-
     let header = BlockHeader{
-        num_records: queries.len() as u32,
+        num_records: n_queries as u32,
         block_len,
         flags_len,
         bitmap_type: bitmap_type.to_u16(),
