@@ -731,11 +731,24 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     }
 
     let targets = reader.get_targets().unwrap();
-    let mut reader_unwrapped = reader.map(|record| record.unwrap());
+    let mut reader_unwrapped = reader.enumerate().map(|(idx, try_record)| {
+        let mut record = try_record.unwrap();
+        if !opts.encode_query_names {
+            record.query_name = None;
+        }
+        if !opts.encode_target_names {
+            record.ones_names = None;
+        }
+        if opts.rename_queries {
+            let mut new_name: Vec<u8> = opts.accession.clone();
+            let mut idx_str: Vec<u8> = (idx + 1).to_string().as_bytes().to_vec();
+            new_name.append(&mut idx_str);
+            record.query_name = Some(new_name);
+        }
+        record
+    });
+
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
-    if !opts.encode_query_names {
-        unimplemented!("Encode without query names.")
-    }
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
     for block in encoder.by_ref() {
@@ -1501,7 +1514,7 @@ mod tests {
 
         let mut bytes: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 
-        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 29, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 101, 96, 100, 98, 102, 1, 0, 59, 190, 176, 144, 9, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec![b"ERR4035126.1".to_vec(), b"ERR4035126.2".to_vec(), b"ERR4035126.651903".to_vec(), b"ERR4035126.7543".to_vec(), b"ERR4035126.16".to_vec()];
