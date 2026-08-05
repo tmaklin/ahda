@@ -74,7 +74,6 @@
 //! let mut parser_unwrapped = parser.map(|record| record.unwrap());
 //! let mut encoder = Encoder::new(&mut parser_unwrapped, &targets, &name, n_queries).unwrap();
 //! encoder.set_block_size(3);
-//! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!
 //! let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 //!
@@ -120,7 +119,6 @@
 //!
 //! let mut iter = data.into_iter(); // Encoder::new expects PseudoAln and doesn't work on &PseudoAln
 //! let mut encoder = Encoder::new(&mut iter, &targets, &name, queries.len()).unwrap();
-//! encoder.set_fields_present(3_u16); // 3: Have query_names and query_ids
 //!
 //! // Encode the file header and flags
 //! let bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -191,9 +189,19 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
+    /// Encode the [FileHeader] and [FileFlags] and return the encoded bytes.
+    ///
+    /// Will update the `fields_present` field of FileHeader if called before
+    /// writing any blocks with [next].
+    ///
     pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Result<Vec<u8>, E> {
+        if self.blocks_written == 0 {
+            self.next_block().unwrap();
+            let first_record = self.block[0].clone();
+            self.set_fields_present(&first_record);
+        }
         let mut header_bytes = encode_file_header(&self.header)?;
 
         let mut out: Vec<u8> = Vec::with_capacity(self.header.flags_len as usize + header_bytes.len());
@@ -223,14 +231,38 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         Ok(())
     }
 
-    /// Update `fields_present` in stored FileHeader.
-    ///
-    /// Should be called before using [encode_file_header_and_flags](crate::headers::file::encode_file_header_and_flags) to obtain the bytes.
-    pub fn set_fields_present(
+    /// Set `fields_present` in stored FileHeader based on a record.
+    fn set_fields_present(
         &mut self,
-        fields_present: u16,
+        record: &PseudoAln,
     ) {
-        self.header.fields_present = fields_present;
+        let have_query_ids = record.query_id.is_some();
+        let have_query_names = record.query_name.is_some();
+        if have_query_ids {
+            self.header.fields_present |= crate::MASK_QUERY_IDS;
+        }
+        if have_query_names {
+            self.header.fields_present |= crate::MASK_QUERIES;
+        }
+    }
+
+    /// Get the next block to internal buffer
+    fn next_block(
+        &mut self,
+    ) -> Option<()> {
+        self.block.extend(self.records.take(self.header.block_size as usize).map(|mut x| { x.ones_names = None; x } ));
+
+        if self.block.is_empty() {
+            return None
+        }
+
+        if self.blocks_written == 0 {
+            let first_record = self.block[0].clone();
+            self.set_fields_present(&first_record);
+        }
+
+        self.block.sort_by_key(|x| x.query_id);
+        Some(())
     }
 }
 
@@ -240,22 +272,17 @@ impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> 
     fn next(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {
-        self.block.clear();
-        self.block.extend(self.records.take(self.header.block_size as usize).map(|mut x| { x.ones_names = None; x } ));
-
         if self.block.is_empty() {
-            return None
+            self.next_block()?;
         }
-
-        self.block.sort_by_key(|x| x.query_id);
-
         let out = pack_records(&self.header, std::mem::take(&mut self.block));
 
         match out {
             Ok(_) => {
                 self.blocks_written += 1;
+                self.block.clear();
             },
-            _ => (),
+            Err(e) => return Some(Err(e)),
         }
 
         Some(out)
@@ -314,7 +341,6 @@ mod tests {
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
-        encoder.set_fields_present(3_u16);
         encoder.set_block_size(1000).unwrap();
 
         let got = encoder.next().unwrap().unwrap();
@@ -344,7 +370,6 @@ mod tests {
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
-        encoder.set_fields_present(3_u16);
         encoder.set_block_size(2).unwrap();
 
         let mut got: Vec<u8> = Vec::new();
@@ -377,7 +402,6 @@ mod tests {
 
         let mut tmp = data.into_iter();
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
-        encoder.set_fields_present(3_u16);
         encoder.set_block_size(2).unwrap();
 
         let mut got: Vec<u8> = Vec::new();

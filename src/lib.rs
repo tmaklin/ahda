@@ -644,10 +644,8 @@ pub fn encode_to_write<W: Write>(
 
     let mut records_iter = records.iter().cloned();
     let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len())?;
-    if opts.encode_query_names && have_queries {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
-    } else {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS);
+    if !opts.encode_query_names {
+        unimplemented!("Encode without query names.")
     }
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -725,10 +723,8 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     let targets = reader.get_targets().unwrap();
     let mut reader_unwrapped = reader.map(|record| record.unwrap());
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
-    if opts.encode_query_names && have_queries {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
-    } else {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS);
+    if !opts.encode_query_names {
+        unimplemented!("Encode without query names.")
     }
 
     let mut bytes = encoder.encode_file_header_and_flags().unwrap();
@@ -809,10 +805,8 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     // TODO remove unwrap
     let mut reader_unwrapped = reader.map(|record| record.unwrap());
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
-    if opts.encode_query_names && have_queries {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS | crate::MASK_QUERIES);
-    } else {
-        encoder.set_fields_present(crate::MASK_QUERY_IDS);
+    if !opts.encode_query_names {
+        unimplemented!("Encode without query names.")
     }
 
     let bytes = encoder.encode_file_header_and_flags().unwrap();
