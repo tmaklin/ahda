@@ -448,8 +448,8 @@ pub struct PseudoAln{
 /// opts.encode_query_names = true;
 ///
 /// // Encode the mock inputs to data_bytes_1 and data_bytes_2.
-/// encode_to_write(&targets, &queries, &data_1, &mut data_bytes_1, opts.clone()).unwrap();
-/// encode_to_write(&targets, &queries, &data_2, &mut data_bytes_2, opts).unwrap();
+/// encode_to_write(&targets, &queries, data_1.clone(), &mut data_bytes_1, opts.clone()).unwrap();
+/// encode_to_write(&targets, &queries, data_2.clone(), &mut data_bytes_2, opts).unwrap();
 ///
 /// data_bytes_1.rewind();
 /// data_bytes_2.rewind();
@@ -623,7 +623,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
 ///
 /// // Encode to `output`
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_to_write(&targets, &queries, &data, &mut output, opts).unwrap();
+/// encode_to_write(&targets, &queries, data.clone(), &mut output, opts).unwrap();
 ///
 /// // `output` can be decoded to get the original data back
 /// output.rewind();
@@ -635,14 +635,13 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
 pub fn encode_to_write<W: Write>(
     targets: &[Vec<u8>],
     queries: &[Vec<u8>],
-    records: &[PseudoAln],
+    records: Vec<PseudoAln>,
     conn_out: &mut W,
     opts: EncodeOpts,
 ) -> Result<(), E> {
     assert!(!records.is_empty());
-    let have_queries = !queries.is_empty();
 
-    let mut records_iter = records.iter().cloned();
+    let mut records_iter = records.into_iter();
     let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len())?;
     if !opts.encode_query_names {
         unimplemented!("Encode without query names.")
@@ -925,7 +924,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
 ///
 /// // Encode mock data
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_to_write(&targets, &queries, &data, &mut input, opts).unwrap();
+/// encode_to_write(&targets, &queries, data.clone(), &mut input, opts).unwrap();
 /// input.rewind();
 ///
 /// // Decode to recover the original data
@@ -971,7 +970,7 @@ pub fn decode_from_read<R: Read>(
 ///
 /// // Encode mock data
 /// let mut input: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-/// encode_to_write(&targets, &queries, &data, &mut input, opts).unwrap();
+/// encode_to_write(&targets, &queries, data, &mut input, opts).unwrap();
 ///
 /// // Decode to recover the original data
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -1378,7 +1377,7 @@ mod tests {
         opts.accession = sample;
         opts.encode_query_names = true;
 
-        encode_to_write(&targets, &queries, &data, &mut bytes, opts).unwrap();
+        encode_to_write(&targets, &queries, data, &mut bytes, opts).unwrap();
 
         let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
@@ -1408,7 +1407,7 @@ mod tests {
         let mut opts = EncodeOpts::default();
         opts.accession = sample;
 
-        encode_to_write(&targets, &Vec::new(), &data, &mut bytes, opts).unwrap();
+        encode_to_write(&targets, &Vec::new(), data, &mut bytes, opts).unwrap();
 
         let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 29, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 101, 96, 100, 98, 102, 1, 0, 59, 190, 176, 144, 9, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
