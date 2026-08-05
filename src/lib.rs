@@ -1293,6 +1293,31 @@ pub fn decode_from_read_into_roaring<R: Read>(
     Ok(())
 }
 
+/// Merge bitmaps from Read(s) and write encoded result to Write.
+pub fn merge_from_read_to_write<R: Read, W: Write>(
+    conn_in: &mut [R],
+    conn_out: &mut W,
+    merge_op: &MergeOp,
+) -> Result<(), E> {
+    // Read first bitmap
+    let (mut bitmap_a, header_a, flags_a, block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
+
+    for (idx, conn) in conn_in.iter_mut().skip(1).enumerate() {
+        decode_from_read_into_roaring(conn, merge_op, &mut bitmap_a)?;
+    }
+
+    let mut iter = bitmap_a.into_iter();
+    let n_queries = header_a.n_queries as usize;
+    let mut encoder = encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &flags_a.query_name, n_queries)?;
+    conn_out.write_all(&encoder.encode_file_header_and_flags()?)?;
+    for block in encoder {
+        conn_out.write_all(&block?)?;
+    }
+    conn_out.flush()?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
 

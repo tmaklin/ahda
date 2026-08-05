@@ -491,32 +491,13 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 conn_out.push(Box::new(std::io::stdout()));
             }
 
-            // Read first bitmap
-            let (mut bitmap_a, header_a, flags_a, block_flags) = ahda::decode_from_read_to_roaring(&mut conn_in[0])?;
-
-            // Read the remainning bitmaps and perform requested operation.
-            // Intersection requires reading the entire other bitmaps into memory.
-            // Other operations are performed block-wise.
-            for (idx, conn) in conn_in.iter_mut().skip(1).enumerate() {
-                match ahda::decode_from_read_into_roaring(conn, operation.as_ref().unwrap(), &mut bitmap_a) {
-                    Ok(_) => (),
-                    Err(e) => {
-                        let file = input_files[idx].clone();
-                        eprintln!("ahda: could not decode bitmap from input file `{}`: {}", file.to_string_lossy(), e);
-                        return Err(e)
-                    }
+            match ahda::merge_from_read_to_write(&mut conn_in, &mut conn_out[0], operation.as_ref().unwrap()) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    eprintln!("ahda: could not merge input files: {}", e);
+                    Err(e)
                 }
             }
-
-            let mut iter = bitmap_a.into_iter();
-            let n_queries = header_a.n_queries as usize;
-            let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &flags_a.query_name, n_queries)?;
-            conn_out[0].write_all(&encoder.encode_file_header_and_flags()?)?;
-            for block in encoder {
-                conn_out[0].write_all(&block?)?;
-            }
-            conn_out[0].flush()?;
-            Ok(())
 
         },
         None => { eprintln!("ahda: Try 'ahda --help' for more information."); Ok(()) },
