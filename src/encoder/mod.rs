@@ -379,6 +379,39 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn encoding_with_and_without_query_names_fails() {
+        use crate::PseudoAln;
+        use super::Encoder;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: None },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+        ];
+
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 49, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 69, 18, 49, 52, 99, 100, 98, 98, 1, 0, 148, 139, 255, 106, 38, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 22, 6, 86, 6, 0, 21, 37, 56, 88, 20, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 228, 119, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 55, 53, 49, 102, 100, 100, 6, 0, 66, 122, 30, 150, 21, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
+        let query_name ="ERR4035126".as_bytes().to_vec();
+
+        let mut tmp = data.into_iter();
+        let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
+        encoder.set_block_size(2).unwrap();
+
+        let mut got: Vec<u8> = Vec::new();
+        got.append(&mut encoder.encode_file_header_and_flags().unwrap());
+        for block in encoder.by_ref() {
+            got.append(&mut block.unwrap());
+        }
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
     fn encode_three_blocks_with_next() {
         use crate::PseudoAln;
         use super::Encoder;
