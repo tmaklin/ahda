@@ -511,7 +511,6 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             let mut iter = bitmap_a.into_iter();
             let n_queries = header_a.n_queries as usize;
             let mut encoder = ahda::encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &flags_a.query_name, n_queries)?;
-            encoder.set_fields_present(3_u16);
             conn_out[0].write_all(&encoder.encode_file_header_and_flags()?)?;
             for block in encoder {
                 conn_out[0].write_all(&block?)?;

@@ -71,13 +71,12 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     }
 
     /// Update `fields_present` in stored FileHeader.
-    ///
-    /// Should be called before using [encode_file_header_and_flags](crate::headers::file::encode_file_header_and_flags) to obtain the bytes.
-    pub fn set_fields_present(
+    fn set_fields_present(
         &mut self,
-        fields_present: u16,
     ) {
-        self.header.fields_present = fields_present;
+        if self.query_names.is_some() {
+            self.header.fields_present |= crate::MASK_QUERIES;
+        }
     }
 
     /// Make the encoder write query names
@@ -86,7 +85,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         query_names: &[Vec<u8>],
     ) {
         self.query_names = Some(query_names.to_vec());
-        self.set_fields_present(self.header.fields_present | crate::MASK_QUERIES);
+        self.set_fields_present();
     }
 }
 
