@@ -1164,18 +1164,29 @@ pub fn decode_from_read_to_roaring<R: Read>(
             BitmapHolder::Roaring64(bitmap) => bitmap,
         };
 
-        queries.append(block_flags.queries.as_mut().unwrap());
-        query_ids.append(block_flags.query_ids.as_mut().unwrap());
+        if let Some(block_names) = block_flags.queries.as_mut() {
+            queries.append(block_names);
+        }
+        if let Some(block_ids) = block_flags.query_ids.as_mut() {
+            query_ids.append(block_ids);
+        }
 
         bitmap_out |= bitmap;
     }
 
-    let mut both: Vec<(u32, &Vec<u8>)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name)).collect();
-    both.sort_by_key(|x| x.0);
-    let queries: Option<Vec<Vec<u8>>> = Some(both.iter().map(|x| x.1.clone()).collect::<Vec<Vec<u8>>>());
-    let query_ids: Option<Vec<u32>> = Some(both.iter().map(|x| x.0).collect());
-
-    Ok((bitmap_out, header, flags, BlockFlags{ queries, query_ids }))
+    if !queries.is_empty() && !query_ids.is_empty() {
+        assert_eq!(queries.len(), query_ids.len());
+        let mut both: Vec<(u32, &Vec<u8>)> = queries.iter().zip(query_ids.iter()).map(|(name, idx)| (*idx, name)).collect();
+        both.sort_by_key(|x| x.0);
+        let queries: Option<Vec<Vec<u8>>> = Some(both.iter().map(|x| x.1.clone()).collect::<Vec<Vec<u8>>>());
+        let query_ids: Option<Vec<u32>> = Some(both.iter().map(|x| x.0).collect());
+        Ok((bitmap_out, header, flags, BlockFlags{ queries, query_ids }))
+    } else if queries.is_empty() {
+        query_ids.sort_unstable();
+        Ok((bitmap_out, header, flags, BlockFlags{ queries: None, query_ids: Some(query_ids) }))
+    } else {
+        panic!("Valid ahda files should always have query ids.")
+    }
 }
 
 /// Merge bitmap from Read to an existing bitmap with Union
@@ -1302,7 +1313,7 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
     // Read first bitmap
     let (mut bitmap_a, header_a, flags_a, block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
 
-    for (idx, conn) in conn_in.iter_mut().skip(1).enumerate() {
+    for conn in conn_in.iter_mut().skip(1) {
         decode_from_read_into_roaring(conn, merge_op, &mut bitmap_a)?;
     }
 
@@ -1971,7 +1982,6 @@ mod tests {
         use super::MergeOp;
 
         use std::io::Cursor;
-        use std::io::Seek;
 
         let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 102, 6, 1, 6, 6, 6, 38, 6, 22, 6, 86, 6, 118, 6, 0, 253, 225, 232, 158, 24, 0, 0, 0];
         let data_bytes_1: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
@@ -1989,6 +1999,30 @@ mod tests {
 
         assert_eq!(expected_bytes, *got.get_ref());
 
+    }
+
+    #[test]
+    fn merge_from_read_to_write_without_query_names() {
+        use super::merge_from_read_to_write;
+        use super::MergeOp;
+
+        use std::io::Cursor;
+
+        let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 102, 6, 1, 6, 6, 6, 38, 6, 22, 6, 86, 6, 118, 6, 0, 253, 225, 232, 158, 24, 0, 0, 0];
+        let data_bytes_1: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let data_bytes_2: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 42, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 86, 6, 1, 48, 205, 196, 192, 204, 192, 194, 192, 202, 192, 206, 0, 0, 215, 35, 69, 171, 28, 0, 0, 0];
+        let data_bytes_3: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 5, 0, 0, 0, 0, 0, 0, 0, 41, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 6, 16, 155, 137, 129, 133, 129, 149, 129, 157, 1, 0, 17, 6, 115, 201, 26, 0, 0, 0];
+
+        let mut data: Vec<Cursor<Vec<u8>>> = vec![
+            Cursor::new(data_bytes_1),
+            Cursor::new(data_bytes_2),
+            Cursor::new(data_bytes_3)
+        ];
+
+        let mut got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        merge_from_read_to_write(&mut data, &mut got, &MergeOp::Intersection).unwrap();
+
+        assert_eq!(expected_bytes, *got.get_ref());
     }
 
 }
