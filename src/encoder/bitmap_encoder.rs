@@ -71,7 +71,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     }
 
     /// Update `fields_present` in stored FileHeader.
-    fn set_fields_present(
+    fn update_fields_present(
         &mut self,
     ) {
         if self.query_names.is_some() {
@@ -85,7 +85,7 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         query_names: &[Vec<u8>],
     ) {
         self.query_names = Some(query_names.to_vec());
-        self.set_fields_present();
+        self.update_fields_present();
     }
 }
 
