@@ -228,14 +228,37 @@ mod tests {
 
         let data = vec![0_u64, 2, 4, 5, 7];
 
-        let expected = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
+        let expected = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_query_names(&queries);
+
+        let got = encoder.encode_file_header_and_flags().unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn encode_file_header_and_flags_without_query_names() {
+        use super::BitmapEncoder;
+
+        let data = vec![0_u64, 2, 4, 5, 7];
+
+        let expected = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97];
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
+        let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = queries.len();
+
+        let mut tmp = data.into_iter();
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 
