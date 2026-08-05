@@ -198,9 +198,11 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         &mut self,
     ) -> Result<Vec<u8>, E> {
         if self.blocks_written == 0 {
-            self.next_block().unwrap();
-            let first_record = self.block[0].clone();
-            self.set_fields_present(&first_record);
+            let ret = self.next_block();
+            if ret.is_some() {
+                let first_record = self.block[0].clone();
+                self.set_fields_present(&first_record);
+            }
         }
         let mut header_bytes = encode_file_header(&self.header)?;
 
