@@ -443,9 +443,13 @@ impl<R: Read> Iterator for Decoder<'_, R> {
             }
         } else {
             self.next_block()?;
-            self.alns_from_set_bits();
-            self.block_index = 0;
-            self.next()
+            match self.alns_from_set_bits() {
+                Ok(()) => {
+                    self.block_index = 0;
+                    self.next()
+                },
+                Err(e) => Some(Err(e)),
+            }
         }
     }
 }
