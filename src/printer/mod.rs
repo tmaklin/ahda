@@ -139,9 +139,12 @@ use ahda_tsv::format_ahda_tsv_line;
 use bifrost::format_bifrost_line;
 use fulgor::format_fulgor_line;
 use metagraph::format_metagraph_line;
-use sam::build_sam_header;
-use sam::format_sam_line;
-use sam::format_sam_header;
+#[cfg(feature = "sam")]
+use sam::{
+    build_sam_header,
+    format_sam_line,
+    format_sam_header,
+};
 use themisto::format_themisto_line;
 
 // Format specific implementations
@@ -149,6 +152,7 @@ pub mod ahda_tsv;
 pub mod bifrost;
 pub mod fulgor;
 pub mod metagraph;
+#[cfg(feature = "sam")]
 pub mod sam;
 pub mod themisto;
 
@@ -161,6 +165,7 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     header: FileHeader,
     flags: FileFlags,
 
+    #[cfg(feature = "sam")]
     sam_header: Option<noodles_sam::Header>,
 
     index: usize,
@@ -185,10 +190,12 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         flags: FileFlags,
         format: Format,
     ) -> Result<Self, E> {
+        #[cfg(feature = "sam")]
         if format == Format::SAM {
             todo!("printing .sam plain text data.")
         }
 
+        #[cfg(feature = "sam")]
         let sam_header = if format == Format::SAM {
             Some(sam::build_sam_header(&flags.target_names)?)
         } else {
@@ -198,7 +205,9 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         Ok(Printer{
             records,
             header, flags,
-            sam_header, index: 0,
+            #[cfg(feature = "sam")]
+            sam_header,
+            index: 0,
             format,
         })
     }
@@ -219,6 +228,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
                     Err(e) => Some(Err(e)),
                 }
             },
+            #[cfg(feature = "sam")]
             Format::SAM => {
                 match build_sam_header(&self.flags.target_names) {
                     Ok(header) => self.sam_header = Some(header),
@@ -261,6 +271,7 @@ impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoA
                 Format::Fulgor => format_fulgor_line(&record, &mut out),
                 Format::Metagraph => format_metagraph_line(&record, &mut out),
                 Format::Bifrost => format_bifrost_line(&record, self.header.n_targets as usize, &mut out),
+                #[cfg(feature = "sam")]
                 Format::SAM => format_sam_line(&record, self.sam_header.as_ref().unwrap(), &mut out),
                 Format::AhdaTSV => format_ahda_tsv_line(&record, self.header.n_targets as usize, &mut out),
             };
@@ -551,6 +562,7 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "not yet implemented")]
+    #[cfg(feature = "sam")]
     fn print_sam_output() {
         use super::Printer;
 

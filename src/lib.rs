@@ -270,6 +270,7 @@ pub enum Format {
     Bifrost,
     Fulgor,
     Metagraph,
+    #[cfg(feature = "sam")]
     SAM,
     Themisto,
 }
@@ -282,6 +283,7 @@ impl std::str::FromStr for Format {
             "bifrost" => Ok(Format::Bifrost),
             "fulgor" => Ok(Format::Fulgor),
             "metagraph" => Ok(Format::Metagraph),
+            #[cfg(feature = "sam")]
             "sam" => Ok(Format::SAM),
             "themisto" => Ok(Format::Themisto),
             "ahda-tsv" => Ok(Format::AhdaTSV),
@@ -296,6 +298,7 @@ impl std::fmt::Display for Format {
             Format::Bifrost => write!(f, "bifrost"),
             Format::Fulgor => write!(f, "fulgor"),
             Format::Metagraph => write!(f, "metagraph"),
+            #[cfg(feature = "sam")]
             Format::SAM => write!(f, "SAM"),
             Format::Themisto => write!(f, "themisto"),
             Format::AhdaTSV => write!(f, "ahda-tsv"),
@@ -932,6 +935,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);
         },
+        #[cfg(feature = "sam")]
         Format::SAM => {
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);
@@ -1062,6 +1066,7 @@ pub fn decode_to_write<W: Write>(
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);
         },
+        #[cfg(feature = "sam")]
         Format::SAM => {
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);

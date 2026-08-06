@@ -76,6 +76,7 @@ pub mod ahda_tsv;
 pub mod bifrost;
 pub mod fulgor;
 pub mod metagraph;
+#[cfg(feature = "sam")]
 pub mod sam;
 pub mod themisto;
 
@@ -86,6 +87,7 @@ use crate::parser::ahda_tsv::read_ahda_tsv;
 use crate::parser::bifrost::read_bifrost;
 use crate::parser::fulgor::read_fulgor;
 use crate::parser::metagraph::read_metagraph;
+#[cfg(feature = "sam")]
 use crate::parser::sam::read_sam;
 use crate::parser::themisto::read_themisto;
 
@@ -225,6 +227,7 @@ impl<R: Read> Parser<'_, R> {
 
                 Ok(Some(target_names))
             }
+            #[cfg(feature = "sam")]
             Format::SAM => {
                 let mut header_contents = Cursor::new(self.buf.get_mut().clone());
                 let mut next_line: Cursor<Vec<u8>> = Cursor::new(Vec::new());
@@ -419,6 +422,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
             Format::Fulgor => read_fulgor(&mut self.buf),
             Format::Metagraph => read_metagraph(&mut self.buf),
             Format::Bifrost => read_bifrost(&mut self.buf),
+            #[cfg(feature = "sam")]
             Format::SAM => read_sam(&mut self.buf),
             Format::AhdaTSV => read_ahda_tsv(&mut self.buf),
         };
@@ -468,6 +472,7 @@ pub fn guess_format(
         bytes.to_vec()
     };
 
+    #[cfg(feature = "sam")]
     if bytes.len() > 2 {
         let sam: bool = bytes[0] == b'@' && bytes[1] == b'H' && bytes[2] == b'D';
         if sam {
@@ -576,6 +581,7 @@ mod tests {
 
 
     #[test]
+    #[cfg(feature = "sam")]
     fn guess_format_sam() {
         use crate::Format;
         use super::guess_format;
@@ -638,6 +644,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "sam")]
     fn read_sam_header() {
         use super::Parser;
         use std::io::Cursor;
@@ -664,6 +671,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "sam")]
     fn consume_sam_header_with_next() {
         use super::Parser;
         use crate::PseudoAln;
@@ -691,6 +699,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "sam")]
     fn read_sam_header_and_first_line() {
         use super::Parser;
         use crate::PseudoAln;
@@ -721,6 +730,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "sam")]
     fn read_sam_multiple() {
         use super::Parser;
         use crate::PseudoAln;
@@ -1103,6 +1113,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "sam")]
     fn parse_sam_output() {
         use super::Parser;
 
@@ -1184,6 +1195,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "sam")]
     fn parse_sam_output_with_targets_from_data() {
         use super::Parser;
 
