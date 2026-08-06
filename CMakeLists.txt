@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-set(CARGO_OPTIONS --features cxxbridge --crate-type=staticlib --lib --verbose)
+set(CARGO_OPTIONS --no-default-features --features cxxbridge,sam --crate-type=staticlib --lib --verbose)
 set(RUST_FLAGS "")
 
 # Quotes mess up providing flags via CMAKE_CARGO_OPTIONS and CMAKE_RUST_FLAGS
