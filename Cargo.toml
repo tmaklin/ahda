@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 
 [features]
 default = ["cli"]
-cli = ["dep:clap", "dep:needletail"]
+cli = ["dep:clap", "dep:needletail", "dep:stderrlog"]
 cxxbridge = ["dep:cxx", "dep:cxx-build"]
 
 [[bin]]
@@ -22,13 +22,13 @@ required-features = ["cli"]
 ## cli
 clap = { version = "4", features = ["derive"], optional = true}
 needletail = { version = "0.6", default-features = false, features = ["flate2"], optional = true }
+stderrlog = { version = "0.6", optional = true }
 
 ## core
 bincode = "2"
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 indexmap = "2.14"
 roaring = "0.11"
-stderrlog = "0.6"
 
 ## .sam formatting
 bstr = "1.12"
