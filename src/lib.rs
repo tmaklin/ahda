@@ -951,7 +951,7 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
     for line in printer {
         conn_out.write_all(&line?)?;
     }
-    conn_out.flush().unwrap();
+    conn_out.flush()?;
 
     Ok(())
 }
@@ -1081,7 +1081,7 @@ pub fn decode_to_write<W: Write>(
     for line in printer {
         conn_out.write_all(&line?)?;
     }
-    conn_out.flush().unwrap();
+    conn_out.flush()?;
 
     Ok(())
 }
