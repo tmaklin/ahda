@@ -160,3 +160,333 @@ pub fn unpack_block_roaring(
 
     Ok((bitmap, block_flags))
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn convert_to_roaring32() {
+        use super::convert_to_roaring;
+        use crate::compression::BitmapHolder;
+        use crate::PseudoAln;
+        use crate::AhdaFormatVersion;
+        use crate::BitmapType;
+        use crate::MetadataCompression;
+        use crate::headers::file::FileHeader;
+        use crate::headers::file::build_ahda_header;
+        use roaring::bitmap::RoaringBitmap;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+        ];
+
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: crate::MASK_QUERY_IDS | crate::MASK_QUERIES,
+            n_targets: 2_u32,
+            n_queries: 5_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: 1000_u32,
+            flags_len: 0_u64,
+        };
+
+        let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
+
+        let mut expected_bitmap = RoaringBitmap::new();
+        aligned_indexes.into_iter().for_each(|val| { expected_bitmap.insert(val); });
+        let expected = BitmapHolder::Roaring32(expected_bitmap);
+
+        let got = convert_to_roaring(&header, data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn convert_to_roaring64() {
+        use super::convert_to_roaring;
+        use crate::compression::BitmapHolder;
+        use crate::PseudoAln;
+        use crate::AhdaFormatVersion;
+        use crate::BitmapType;
+        use crate::MetadataCompression;
+        use crate::headers::file::FileHeader;
+        use crate::headers::file::build_ahda_header;
+        use roaring::treemap::RoaringTreemap;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![u32::MAX / 2]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+        ];
+
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: crate::MASK_QUERY_IDS | crate::MASK_QUERIES,
+            n_targets: 2_u32 + u32::MAX / 2,
+            n_queries: 5_u32,
+            bitmap_type: BitmapType::Roaring64.to_u16(),
+            block_size: 1000_u32,
+            flags_len: 0_u64,
+        };
+
+        let aligned_indexes = vec![0_u64, 2147483649, 4294967298, 4294967299, 6442450948, 10737418243];
+
+        let mut expected_bitmap = RoaringTreemap::new();
+        aligned_indexes.into_iter().for_each(|val| { expected_bitmap.insert(val); });
+        let expected = BitmapHolder::Roaring64(expected_bitmap);
+
+        let got = convert_to_roaring(&header, data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn serialize_roaring32() {
+        use super::serialize_roaring;
+        use crate::compression::BitmapHolder;
+        use roaring::bitmap::RoaringBitmap;
+
+        let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
+        let mut bitmap = RoaringBitmap::new();
+        aligned_indexes.into_iter().for_each(|val| { bitmap.insert(val); });
+        let data = BitmapHolder::Roaring32(bitmap);
+
+        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let got = serialize_roaring(data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn serialize_roaring64() {
+        use super::serialize_roaring;
+        use crate::compression::BitmapHolder;
+        use roaring::treemap::RoaringTreemap;
+
+        let aligned_indexes = vec![0_u64, 2147483649, 4294967298, 4294967299, 6442450948, 10737418243];
+        let mut bitmap = RoaringTreemap::new();
+        aligned_indexes.into_iter().for_each(|val| { bitmap.insert(val); });
+        let data = BitmapHolder::Roaring64(bitmap);
+
+        let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 138, 65, 14, 0, 16, 16, 196, 186, 214, 3, 28, 69, 60, 194, 217, 235, 60, 93, 102, 19, 196, 220, 58, 173, 243, 54, 7, 164, 3, 11, 42, 208, 2, 12, 251, 188, 93, 223, 209, 231, 228, 48, 42, 84, 202, 22, 192, 217, 60, 192, 39, 99, 96, 0, 0, 0];
+
+        let got = serialize_roaring(data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn deserialize_roaring32() {
+        use super::deserialize_roaring32;
+        use roaring::bitmap::RoaringBitmap;
+
+        let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
+        let mut expected = RoaringBitmap::new();
+        aligned_indexes.into_iter().for_each(|val| { expected.insert(val); });
+
+        let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let got = deserialize_roaring32(&data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn deserialize_roaring64() {
+        use super::deserialize_roaring64;
+        use roaring::treemap::RoaringTreemap;
+
+        let aligned_indexes = vec![0_u64, 2147483649, 4294967298, 4294967299, 6442450948, 10737418243];
+        let mut expected = RoaringTreemap::new();
+        aligned_indexes.into_iter().for_each(|val| { expected.insert(val); });
+
+        let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 138, 65, 14, 0, 16, 16, 196, 186, 214, 3, 28, 69, 60, 194, 217, 235, 60, 93, 102, 19, 196, 220, 58, 173, 243, 54, 7, 164, 3, 11, 42, 208, 2, 12, 251, 188, 93, 223, 209, 231, 228, 48, 42, 84, 202, 22, 192, 217, 60, 192, 39, 99, 96, 0, 0, 0];
+
+        let got = deserialize_roaring64(&data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn pack_block_roaring32() {
+        use super::pack_block_roaring;
+        use crate::compression::BitmapHolder;
+        use roaring::bitmap::RoaringBitmap;
+
+        let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
+
+        let mut data_bitmap = RoaringBitmap::new();
+        aligned_indexes.into_iter().for_each(|val| { data_bitmap.insert(val); });
+        let data = BitmapHolder::Roaring32(data_bitmap);
+
+        let query_ids = vec![1_u32, 0, 2, 4, 3];
+        let query_names: Vec<Vec<u8>> = vec![
+            "ERR4035126.2".as_bytes().to_vec(),
+            "ERR4035126.1".as_bytes().to_vec(),
+            "ERR4035126.651903".as_bytes().to_vec(),
+            "ERR4035126.16".as_bytes().to_vec(),
+            "ERR4035126.7543".as_bytes().to_vec(),
+        ];
+
+        let expected: Vec<u8> = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let got = pack_block_roaring(&query_ids, Some(query_names), data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn pack_block_roaring64() {
+        use super::pack_block_roaring;
+        use crate::compression::BitmapHolder;
+        use roaring::treemap::RoaringTreemap;
+
+        let aligned_indexes = vec![0_u64, 2147483649, 4294967298, 4294967299, 6442450948, 10737418243];
+
+        let mut data_bitmap = RoaringTreemap::new();
+        aligned_indexes.into_iter().for_each(|val| { data_bitmap.insert(val); });
+        let data = BitmapHolder::Roaring64(data_bitmap);
+
+        let query_ids = vec![1_u32, 0, 2, 4, 3];
+        let query_names: Vec<Vec<u8>> = vec![
+            "ERR4035126.2".as_bytes().to_vec(),
+            "ERR4035126.1".as_bytes().to_vec(),
+            "ERR4035126.651903".as_bytes().to_vec(),
+            "ERR4035126.16".as_bytes().to_vec(),
+            "ERR4035126.7543".as_bytes().to_vec(),
+        ];
+
+        let expected: Vec<u8> = vec![5, 0, 0, 0, 0, 1, 0, 0, 67, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 138, 65, 14, 0, 16, 16, 196, 186, 214, 3, 28, 69, 60, 194, 217, 235, 60, 93, 102, 19, 196, 220, 58, 173, 243, 54, 7, 164, 3, 11, 42, 208, 2, 12, 251, 188, 93, 223, 209, 231, 228, 48, 42, 84, 202, 22, 192, 217, 60, 192, 39, 99, 96, 0, 0, 0];
+
+        let got = pack_block_roaring(&query_ids, Some(query_names), data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn pack_block_roaring_without_query_names() {
+        use super::pack_block_roaring;
+        use crate::compression::BitmapHolder;
+        use roaring::bitmap::RoaringBitmap;
+
+        let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
+
+        let mut data_bitmap = RoaringBitmap::new();
+        aligned_indexes.into_iter().for_each(|val| { data_bitmap.insert(val); });
+        let data = BitmapHolder::Roaring32(data_bitmap);
+
+        let query_ids = vec![1_u32, 0, 2, 4, 3];
+
+        let expected: Vec<u8> = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 100, 96, 98, 97, 6, 0, 14, 44, 25, 80, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let got = pack_block_roaring(&query_ids, None, data).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn unpack_block_roaring32() {
+        use super::unpack_block_roaring;
+        use crate::compression::BitmapHolder;
+        use crate::headers::block::BlockHeader;
+        use crate::headers::block::BlockFlags;
+
+        use roaring::bitmap::RoaringBitmap;
+
+        let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
+
+        let mut bitmap_data = RoaringBitmap::new();
+        aligned_indexes.into_iter().for_each(|val| { bitmap_data.insert(val); });
+        let expected_bitmap = BitmapHolder::Roaring32(bitmap_data);
+        let expected_flags = BlockFlags {
+            queries: Some(
+                vec![
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51]
+                ]
+            ),
+            query_ids: Some(vec![1, 0, 2, 4, 3]),
+        };
+
+        let block_header = BlockHeader {
+            num_records: 5,
+            metadata_compression: 0,
+            bitmap_type: 0,
+            placeholder1: 0,
+            block_len: 40,
+            flags_len: 64,
+            fields_present: 3,
+            placeholder2: 0,
+            placeholder3: 0
+        };
+
+        let data: Vec<u8> = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+
+        let (got_bitmap, got_flags) = unpack_block_roaring(&data[32..data.len()], &block_header).unwrap();
+
+        assert_eq!(got_bitmap, expected_bitmap);
+        assert_eq!(got_flags, expected_flags);
+    }
+
+    #[test]
+    fn unpack_block_roaring64() {
+        use super::unpack_block_roaring;
+        use crate::compression::BitmapHolder;
+        use crate::headers::block::BlockHeader;
+        use crate::headers::block::BlockFlags;
+
+        use roaring::treemap::RoaringTreemap;
+
+        let aligned_indexes = vec![0_u64, 2147483649, 4294967298, 4294967299, 6442450948, 10737418243];
+
+        let mut bitmap_data = RoaringTreemap::new();
+        aligned_indexes.into_iter().for_each(|val| { bitmap_data.insert(val); });
+        let expected_bitmap = BitmapHolder::Roaring64(bitmap_data);
+        let expected_flags = BlockFlags {
+            queries: Some(
+                vec![
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54],
+                    vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51]
+                ]
+            ),
+            query_ids: Some(vec![1, 0, 2, 4, 3]),
+        };
+
+        let block_header = BlockHeader {
+            num_records: 5,
+            metadata_compression: 0,
+            bitmap_type: 1,
+            placeholder1: 0,
+            block_len: 67,
+            flags_len: 64,
+            fields_present: 3,
+            placeholder2: 0,
+            placeholder3: 0
+        };
+
+        let data: Vec<u8> = vec![5, 0, 0, 0, 0, 1, 0, 0, 67, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 138, 65, 14, 0, 16, 16, 196, 186, 214, 3, 28, 69, 60, 194, 217, 235, 60, 93, 102, 19, 196, 220, 58, 173, 243, 54, 7, 164, 3, 11, 42, 208, 2, 12, 251, 188, 93, 223, 209, 231, 228, 48, 42, 84, 202, 22, 192, 217, 60, 192, 39, 99, 96, 0, 0, 0];
+
+        let (got_bitmap, got_flags) = unpack_block_roaring(&data[32..data.len()], &block_header).unwrap();
+
+        assert_eq!(got_bitmap, expected_bitmap);
+        assert_eq!(got_flags, expected_flags);
+    }
+
+}
