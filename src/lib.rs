@@ -838,7 +838,12 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
         return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: reader.format }))
     }
 
-    let targets = reader.get_targets().unwrap();
+    let targets = if let Some(target_names) = reader.get_targets() {
+        target_names
+    } else {
+        let format = reader.format;
+        return Err(Box::new(errors::NeedTargetSequencesErr { format }))
+    };
 
     let mut reader_unwrapped = reader.enumerate().map(|(idx, try_record)| {
         let mut record = try_record.unwrap();
@@ -859,11 +864,11 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
 
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
 
-    let bytes = encoder.encode_file_header_and_flags().unwrap();
+    let bytes = encoder.encode_file_header_and_flags()?;
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
         conn_out.write_all(&block?)?;
-        conn_out.flush().unwrap();
+        conn_out.flush()?;
     }
 
     Ok(())
