@@ -588,7 +588,11 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
 ) -> Result<(), E> {
     let reader = crate::parser::Parser::new(conn_in, queries, targets)?;
     let n_queries = reader.len();
-    let targets = reader.get_targets().unwrap();
+    let targets = if let Some(target_names) = reader.get_targets() {
+        target_names
+    } else {
+        return Err(Box::new(errors::NeedTargetSequencesErr { format }))
+    };
 
     let mut reader_unwrapped = reader.map(|record| record.unwrap());
     let writer = crate::printer::Printer::new(&mut reader_unwrapped, &targets, sample_name, n_queries, format)?;
