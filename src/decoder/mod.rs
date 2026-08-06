@@ -605,4 +605,34 @@ mod tests {
 
         assert_eq!(got, expected);
     }
+
+    #[test]
+    fn decode_three_blocks_without_query_names_and_rename() {
+        use super::Decoder;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut expected = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.3".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.5".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.4".as_bytes().to_vec()) },
+        ];
+        expected.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 98, 96, 4, 0, 128, 116, 29, 10, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 98, 98, 1, 0, 141, 226, 65, 72, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 22, 6, 86, 6, 0, 21, 37, 56, 88, 20, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 100, 6, 0, 208, 213, 148, 160, 4, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+        let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+
+        let mut decoder = Decoder::new(&mut data).unwrap();
+        decoder.fill_query_name(true);
+
+        let mut got: Vec<PseudoAln> = Vec::new();
+        got.extend(decoder.map(|block| block.unwrap()));
+        got.sort_by_key(|x| *x.query_id.as_ref().unwrap());
+
+        assert_eq!(got, expected);
+    }
+
 }
