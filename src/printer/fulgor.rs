@@ -33,19 +33,24 @@ pub fn format_fulgor_line<W: Write>(
     let separator: char = '\t';
     let mut formatted: String = String::new();
 
-    if aln.ones.is_none() || aln.query_name.is_none() {
-        return Err(Box::new(crate::errors::FulgorPrinterError{}))
-    }
-
-    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
-    formatted += &separator.to_string();
-    formatted += &aln.ones.as_ref().unwrap().len().to_string();
-
-    aln.ones.as_ref().unwrap().iter().for_each(|idx| {
+    if let Some(name) = &aln.query_name {
+        let q_name = String::from_utf8(name.clone())?;
+        formatted += &q_name;
         formatted += &separator.to_string();
-        formatted += &idx.to_string();
-    });
-    formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryNameIsEmpty{}))
+    };
+
+    if let Some(ones) = &aln.ones {
+        formatted += &ones.len().to_string();
+        for target_idx in ones {
+            formatted += &separator.to_string();
+            formatted += &target_idx.to_string();
+        }
+        formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+    }
 
     conn.write_all(formatted.as_bytes())?;
     Ok(())

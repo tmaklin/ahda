@@ -33,25 +33,35 @@ pub fn format_metagraph_line<W: Write>(
     let separator: char = '\t';
     let mut formatted: String = String::new();
 
-    if aln.ones_names.is_none() || aln.query_name.is_none() || aln.query_id.is_none() {
-        return Err(Box::new(crate::errors::MetagraphPrinterError{}))
+    if let Some(q_id) = &aln.query_id {
+        formatted += &q_id.to_string();
+        formatted += &separator.to_string();
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+    };
+
+    if let Some(name) = &aln.query_name {
+        let q_name = String::from_utf8(name.clone())?;
+        formatted += &q_name;
+        formatted += &separator.to_string();
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryNameIsEmpty{}))
+    };
+
+    if let Some(ones_names) = &aln.ones_names {
+        for name in ones_names {
+            let target_name = String::from_utf8(name.clone())?;
+            formatted += &target_name;
+            formatted += &':'.to_string();
+
+        }
+        if !ones_names.is_empty() {
+            formatted.pop();
+        }
+        formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnOnesNamesIsEmpty{}))
     }
-
-    formatted += &aln.query_id.as_ref().unwrap().to_string();
-    formatted += &separator.to_string();
-
-    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
-    formatted += &separator.to_string();
-
-    aln.ones_names.as_ref().unwrap().iter().for_each(|name| {
-        formatted += &name.iter().map(|x| *x as char).collect::<String>();
-        formatted += &':'.to_string();
-
-    });
-    if !aln.ones_names.as_ref().unwrap().is_empty() {
-        formatted.pop();
-    }
-    formatted += "\n";
 
     conn.write_all(formatted.as_bytes())?;
     Ok(())

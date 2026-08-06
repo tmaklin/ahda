@@ -34,24 +34,32 @@ pub fn format_ahda_tsv_line<W: Write>(
     let separator: char = '\t';
     let mut formatted: String = String::new();
 
-    if aln.ones.is_none() || aln.query_name.is_none() || aln.query_id.is_none() {
-        return Err(Box::new(crate::errors::AhdaTSVPrinterError{}))
-    }
+    if let Some(q_id) = &aln.query_id {
+        formatted += &q_id.to_string();
+        formatted += "\t";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+    };
 
-    formatted += &aln.query_id.as_ref().unwrap().to_string();
-    formatted += "\t";
-    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
+    if let Some(q_name) = &aln.query_name {
+        formatted += &String::from_utf8(q_name.clone())?;
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+    };
 
-    let ones: &Vec<u32> = aln.ones.as_ref().unwrap();
-    let mut ones_bits: Vec<bool> = vec![false; n_targets];
-    ones.iter().for_each(|is_set_idx| ones_bits[*is_set_idx as usize] = true);
+    if let Some(ones) = &aln.ones {
+        let mut ones_bits: Vec<bool> = vec![false; n_targets];
+        ones.iter().for_each(|is_set_idx| ones_bits[*is_set_idx as usize] = true);
 
-    ones_bits.iter().for_each(|is_set| {
-        formatted += &separator.to_string();
+        ones_bits.iter().for_each(|is_set| {
+            formatted += &separator.to_string();
             formatted += &(*is_set as u32).to_string();
 
-    });
-    formatted += "\n";
+        });
+        formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+    }
 
     conn.write_all(formatted.as_bytes())?;
     Ok(())

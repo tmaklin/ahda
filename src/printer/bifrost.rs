@@ -34,22 +34,26 @@ pub fn format_bifrost_line<W: Write>(
     let separator: char = '\t';
     let mut formatted: String = String::new();
 
-    if aln.ones.is_none() || aln.query_name.is_none() {
-        return Err(Box::new(crate::errors::BifrostPrinterError{}))
-    }
+    if let Some(name) = &aln.query_name {
+        let q_name = String::from_utf8(name.clone())?;
+        formatted += &q_name;
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryNameIsEmpty{}))
+    };
 
-    formatted += &aln.query_name.as_ref().unwrap().iter().map(|x| *x as char).collect::<String>();
+    if let Some(ones) = &aln.ones {
+        let mut ones_bits: Vec<bool> = vec![false; n_targets];
+        ones.iter().for_each(|is_set_idx| ones_bits[*is_set_idx as usize] = true);
 
-    let ones: &Vec<u32> = aln.ones.as_ref().unwrap();
-    let mut ones_bits: Vec<bool> = vec![false; n_targets];
-    ones.iter().for_each(|is_set_idx| ones_bits[*is_set_idx as usize] = true);
-
-    ones_bits.iter().for_each(|is_set| {
-        formatted += &separator.to_string();
+        ones_bits.iter().for_each(|is_set| {
+            formatted += &separator.to_string();
             formatted += &(*is_set as u32).to_string();
 
-    });
-    formatted += "\n";
+        });
+        formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+    }
 
     conn.write_all(formatted.as_bytes())?;
     Ok(())

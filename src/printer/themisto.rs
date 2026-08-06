@@ -33,17 +33,21 @@ pub fn format_themisto_line<W: Write>(
     let separator: char = ' ';
     let mut formatted: String = String::new();
 
-    if aln.ones.is_none() || aln.query_id.is_none() {
-        return Err(Box::new(crate::errors::ThemistoPrinterError{}))
+    if let Some(q_id) = &aln.query_id {
+        formatted += &q_id.to_string();
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+    };
+
+    if let Some(ones) = &aln.ones {
+        ones.iter().for_each(|idx| {
+            formatted += &separator.to_string();
+            formatted += &idx.to_string();
+        });
+        formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
     }
-
-    formatted += &aln.query_id.unwrap().to_string();
-
-    aln.ones.as_ref().unwrap().iter().for_each(|idx| {
-        formatted += &separator.to_string();
-        formatted += &idx.to_string();
-    });
-    formatted += "\n";
 
     conn.write_all(formatted.as_bytes())?;
     Ok(())
