@@ -242,6 +242,16 @@ impl std::fmt::Display for PseudoAlnOnesIsEmpty {
 }
 impl std::error::Error for PseudoAlnOnesIsEmpty {}
 
+/// Expected [PseudoAln].ones to be filled but it was None
+#[derive(Debug, Clone)]
+pub struct PseudoAlnOnesIsNone;
+impl std::fmt::Display for PseudoAlnOnesIsNone {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `ones` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnOnesIsNone {}
+
 /// Expected [PseudoAln].ones_names to be filled but it was empty
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesNamesIsEmpty;
@@ -271,6 +281,16 @@ impl std::fmt::Display for PseudoAlnQueryIdIsEmpty {
     }
 }
 impl std::error::Error for PseudoAlnQueryIdIsEmpty {}
+
+/// Expected [PseudoAln].query_id to be filled but it was None
+#[derive(Debug, Clone)]
+pub struct PseudoAlnQueryIdIsNone;
+impl std::fmt::Display for PseudoAlnQueryIdIsNone {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `query_id` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnQueryIdIsNone {}
 
 /// Key was not found in a map
 #[derive(Debug, Clone)]

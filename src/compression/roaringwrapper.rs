@@ -47,11 +47,18 @@ pub fn convert_to_roaring(
     };
 
     for record in records.iter() {
-        if record.ones.is_none() || record.query_id.is_none() {
-            return Err(Box::new(crate::errors::EncodeError{}))
-        }
-        let ones = record.ones.as_ref().unwrap();
-        let idx = *record.query_id.as_ref().unwrap() as u64;
+        let ones = if let Some(indexes) = &record.ones {
+            indexes
+        } else {
+            return Err(Box::new(crate::errors::PseudoAlnOnesIsNone{}))
+        };
+
+        let idx = if let Some(query_id) = record.query_id {
+            query_id
+        } else {
+            return Err(Box::new(crate::errors::PseudoAlnQueryIdIsNone))
+        };
+
         match &mut bits {
             BitmapHolder::Roaring32(bits) => {
                 ones.iter().for_each(|bit_idx| {
@@ -61,7 +68,7 @@ pub fn convert_to_roaring(
             },
             BitmapHolder::Roaring64(bits) => {
                 ones.iter().map(|x| *x as u64).for_each(|bit_idx| {
-                    let index = idx * n_targets + bit_idx;
+                    let index = idx as u64 * n_targets + bit_idx;
                     bits.insert(index);
                 });
             }
