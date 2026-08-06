@@ -319,3 +319,15 @@ impl std::fmt::Display for MapDoesNotContainIndex {
     }
 }
 impl std::error::Error for MapDoesNotContainIndex {}
+
+/// Key was not found in a map
+#[derive(Debug, Clone)]
+pub struct HeaderPromiseNotHonoured {
+    pub promise: String,
+}
+impl std::fmt::Display for HeaderPromiseNotHonoured {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "File or block header promised field {} in flags but it was None.", self.promise)
+    }
+}
+impl std::error::Error for HeaderPromiseNotHonoured {}

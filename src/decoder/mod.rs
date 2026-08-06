@@ -239,8 +239,10 @@ impl<R: Read> Decoder<'_, R> {
 
     fn alns_from_set_bits(
         &mut self,
+        block_flags: &BlockFlags,
+        bitmap: &BitmapHolder
     ) -> Result<(), E> {
-        let mut it: Box<dyn Iterator<Item=u64>> = match &mut self.bitmap {
+        let mut it: Box<dyn Iterator<Item=u64>> = match bitmap {
             BitmapHolder::Roaring32(bits) => {
                 let tmp = bits.iter().map(|x| x as u64);
                 Box::new(tmp)
@@ -254,24 +256,37 @@ impl<R: Read> Decoder<'_, R> {
         let bitmap_decoder = bitmap_decoder::BitmapDecoder::new(&mut it, self.header.clone());
         self.block = bitmap_decoder.collect();
 
-        let query_ids = self.block_flags.as_ref().unwrap().query_ids.as_ref().unwrap();
-        let seen: HashSet<u32> = HashSet::from_iter(self.block.iter().map(|x| x.query_id.unwrap()));
-        self.block.extend(query_ids.iter().filter_map(|idx| {
-            if !seen.contains(idx) {
-                Some(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None })
-            } else {
-                None
+        if let Some(query_ids) = block_flags.query_ids.as_ref() {
+            let mut aligned_ids: Vec<u32> = Vec::with_capacity(self.block.len());
+            for record in &self.block {
+                match record.query_id {
+                    Some(id) => aligned_ids.push(id),
+                    None => return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+                }
             }
-        }));
+            let seen: HashSet<u32> = HashSet::from_iter(aligned_ids);
+            self.block.extend(query_ids.iter().filter_map(|idx| {
+                if !seen.contains(idx) {
+                    Some(PseudoAln{ ones_names: None, query_id: Some(*idx), ones: Some(vec![]), query_name: None })
+                } else {
+                    None
+                }
+            }));
+            self.q_ids = IndexSet::from_iter(query_ids.iter().cloned());
+        } else {
+            return Err(Box::new(crate::errors::QueryIdsNotFilled{}))
+        }
 
         self.q_names = if self.header.promises_query_names() {
-            let query_names = self.block_flags.as_ref().unwrap().queries.as_ref().unwrap();
-            Some(IndexSet::from_iter(query_names.iter().cloned()))
+            if let Some(query_names) = block_flags.queries.as_ref() {
+                Some(IndexSet::from_iter(query_names.iter().cloned()))
+            } else {
+                return Err(Box::new(crate::errors::HeaderPromiseNotHonoured { promise: "`BlockFlags::queries`".to_string() } ))
+            }
         } else {
             None
         };
 
-        self.q_ids = IndexSet::from_iter(query_ids.iter().cloned());
 
         Ok(())
 
@@ -317,10 +332,12 @@ impl<R: Read> Decoder<'_, R> {
                     Err(e) => return Some(Err(e)),
                 };
 
-                self.bitmap = bitmap;
-                self.block_flags = Some(block_flags);
-                match self.alns_from_set_bits() {
-                    Ok(_) => Some(Ok(())),
+                match self.alns_from_set_bits(&block_flags, &bitmap) {
+                    Ok(_) => {
+                        self.bitmap = bitmap;
+                        self.block_flags = Some(block_flags);
+                        Some(Ok(()))
+                    },
                     Err(e) => Some(Err(e)),
                 }
             },
