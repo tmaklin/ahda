@@ -202,6 +202,16 @@ impl std::fmt::Display for DuplicatedQueriesErr {
 }
 impl std::error::Error for DuplicatedQueriesErr {}
 
+/// [BlockFlags].query_ids is not filled.
+#[derive(Debug, Clone)]
+pub struct QueryIdsNotFilled;
+impl std::fmt::Display for QueryIdsNotFilled {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `query_ids` in BlockFlags is not filled.")
+    }
+}
+impl std::error::Error for QueryIdsNotFilled {}
+
 /// Duplicated queries in files being concatenated.
 #[derive(Debug, Clone)]
 pub struct IncompatibleFileHeadersErr;
