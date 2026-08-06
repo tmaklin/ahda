@@ -177,7 +177,7 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
     ) -> Result<Self, E> {
 
         let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
-        let flags_bytes = encode_file_flags(&flags, &MetadataCompression::from_u8(header.metadata_compression).unwrap())?;
+        let flags_bytes = encode_file_flags(&flags, &MetadataCompression::from_u8(header.metadata_compression)?)?;
 
         Ok(Encoder{
             records,
