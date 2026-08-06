@@ -591,6 +591,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
     let targets = if let Some(target_names) = reader.get_targets() {
         target_names
     } else {
+        let format = reader.format;
         return Err(Box::new(errors::NeedTargetSequencesErr { format }))
     };
 
