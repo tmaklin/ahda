@@ -739,7 +739,13 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
         return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: reader.format }))
     }
 
-    let targets = reader.get_targets().unwrap();
+    let targets = if let Some(target_names) = reader.get_targets() {
+        target_names
+    } else {
+        let format = reader.format;
+        return Err(Box::new(errors::NeedTargetSequencesErr { format }))
+    };
+
     let mut reader_unwrapped = reader.enumerate().map(|(idx, try_record)| {
         let mut record = try_record.unwrap();
         if !opts.encode_query_names {
@@ -759,7 +765,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
 
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
 
-    let mut bytes = encoder.encode_file_header_and_flags().unwrap();
+    let mut bytes = encoder.encode_file_header_and_flags()?;
     for block in encoder.by_ref() {
         bytes.append(&mut block?);
     }
