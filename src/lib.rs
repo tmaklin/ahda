@@ -1133,7 +1133,7 @@ pub fn decode_to_write<W: Write>(
 /// // FileHeader{
 /// //                                    n_targets: 3_u32,
 /// //                                   n_queries: 5_u32,
-/// //                                   ahda_header: ahda::headers::file::build_ahda_header(),
+/// //                                   ahda_header: ahda::headers::file::build_ahda_header().unwrap(),
 /// //                                   file_format: ahda::AhdaFormatVersion::V1_0_0.to_u8(),
 /// //                                   metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
 /// //                                   fields_present: 3,
@@ -1148,7 +1148,7 @@ pub fn decode_to_write<W: Write>(
 /// assert_eq!(file_header, FileHeader{
 ///                                      n_targets: 3_u32,
 ///                                      n_queries: 5_u32,
-///                                      ahda_header: ahda::headers::file::build_ahda_header(),
+///                                      ahda_header: ahda::headers::file::build_ahda_header().unwrap(),
 ///                                      file_format: ahda::AhdaFormatVersion::V1_0_0.to_u8(),
 ///                                      metadata_compression: ahda::compression::MetadataCompression::default().to_u8(),
 ///                                      fields_present: 3,
