@@ -276,10 +276,11 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
-        encoder.set_fields_present(3_u16);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_query_names(&queries);
         encoder.set_block_size(1000).unwrap();
 
         let got = encoder.next().unwrap().expect("Ok");
@@ -296,9 +297,11 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_query_names(&queries);
         encoder.set_block_size(1000).unwrap();
 
         let _ = encoder.next().unwrap();
@@ -318,10 +321,11 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
-        encoder.set_fields_present(3_u16);
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_query_names(&queries);
         encoder.set_block_size(2).unwrap();
 
         let mut got: Vec<u8> = Vec::new();
@@ -342,9 +346,11 @@ mod tests {
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let queries = vec!["ERR4035126.1".as_bytes().to_vec(), "ERR4035126.2".as_bytes().to_vec(), "ERR4035126.651903".as_bytes().to_vec(), "ERR4035126.7543".as_bytes().to_vec(), "ERR4035126.16".as_bytes().to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &queries, &query_name).unwrap();
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_query_names(&queries);
         encoder.set_block_size(2).unwrap();
 
         let blocks_iter = encoder.by_ref();
@@ -359,19 +365,22 @@ mod tests {
 
         let data = vec![0_u64, 2, 4, 5, 7];
 
-        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 0, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 98, 96, 4, 0, 155, 241, 161, 182, 6, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 98, 98, 1, 0, 150, 103, 253, 244, 6, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 22, 6, 86, 6, 0, 21, 37, 56, 88, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 96, 100, 100, 6, 0, 97, 212, 146, 122, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+        let expected: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 0, 0, 0, 0, 34, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 98, 96, 4, 0, 128, 116, 29, 10, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 40, 205, 194, 0, 0, 207, 21, 220, 40, 22, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 37, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 98, 98, 6, 0, 46, 119, 37, 214, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 6, 6, 6, 86, 6, 118, 6, 0, 242, 32, 178, 210, 20, 0, 0, 0];
 
         let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
         let query_name ="ERR4035126".as_bytes().to_vec();
+        let n_queries = 5_usize;
 
         let mut tmp = data.into_iter();
-        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &Vec::new(), &query_name).unwrap();
+        let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
         encoder.set_block_size(2).unwrap();
 
-        let blocks_iter = encoder.by_ref();
-        let _ = blocks_iter.next().unwrap();
-        let got = blocks_iter.next().unwrap();
-        assert!(got.is_err());
+        let mut got = encoder.encode_file_header_and_flags().unwrap();
+        for block in encoder {
+            got.append(&mut block.unwrap());
+        }
+
+        assert_eq!(got, expected);
     }
 
 }
