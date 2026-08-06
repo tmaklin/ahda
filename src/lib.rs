@@ -473,19 +473,22 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 ) -> Result<(), E> {
     assert!(!conns.is_empty());
 
-    let headers_flags = conns.iter_mut().map(|conn_in| {
-        let header = read_file_header(conn_in).unwrap();
-        let flags = read_file_flags(&header, conn_in).unwrap();
-        (header, flags)
-    }).collect::<Vec<(FileHeader, FileFlags)>>();
+    let mut headers: Vec<FileHeader> = Vec::with_capacity(conns.len());
+    let mut flags: Vec<FileFlags> = Vec::with_capacity(conns.len());
+    for conn in conns.iter_mut() {
+        let file_header = read_file_header(conn)?;
+        let file_flags = read_file_flags(&file_header, conn)?;
+        headers.push(file_header);
+        flags.push(file_flags);
+    }
 
     let mut n_queries = 0_u32;
-    let n_targets = headers_flags[0].0.n_targets;
-    let target_names = headers_flags[0].1.target_names.clone();
-    let query_name = headers_flags[0].1.query_name.clone();
-    let fields_present = headers_flags[0].0.fields_present;
+    let n_targets = headers[0].n_targets;
+    let fields_present = headers[0].fields_present;
+    let target_names = flags[0].target_names.clone();
+    let query_name = flags[0].query_name.clone();
 
-    headers_flags.iter().try_for_each(|(header, flags)| {
+    headers.into_iter().zip(flags).try_for_each(|(header, flags)| {
         n_queries += header.n_queries;
         if (n_targets != header.n_targets) || (target_names != flags.target_names) || (fields_present != header.fields_present) {
             Err(Box::new(errors::IncompatibleFileHeadersErr{}))
@@ -495,28 +498,29 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     })?;
 
     let (mut new_header, new_flags) = build_file_header_and_flags(&target_names, n_queries as usize, &query_name, &MetadataCompression::default())?;
-    new_header.fields_present = headers_flags[0].0.fields_present;
+    new_header.fields_present = fields_present;
     let new_flags_bytes = encode_file_flags(&new_flags, &MetadataCompression::from_u8(new_header.metadata_compression)?)?;
     let new_header_bytes = encode_file_header(&new_header)?;
     conn_out.write_all(&new_header_bytes)?;
     conn_out.write_all(&new_flags_bytes)?;
 
-    let mut seen_query_ids: std::collections::HashSet<u32> = HashSet::with_capacity(new_header.n_queries as usize);
-    let ret: Result<(), E> = conns.iter_mut().try_for_each(|conn_in| {
+    let mut seen_query_ids: HashSet<u32> = HashSet::with_capacity(new_header.n_queries as usize);
+    for conn_in in conns.iter_mut() {
         let (block_header, block_flags) = headers::block::read_block_header_and_flags(conn_in)?;
         let bytes = headers::block::encode_block_header_and_flags(&block_header, &block_flags)?;
-        let query_ids = block_flags.query_ids.unwrap();
-        query_ids.into_iter().try_for_each(|id| {
-            if !seen_query_ids.insert(id) {
-                return Err(Box::new(errors::DuplicatedQueriesErr{}))
-            }
-            Ok(())
-        })?;
+        if let Some(query_ids) = block_flags.query_ids {
+            query_ids.into_iter().try_for_each(|id| {
+                if !seen_query_ids.insert(id) {
+                    return Err(Box::new(errors::DuplicatedQueriesErr{}))
+                }
+                Ok(())
+            })?;
+        } else {
+            return Err(Box::new(errors::QueryIdsNotFilled{}))
+        }
         conn_out.write_all(&bytes)?;
         std::io::copy(conn_in, conn_out)?;
-        Ok(())
-    });
-    ret?;
+    }
     conn_out.flush()?;
     Ok(())
 }
