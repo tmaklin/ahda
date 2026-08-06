@@ -666,7 +666,7 @@ pub fn encode_to_write<W: Write>(
     });
     let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len())?;
 
-    let bytes = encoder.encode_file_header_and_flags().unwrap();
+    let bytes = encoder.encode_file_header_and_flags()?;
     conn_out.write_all(&bytes)?;
     for block in encoder.by_ref() {
         conn_out.write_all(&block?)?;
