@@ -315,7 +315,7 @@ pub struct MapDoesNotContainIndex {
 
 impl std::fmt::Display for MapDoesNotContainIndex {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "Map {} does not contain index {}.", self.map_name, self.index.to_string())
+        write!(f, "Map {} does not contain index {}.", self.map_name, self.index)
     }
 }
 impl std::error::Error for MapDoesNotContainIndex {}

@@ -216,7 +216,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
             Format::Bifrost => {
                 match format_bifrost_header(&self.flags.target_names, &mut out) {
                     Ok(_) => Some(Ok(out)),
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => Some(Err(e)),
                 }
             },
             Format::SAM => {
@@ -226,13 +226,13 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
                 }
                 match format_sam_header(self.sam_header.as_ref().unwrap(), &mut out) {
                     Ok(_) => Some(Ok(out)),
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => Some(Err(e)),
                 }
             },
             Format::AhdaTSV => {
                 match format_ahda_tsv_header(&self.flags.target_names, &mut out) {
                     Ok(_) => Some(Ok(out)),
-                    Err(e) => return Some(Err(e)),
+                    Err(e) => Some(Err(e)),
                 }
             }
         }
@@ -267,9 +267,9 @@ impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoA
             match ret {
                 Ok(_) => {
                     self.index += 1;
-                    return Some(Ok(out))
+                    Some(Ok(out))
                 },
-                Err(e) => return Some(Err(e)),
+                Err(e) => Some(Err(e)),
             }
         } else {
             None

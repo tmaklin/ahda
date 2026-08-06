@@ -62,7 +62,7 @@ pub fn convert_to_roaring(
         match &mut bits {
             BitmapHolder::Roaring32(bits) => {
                 ones.iter().for_each(|bit_idx| {
-                    let index = idx as u32 *n_targets as u32 + *bit_idx;
+                    let index = idx *n_targets as u32 + *bit_idx;
                     bits.insert(index);
                 });
             },
