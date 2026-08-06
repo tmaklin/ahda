@@ -292,7 +292,7 @@ impl<R: Read> Decoder<'_, R> {
     /// Read next block and update internal state.
     pub fn next_block(
         &mut self,
-    ) -> Option<()> {
+    ) -> Option<Result<(), E>> {
         self.block.clear();
         self.q_ids.clear();
         self.q_names = if self.header.promises_query_names() { Some(IndexSet::new()) } else { None };
@@ -303,13 +303,26 @@ impl<R: Read> Decoder<'_, R> {
                         assert!((block_header.fields_present & (1 << i)) != 0);
                     }
                 }
-                let deflated_len: usize = ((block_header.flags_len) + (block_header.block_len as u64)).try_into().unwrap();
+                let deflated_len: usize = match ((block_header.flags_len) + (block_header.block_len as u64)).try_into() {
+                    Ok(len) => len,
+                    Err(e) => return Some(Err(Box::new(e))),
+                };
                 let mut bytes: Vec<u8> = vec![0; deflated_len];
-                self.conn.read_exact(&mut bytes).unwrap();
-                let (bitmap, block_flags) = unpack_block_roaring(&bytes, &block_header).unwrap();
+                match self.conn.read_exact(&mut bytes) {
+                    Ok(_) => (),
+                    Err(e) => return Some(Err(Box::new(e))),
+                }
+                let (bitmap, block_flags) = match unpack_block_roaring(&bytes, &block_header) {
+                    Ok(ret) => ret,
+                    Err(e) => return Some(Err(e)),
+                };
+
                 self.bitmap = bitmap;
                 self.block_flags = Some(block_flags);
-                Some(())
+                match self.alns_from_set_bits() {
+                    Ok(_) => Some(Ok(())),
+                    Err(e) => Some(Err(e)),
+                }
             },
             _ => None,
         }
@@ -442,9 +455,8 @@ impl<R: Read> Iterator for Decoder<'_, R> {
                 Err(e) => Some(Err(e)),
             }
         } else {
-            self.next_block()?;
-            match self.alns_from_set_bits() {
-                Ok(()) => {
+            match self.next_block()? {
+                Ok(_) => {
                     self.block_index = 0;
                     self.next()
                 },
