@@ -50,24 +50,33 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
 }
 
 impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
-    pub fn new(
+    pub fn new_from_header_and_flags(
         set_bits: &'a mut I,
-        targets: &[Vec<u8>],
-        sample_name: &[u8],
-        n_queries: usize,
+        header: FileHeader,
+        flags: FileFlags,
     ) -> Result<Self, E> {
-        let (mut header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
-        header.fields_present = crate::MASK_QUERY_IDS;
-        let bitmap_type = BitmapType::from_u16(header.bitmap_type)?;
+        let mut file_header = header.clone();
+        file_header.fields_present = crate::MASK_QUERY_IDS;
+        let bitmap_type = BitmapType::from_u16(file_header.bitmap_type)?;
         Ok(BitmapEncoder{
             set_bits, end: false,
-            header, flags,
+            header: file_header, flags,
             blocks_written: 0_usize,
             bits_buffer: Vec::new(), last_idx: 0_usize,
             prev_idx: 0,
             bitmap_type,
             query_names: None,
         })
+    }
+
+    pub fn new(
+        set_bits: &'a mut I,
+        targets: &[Vec<u8>],
+        sample_name: &[u8],
+        n_queries: usize,
+    ) -> Result<Self, E> {
+        let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
+        Self::new_from_header_and_flags(set_bits, header, flags)
     }
 
     /// Update `fields_present` in stored FileHeader.
