@@ -139,3 +139,44 @@ pub fn pack_records(
 
     Ok(block)
 }
+
+#[cfg(test)]
+mod tests {
+
+    #[test]
+    fn pack_records() {
+        use super::pack_records;
+        use crate::PseudoAln;
+        use crate::AhdaFormatVersion;
+        use crate::BitmapType;
+        use crate::MetadataCompression;
+        use crate::headers::file::FileHeader;
+        use crate::headers::file::build_ahda_header;
+
+        let data = vec![
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.2".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(0), ones: Some(vec![0]), query_name: Some("ERR4035126.1".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651903".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(4), ones: Some(vec![]), query_name: Some("ERR4035126.16".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.7543".as_bytes().to_vec()) },
+        ];
+
+        let header = FileHeader {
+            ahda_header: build_ahda_header(),
+            file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: crate::MASK_QUERY_IDS | crate::MASK_QUERIES,
+            n_targets: 2_u32,
+            n_queries: 5_u32,
+            bitmap_type: BitmapType::Roaring32.to_u16(),
+            block_size: 1000_u32,
+            flags_len: 0_u64,
+        };
+
+        let expected = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+        let got = pack_records(&header, data).unwrap();
+
+        assert_eq!(got, expected);
+
+    }
+}
