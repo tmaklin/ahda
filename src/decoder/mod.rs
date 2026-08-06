@@ -495,7 +495,7 @@ mod tests {
 
         let expected_flags = FileFlags { query_name: "ERR4035126".as_bytes().to_vec(), target_names: vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()] };
         let expected_header = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,

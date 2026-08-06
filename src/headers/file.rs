@@ -116,14 +116,14 @@ pub struct FileFlags {
     /// Name and index of target sequences
     pub target_names: Vec<Vec<u8>>,
 }
-pub fn build_ahda_header() -> [u8; 6] {
+pub fn build_ahda_header() -> Result<[u8; 6], E> {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     let mut header = [97_u8, 104, 100, 97, 0, 0];
-    let version: u16 = VERSION.parse::<AhdaVersion>().unwrap().to_u16();
+    let version: u16 = VERSION.parse::<AhdaVersion>()?.to_u16();
     let version_bytes: [u8; 2] = version.to_le_bytes();
     header[4] = version_bytes[0];
     header[5] = version_bytes[1];
-    header
+    Ok(header)
 }
 
 pub fn check_ahda_header(
@@ -173,10 +173,10 @@ pub fn build_file_header_and_flags(
     };
 
     let flags = FileFlags{ target_names: targets.to_vec(), query_name: query_name.to_vec() };
-    let flags_bytes = encode_file_flags(&flags, flags_compression).unwrap();
+    let flags_bytes = encode_file_flags(&flags, flags_compression)?;
 
     let header = FileHeader{
-        ahda_header: build_ahda_header(),
+        ahda_header: build_ahda_header()?,
         file_format: AhdaFormatVersion::V1_0_0.to_u8(),
         metadata_compression: flags_compression.to_u8(),
         fields_present: 0,
@@ -338,7 +338,7 @@ mod tests {
         let expected_flags = FileFlags { query_name: sample.clone(), target_names: targets.clone() };
         let nbytes = encode_file_flags(&expected_flags, &MetadataCompression::default()).unwrap().len();
         let expected_header = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
@@ -373,7 +373,7 @@ mod tests {
         let flags = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
         let mut header = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
@@ -409,7 +409,7 @@ mod tests {
         let flags = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
         let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
         let header = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
@@ -475,7 +475,7 @@ mod tests {
         let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0];
 
         let expected = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
@@ -542,7 +542,7 @@ mod tests {
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let expected = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
@@ -574,7 +574,7 @@ mod tests {
         let sample = "sample";
 
         let header = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
@@ -612,7 +612,7 @@ mod tests {
 
         let expected_flags = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
         let expected_header = FileHeader {
-            ahda_header: build_ahda_header(),
+            ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
             fields_present: 0,
