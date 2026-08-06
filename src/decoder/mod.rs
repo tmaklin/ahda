@@ -331,8 +331,12 @@ impl<R: Read> Decoder<'_, R> {
     /// Get query ids in the current block, use [next_block] to advance.
     pub fn query_ids(
         &self,
-    ) -> Vec<u32> {
-        self.q_ids.iter().cloned().collect()
+    ) -> Option<Vec<u32>> {
+        if self.block_flags.is_some() {
+            Some(self.q_ids.iter().cloned().collect())
+        } else {
+            None
+        }
     }
 
     /// Get query names in the current block if present, use [next_block] to advance.
@@ -345,22 +349,30 @@ impl<R: Read> Decoder<'_, R> {
     /// Get records in the current block, use [next_block] to advance.
     pub fn records(
         &self,
-    ) -> &Vec<PseudoAln> {
-        &self.block
+    ) -> Option<&Vec<PseudoAln>> {
+        if self.block_flags.is_some() {
+            Some(&self.block)
+        } else {
+            None
+        }
     }
 
     /// Get bitmap in the current block, use [next_block] to advance.
     pub fn bitmap(
         &self,
-    ) -> &BitmapHolder {
-        &self.bitmap
+    ) -> Option<&BitmapHolder> {
+        if self.block_flags.is_some() {
+            Some(&self.bitmap)
+        } else {
+            None
+        }
     }
 
     /// Get bitmap in the current block, use [next_block] to advance.
     pub fn block_flags(
         &self,
-    ) -> &BlockFlags {
-        self.block_flags.as_ref().unwrap()
+    ) -> Option<&BlockFlags> {
+        self.block_flags.as_ref()
     }
 
     fn fill_record(
