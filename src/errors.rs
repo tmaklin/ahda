@@ -331,3 +331,16 @@ impl std::fmt::Display for HeaderPromiseNotHonoured {
     }
 }
 impl std::error::Error for HeaderPromiseNotHonoured {}
+
+/// Expected [PseudoAln].query_id to be filled but it was None
+#[derive(Debug, Clone)]
+pub struct InvalidConversion {
+    pub from: String,
+    pub to: String,
+}
+impl std::fmt::Display for InvalidConversion {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Invalid conversion of {} to {}.", self.from, self.to)
+    }
+}
+impl std::error::Error for InvalidConversion {}

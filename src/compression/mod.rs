@@ -65,7 +65,7 @@ impl BitmapType {
         match val {
             0 => Ok(BitmapType::Roaring32),
             1 => Ok(BitmapType::Roaring64),
-            _ => panic!("Not a valid BitmapType"),
+            _ => Err(Box::new(crate::errors::InvalidConversion { from: val.to_string(), to: "BitmapType".to_string() })),
         }
     }
 
@@ -102,7 +102,7 @@ impl MetadataCompression {
         match val {
             0 => Ok(MetadataCompression::BincodeStandard),
             1 => Ok(MetadataCompression::Flate2),
-            _ => panic!("Not a valid MetadataCompression"),
+            _ => Err(Box::new(crate::errors::InvalidConversion { from: val.to_string(), to: "MetadataCompression".to_string() })),
         }
     }
 
@@ -126,7 +126,7 @@ pub fn pack_records(
     let query_names = if queries.is_empty() { None } else { Some(queries) };
 
     if query_names.is_none() && file_header.promises_query_names() {
-        panic!("File header specifies that query names must be filled but they are empty.")
+        return Err(Box::new(crate::errors::HeaderPromiseNotHonoured { promise: "PseudoAln::query_name".to_string() }))
     }
 
     let query_ids: Vec<u32> = records.iter().filter_map(|record| {

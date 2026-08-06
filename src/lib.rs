@@ -1205,7 +1205,7 @@ pub fn decode_from_read_to_roaring<R: Read>(
         query_ids.sort_unstable();
         Ok((bitmap_out, header, flags, BlockFlags{ queries: None, query_ids: Some(query_ids) }))
     } else {
-        panic!("Valid ahda files should always have query ids.")
+        Err(Box::new(crate::errors::QueryIdsNotFilled{}))
     }
 }
 
@@ -1314,7 +1314,7 @@ pub fn decode_from_read_into_roaring<R: Read>(
                         *bitmap_out -= bitmap_b;
                     },
                     MergeOp::Intersection => {
-                        panic!("MergeOp::Intersection cannot be performed block-wise.");
+                        unreachable!("MergeOp::Intersection cannot be performed block-wise.");
                     }
                 }
             }
