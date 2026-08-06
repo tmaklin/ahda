@@ -42,9 +42,9 @@ use crate::headers::file::build_file_header_and_flags;
 use crate::headers::file::read_file_header_and_flags;
 use crate::headers::block::read_block_header_and_flags;
 use crate::encoder::bitmap_encoder::BitmapEncoder;
+use crate::compression::BitmapHolder;
 use crate::compression::MetadataCompression;
-use crate::compression::roaring32::pack_block_roaring32;
-use crate::compression::roaring64::pack_block_roaring64;
+use crate::compression::roaringwrapper::pack_block_roaring;
 
 use std::io::Cursor;
 
@@ -80,6 +80,7 @@ mod ffi {
             queries: &CxxVector<CxxString>,
             name: &CxxString,
             set_bits: &CxxVector<u64>,
+            n_queries: u32,
         ) -> Vec<u8>;
 
         fn decode_bitmap(
@@ -123,7 +124,7 @@ pub fn encode_file_header_and_flags(
 
 /// Encode a single .ahda block and its block header and flags in 32-bit address space.
 ///
-/// Creates a [RoaringBitmap] from the set bit indexes and calls [pack_block_roaring32] to
+/// Creates a [RoaringBitmap] from the set bit indexes and calls [pack_block_roaring] to
 /// encode the block header, block flags, and block contents.
 ///
 /// The output is a valid block record that can be appended to an .ahda record
@@ -134,15 +135,16 @@ pub fn encode_block32(
     query_ids: &CxxVector<u32>,
     set_bits: &CxxVector<u32>,
 ) -> Vec<u8> {
-    let bitmap = RoaringBitmap::from_iter(set_bits.iter());
+    let bitmap = BitmapHolder::Roaring32(RoaringBitmap::from_iter(set_bits.iter()));
     let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
-    let block = pack_block_roaring32(&query_names, query_ids.as_slice(), bitmap);
+    let query_names = if query_names.is_empty() { None } else { Some(query_names) };
+    let block = pack_block_roaring(query_ids.as_slice(), query_names, bitmap);
     block.unwrap()
 }
 
 /// Encode a single .ahda block and its block header and flags in 64-bit address space.
 ///
-/// Creates a [RoaringTreemap] from the set bit indexes and calls [pack_block_roaring64] to
+/// Creates a [RoaringTreemap] from the set bit indexes and calls [pack_block_roaring] to
 /// encode the block header, block flags, and block contents.
 ///
 /// The output is a valid block record that can be appended to an .ahda record
@@ -153,9 +155,10 @@ pub fn encode_block64(
     query_ids: &CxxVector<u32>,
     set_bits: &CxxVector<u64>,
 ) -> Vec<u8> {
-    let bitmap = RoaringTreemap::from_iter(set_bits.iter());
+    let bitmap = BitmapHolder::Roaring64(RoaringTreemap::from_iter(set_bits.iter()));
     let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
-    let block = pack_block_roaring64(&query_names, query_ids.as_slice(), bitmap);
+    let query_names = if query_names.is_empty() { None } else { Some(query_names) };
+    let block = pack_block_roaring(query_ids.as_slice(), query_names, bitmap);
     block.unwrap()
 }
 
@@ -173,13 +176,17 @@ pub fn encode_bitmap(
     queries: &CxxVector<CxxString>,
     name: &CxxString,
     set_bits: &CxxVector<u64>,
+    n_queries: u32,
 ) -> Vec<u8> {
     let query_names: Vec<Vec<u8>> = queries.iter().map(|x| x.as_bytes().to_vec()).collect();
     let target_names: Vec<Vec<u8>> = targets.iter().map(|x| x.as_bytes().to_vec()).collect();
     let query_name: Vec<u8> = name.as_bytes().to_vec();
 
     let mut set_bits_iter = set_bits.as_slice().iter().cloned();
-    let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_names, &query_name);
+    let mut encoder = BitmapEncoder::new(&mut set_bits_iter, &target_names, &query_name, n_queries as usize).unwrap();
+    if !query_names.is_empty() {
+        encoder.set_query_names(&query_names);
+    }
 
     let mut bytes: Vec<u8> = encoder.encode_file_header_and_flags().unwrap();
     for block in encoder {
