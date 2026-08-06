@@ -89,7 +89,7 @@ pub fn read_bifrost<R: Read>(
 
     let mut ones: Vec<u32> = Vec::new();
     for (idx, record) in records.enumerate() {
-        if record.parse::<u32>().unwrap() > 0 {
+        if record.parse::<u32>()? > 0 {
             ones.push(idx as u32);
         }
     };

@@ -42,13 +42,19 @@ pub fn read_sam<R: Read>(
 
     let record = sam::Record::try_from(contents.as_bytes())?;
 
-    let query_name = record.name().unwrap().to_vec();
+    let query_name = match record.name() {
+        Some(name) => name.to_vec(),
+        None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+    };
 
     if record.flags().is_ok() && *record.flags().as_ref().unwrap() == Flags::UNMAPPED {
         return Ok(PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: None });
     }
 
-    let target = record.reference_sequence_name().unwrap().to_vec();
+    let target = match record.reference_sequence_name() {
+        Some(name) => name.to_vec(),
+        None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+    };
 
     let res = PseudoAln{query_id: None, ones: None, query_name: Some(query_name), ones_names: Some(vec![target]) };
     Ok(res)

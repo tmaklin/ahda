@@ -74,12 +74,21 @@ pub fn read_metagraph<R: Read>(
 
     let mut records = contents.split(separator);
 
-    let query_id: u32 = records.next().unwrap().parse::<u32>().unwrap();
-    let query_name = records.next().unwrap().as_bytes().to_vec();
+    let query_id: u32 = match records.next() {
+        Some(id_str) => id_str.parse::<u32>()?,
+        None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+    };
+    let query_name = match records.next() {
+        Some(name) => name.as_bytes().to_vec(),
+        None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+    };
 
     let mut ones_names: Vec<Vec<u8>> = Vec::new();
 
-    let ones_records = records.next().unwrap().split(':');
+    let ones_records = match records.next() {
+        Some(targets) => targets.split(':'),
+        None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+    };
 
     for record in ones_records {
         if !record.is_empty() {
