@@ -407,7 +407,10 @@ impl<R: Read> Iterator for Parser<'_, R> {
             if ret.is_err() || self.buf.get_ref().is_empty() {
                 return None
             }
-            self.buf.rewind().unwrap();
+            match self.buf.rewind() {
+                Ok(_) => (),
+                Err(e) => return Some(Err(Box::new(e))),
+            }
         }
         self.buf.get_mut().pop();
 
@@ -456,7 +459,10 @@ pub fn guess_format(
     bytes: &[u8],
 ) -> Result<Format, E> {
     let first_line: Vec<u8> = if bytes.contains(&b'\n') {
-        let linebreak = bytes.iter().position(|x| *x == b'\n').unwrap();
+        let linebreak = match bytes.iter().position(|x| *x == b'\n') {
+            Some(ret) => ret,
+            None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+        };
         bytes[0..linebreak].to_vec()
     } else {
         bytes.to_vec()
