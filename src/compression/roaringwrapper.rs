@@ -107,6 +107,7 @@ pub fn deserialize_roaring64(
 }
 
 pub fn pack_block_roaring(
+    file_header: &FileHeader,
     query_ids: &[u32],
     queries: Option<Vec<Vec<u8>>>,
     bitmap: BitmapHolder,
@@ -121,11 +122,15 @@ pub fn pack_block_roaring(
     let n_queries = query_ids.len();
     if let Some(query_names) = &queries {
         assert_eq!(query_ids.len(), query_names.len());
+    } else if file_header.promises_query_names() {
+        return Err(Box::new(crate::errors::HeaderPromiseNotHonoured { promise : "BlockFlags::queries".to_string() }))
     }
 
     let flags: BlockFlags = BlockFlags{ queries, query_ids: Some(query_ids.to_vec()) };
     let fields_present = flags.fields_present();
-    let mut block_flags: Vec<u8> = encode_block_flags(&flags)?;
+    assert_eq!(fields_present, file_header.fields_present);
+    let metadata_compression = MetadataCompression::from_u8(file_header.metadata_compression)?;
+    let mut block_flags: Vec<u8> = encode_block_flags(&flags, &metadata_compression)?;
 
     let flags_len = block_flags.len() as u64;
     let block_len = serialized.len() as u32;
@@ -135,7 +140,7 @@ pub fn pack_block_roaring(
         block_len,
         flags_len,
         bitmap_type: bitmap_type.to_u16(),
-        metadata_compression: MetadataCompression::default().to_u8(),
+        metadata_compression: file_header.metadata_compression,
         fields_present,
         placeholder1: 0,
         placeholder2: 0,
@@ -329,6 +334,7 @@ mod tests {
     fn pack_block_roaring32() {
         use super::pack_block_roaring;
         use crate::compression::BitmapHolder;
+        use crate::headers::file::FileHeader;
         use roaring::bitmap::RoaringBitmap;
 
         let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
@@ -348,7 +354,9 @@ mod tests {
 
         let expected: Vec<u8> = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
-        let got = pack_block_roaring(&query_ids, Some(query_names), data).unwrap();
+        let mut header = FileHeader::default();
+
+        let got = pack_block_roaring(&header, &query_ids, Some(query_names), data).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -357,6 +365,7 @@ mod tests {
     fn pack_block_roaring64() {
         use super::pack_block_roaring;
         use crate::compression::BitmapHolder;
+        use crate::headers::file::FileHeader;
         use roaring::treemap::RoaringTreemap;
 
         let aligned_indexes = vec![0_u64, 2147483649, 4294967298, 4294967299, 6442450948, 10737418243];
@@ -376,7 +385,9 @@ mod tests {
 
         let expected: Vec<u8> = vec![5, 0, 0, 0, 0, 1, 0, 0, 67, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 66, 230, 24, 10, 34, 113, 204, 76, 13, 45, 13, 140, 121, 145, 165, 205, 248, 145, 120, 230, 166, 38, 198, 140, 172, 140, 12, 76, 44, 204, 0, 68, 178, 157, 37, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 85, 138, 65, 14, 0, 16, 16, 196, 186, 214, 3, 28, 69, 60, 194, 217, 235, 60, 93, 102, 19, 196, 220, 58, 173, 243, 54, 7, 164, 3, 11, 42, 208, 2, 12, 251, 188, 93, 223, 209, 231, 228, 48, 42, 84, 202, 22, 192, 217, 60, 192, 39, 99, 96, 0, 0, 0];
 
-        let got = pack_block_roaring(&query_ids, Some(query_names), data).unwrap();
+        let mut header = FileHeader::default();
+
+        let got = pack_block_roaring(&header, &query_ids, Some(query_names), data).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -385,6 +396,7 @@ mod tests {
     fn pack_block_roaring_without_query_names() {
         use super::pack_block_roaring;
         use crate::compression::BitmapHolder;
+        use crate::headers::file::FileHeader;
         use roaring::bitmap::RoaringBitmap;
 
         let aligned_indexes = vec![0_u32, 2, 4, 5, 7];
@@ -397,7 +409,9 @@ mod tests {
 
         let expected: Vec<u8> = vec![5, 0, 0, 0, 0, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 100, 96, 98, 97, 6, 0, 14, 44, 25, 80, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
-        let got = pack_block_roaring(&query_ids, None, data).unwrap();
+        let mut header = FileHeader::default();
+
+        let got = pack_block_roaring(&header, &query_ids, None, data).unwrap();
 
         assert_eq!(got, expected);
     }

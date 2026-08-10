@@ -213,7 +213,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
         };
 
         let query_names = self.query_names.as_ref().map(|queries| queries[start_idx..end_idx].to_vec());
-        let bytes = pack_block_roaring(&block_ids, query_names, bitmap);
+        let bytes = pack_block_roaring(&self.header, &block_ids, query_names, bitmap);
 
         match bytes {
             Ok(bytes) => Some(Ok(bytes)),

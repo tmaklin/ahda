@@ -135,7 +135,7 @@ pub fn pack_records(
     }).collect();
 
     let bits = convert_to_roaring(file_header, records)?;
-    let block = pack_block_roaring(&query_ids, query_names, bits)?;
+    let block = pack_block_roaring(file_header, &query_ids, query_names, bits)?;
 
     Ok(block)
 }
@@ -164,7 +164,7 @@ mod tests {
         let header = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: MetadataCompression::Flate2.to_u8(),
             fields_present: crate::MASK_QUERY_IDS | crate::MASK_QUERIES,
             n_targets: 2_u32,
             n_queries: 5_u32,
