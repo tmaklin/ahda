@@ -500,17 +500,20 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
         }
     })?;
 
-    let (mut new_header, new_flags) = build_file_header_and_flags(&target_names, n_queries as usize, &query_name, &MetadataCompression::default())?;
+    let compression = MetadataCompression::default();
+    let (mut new_header, new_flags) = build_file_header_and_flags(&target_names, n_queries as usize, &query_name, &compression)?;
     new_header.fields_present = fields_present;
-    let new_flags_bytes = encode_file_flags(&new_flags, &MetadataCompression::from_u8(new_header.metadata_compression)?)?;
+    let new_flags_bytes = encode_file_flags(&new_flags, &compression)?;
+    new_header.flags_len = new_flags_bytes.len() as u64;
     let new_header_bytes = encode_file_header(&new_header)?;
     conn_out.write_all(&new_header_bytes)?;
     conn_out.write_all(&new_flags_bytes)?;
 
     let mut seen_query_ids: HashSet<u32> = HashSet::with_capacity(new_header.n_queries as usize);
     for conn_in in conns.iter_mut() {
-        let (block_header, block_flags) = headers::block::read_block_header_and_flags(conn_in)?;
-        let bytes = headers::block::encode_block_header_and_flags(&block_header, &block_flags)?;
+        let (mut block_header, block_flags) = headers::block::read_block_header_and_flags(conn_in)?;
+        block_header.metadata_compression = compression.to_u8();
+        let bytes = headers::block::encode_block_header_and_flags(&mut block_header, &block_flags)?;
         if let Some(query_ids) = block_flags.query_ids {
             query_ids.into_iter().try_for_each(|id| {
                 if !seen_query_ids.insert(id) {
