@@ -208,16 +208,15 @@ pub fn decode_block_flags(
     bytes: &[u8],
     compression: &MetadataCompression,
 ) -> Result<BlockFlags, E> {
-    let bytes = inflate_bytes(bytes)?;
     let flags: BlockFlags = match compression {
         MetadataCompression::BincodeStandard => {
             decode_from_slice(
-                &bytes,
+                bytes,
                 bincode::config::standard(),
             )?.0
         },
         MetadataCompression::Flate2 => {
-            let inflated = inflate_bytes(&bytes)?;
+            let inflated = inflate_bytes(bytes)?;
             decode_from_slice(
                 &inflated,
                 bincode::config::standard(),
