@@ -196,6 +196,13 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         let (header, flags) = build_file_header_and_flags(targets, n_queries, sample_name, &MetadataCompression::default())?;
         Self::new_from_header_and_flags(records, header, flags)
     }
+
+    pub fn set_metadata_compression(
+        &mut self,
+        metadata_compression: &MetadataCompression,
+    ) {
+        self.header.metadata_compression = MetadataCompression::to_u8(metadata_compression);
+    }
 }
 
 impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {

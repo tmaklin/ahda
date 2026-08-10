@@ -96,6 +96,13 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         self.query_names = Some(query_names.to_vec());
         self.update_fields_present();
     }
+
+    pub fn set_metadata_compression(
+        &mut self,
+        metadata_compression: &MetadataCompression,
+    ) {
+        self.header.metadata_compression = MetadataCompression::to_u8(metadata_compression);
+    }
 }
 
 impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
