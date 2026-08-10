@@ -20,6 +20,8 @@ use bincode::{Encode, Decode};
 use bincode::encode_into_std_write;
 use bincode::decode_from_slice;
 
+use crate::compression::MetadataCompression;
+
 type E = Box<dyn std::error::Error>;
 
 /// Block header for encoded data
@@ -176,16 +178,28 @@ pub fn read_block_header_and_flags<R: Read>(
 
 pub fn encode_block_flags(
     flags: &BlockFlags,
+    compression: &MetadataCompression,
 ) -> Result<Vec<u8>, E> {
     let mut bytes: Vec<u8> = Vec::new();
 
-    let _ = encode_into_std_write(
-        flags,
-        &mut bytes,
-        bincode::config::standard(),
-    )?;
+    match compression {
+        MetadataCompression::BincodeStandard => {
+            let _ = encode_into_std_write(
+                flags,
+                &mut bytes,
+                bincode::config::standard(),
+            )?;
+        },
+        MetadataCompression::Flate2 => {
+            let _ = encode_into_std_write(
+                flags,
+                &mut bytes,
+                bincode::config::standard(),
+            )?;
+            bytes = deflate_bytes(&bytes)?;
+        },
+    }
 
-    let bytes = deflate_bytes(&bytes)?;
     Ok(bytes)
 }
 
@@ -203,7 +217,7 @@ pub fn encode_block_header_and_flags(
     flags: &BlockFlags,
 ) -> Result<Vec<u8>, E> {
     let mut bytes = encode_block_header(header)?;
-    let mut flags_bytes = encode_block_flags(flags)?;
+    let mut flags_bytes = encode_block_flags(flags, &MetadataCompression::from_u8(header.metadata_compression)?)?;
     assert_eq!(header.flags_len, flags_bytes.len() as u64);
     bytes.append(&mut flags_bytes);
     Ok(bytes)
@@ -255,11 +269,12 @@ mod tests {
     fn encode_block_flags() {
         use super::encode_block_flags;
         use super::BlockFlags;
+        use crate::MetadataCompression;
 
         let data = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
         let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
 
-        let got = encode_block_flags(&data).unwrap();
+        let got = encode_block_flags(&data, &MetadataCompression::Flate2).unwrap();
         assert_eq!(got, expected);
     }
 
