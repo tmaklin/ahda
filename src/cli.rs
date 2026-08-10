@@ -188,6 +188,18 @@ pub enum Commands {
         #[arg(short = 'f', long = "force", default_value_t = false, help = "Force overwriting")]
         force: bool,
 
+        // Overwrite query names
+        #[arg(long = "rename", default_value_t = false, help = "Overwrite query names with `sample_name`.`query_id`")]
+        rename: bool,
+
+        // Remove query names from block flags
+        #[arg(long = "strip-names", default_value_t = false, help = "Strip query names from block flags.")]
+        strip_names: bool,
+
+        // Sample name
+        #[arg(short = 'n', long = "name", help = "Overwrite sample name (default: clone from first input)")]
+        sample_name: Option<String>,
+
         // Verbosity
         #[arg(short = 'v', long = "verbose", default_value_t = false, help = "Print extra information")]
         verbose: bool,

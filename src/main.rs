@@ -450,6 +450,9 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             operation,
             stdout,
             force,
+            rename,
+            strip_names,
+            sample_name,
             verbose,
         }) => {
             init_log(if *verbose { 2 } else { 1 });
@@ -493,8 +496,11 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
             }
 
             let mut opts = EncodeOpts::default();
-            opts.encode_query_names = true;
-            opts.rename_queries = false;
+            opts.encode_query_names = !*strip_names;
+            opts.rename_queries = *rename;
+            if let Some(name) = sample_name {
+                opts.accession = name.as_bytes().to_vec();
+            }
             opts.metadata_compression = ahda::compression::MetadataCompression::Flate2;
             match ahda::merge_from_read_to_write(&mut conn_in, &mut conn_out[0], operation.as_ref().unwrap(), opts) {
                 Ok(_) => Ok(()),
