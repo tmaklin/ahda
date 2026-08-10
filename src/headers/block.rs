@@ -230,12 +230,12 @@ pub fn decode_block_flags(
 }
 
 pub fn encode_block_header_and_flags(
-    header: &BlockHeader,
+    header: &mut BlockHeader,
     flags: &BlockFlags,
 ) -> Result<Vec<u8>, E> {
-    let mut bytes = encode_block_header(header)?;
     let mut flags_bytes = encode_block_flags(flags, &MetadataCompression::from_u8(header.metadata_compression)?)?;
-    assert_eq!(header.flags_len, flags_bytes.len() as u64);
+    header.flags_len = flags_bytes.len() as u64;
+    let mut bytes = encode_block_header(header)?;
     bytes.append(&mut flags_bytes);
     Ok(bytes)
 }
