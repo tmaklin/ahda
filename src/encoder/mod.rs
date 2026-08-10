@@ -162,9 +162,9 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 
     // These are given as construtor parameters
     header: FileHeader,
+    flags: FileFlags,
 
     // Internals
-    flags_bytes: Vec<u8>,
     blocks_written: usize,
     block: Vec<PseudoAln>,
 }
@@ -182,7 +182,8 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         Ok(Encoder{
             records,
             block: Vec::with_capacity(header.block_size as usize),
-            header: file_header, flags_bytes,
+            header: file_header,
+            flags,
             blocks_written: 0_usize,
         })
     }
@@ -221,11 +222,14 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
                 self.set_fields_present(&first_record);
             }
         }
+        let compression = MetadataCompression::from_u8(self.header.metadata_compression)?;
+        let mut flags_bytes = encode_file_flags(&self.flags, &compression)?;
+        self.header.flags_len = flags_bytes.len() as u64;
         let mut header_bytes = encode_file_header(&self.header)?;
 
         let mut out: Vec<u8> = Vec::with_capacity(self.header.flags_len as usize + header_bytes.len());
         out.append(&mut header_bytes);
-        out.extend(&self.flags_bytes);
+        out.append(&mut flags_bytes);
 
         Ok(out)
     }
@@ -315,6 +319,7 @@ mod tests {
     #[test]
     fn encode_file_header_and_flags() {
         use crate::PseudoAln;
+        use crate::compression::MetadataCompression;
         use super::Encoder;
 
         let data = vec![
@@ -332,7 +337,9 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
+        let compression = MetadataCompression::BincodeStandard;
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
+        encoder.set_metadata_compression(&compression);
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 
@@ -342,6 +349,7 @@ mod tests {
     #[test]
     fn encode_file_header_and_flags_without_query_names() {
         use crate::PseudoAln;
+        use crate::compression::MetadataCompression;
         use super::Encoder;
 
         let data = vec![
@@ -359,7 +367,9 @@ mod tests {
         let query_name ="ERR4035126".as_bytes().to_vec();
 
         let mut tmp = data.into_iter();
+        let compression = MetadataCompression::BincodeStandard;
         let mut encoder = Encoder::new(&mut tmp, &targets, &query_name, queries.len()).unwrap();
+        encoder.set_metadata_compression(&compression);
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 

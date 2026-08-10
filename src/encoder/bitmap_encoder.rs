@@ -110,6 +110,7 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
         &mut self,
     ) -> Result<Vec<u8>, E> {
         let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression)?)?;
+        self.header.flags_len = flags_bytes.len() as u64;
         let mut header_bytes = encode_file_header(&self.header)?;
 
         let mut out: Vec<u8> = Vec::new();
@@ -236,6 +237,7 @@ mod tests {
     #[test]
     fn encode_file_header_and_flags() {
         use super::BitmapEncoder;
+        use crate::compression::MetadataCompression;
 
         let data = vec![0_u64, 2, 4, 5, 7];
 
@@ -247,7 +249,9 @@ mod tests {
         let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
+        let compression = MetadataCompression::BincodeStandard;
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_metadata_compression(&compression);
         encoder.set_query_names(&queries);
 
         let got = encoder.encode_file_header_and_flags().unwrap();
@@ -258,6 +262,7 @@ mod tests {
     #[test]
     fn encode_file_header_and_flags_without_query_names() {
         use super::BitmapEncoder;
+        use crate::compression::MetadataCompression;
 
         let data = vec![0_u64, 2, 4, 5, 7];
 
@@ -270,6 +275,8 @@ mod tests {
 
         let mut tmp = data.into_iter();
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        let compression = MetadataCompression::BincodeStandard;
+        encoder.set_metadata_compression(&compression);
 
         let got = encoder.encode_file_header_and_flags().unwrap();
 
