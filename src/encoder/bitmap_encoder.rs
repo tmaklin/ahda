@@ -330,6 +330,7 @@ mod tests {
 
     #[test]
     fn encode_three_blocks_with_next() {
+        use crate::compression::MetadataCompression;
         use super::BitmapEncoder;
 
         let data = vec![0_u64, 2, 4, 5, 7];
@@ -342,7 +343,9 @@ mod tests {
         let n_queries = queries.len();
 
         let mut tmp = data.into_iter();
+        let compression = MetadataCompression::Flate2;
         let mut encoder = BitmapEncoder::new(&mut tmp, &targets, &query_name, n_queries).unwrap();
+        encoder.set_metadata_compression(&compression);
         encoder.set_query_names(&queries);
         encoder.set_block_size(2).unwrap();
 
