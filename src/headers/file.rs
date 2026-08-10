@@ -352,11 +352,12 @@ mod tests {
         let sample = "sample".as_bytes().to_vec();
 
         let expected_flags = FileFlags { query_name: sample.clone(), target_names: targets.clone() };
-        let nbytes = encode_file_flags(&expected_flags, &MetadataCompression::default()).unwrap().len();
+        let compression = MetadataCompression::BincodeStandard;
+        let nbytes = encode_file_flags(&expected_flags, &compression).unwrap().len();
         let expected_header = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
             n_queries: queries.len() as u32,
@@ -365,7 +366,7 @@ mod tests {
             flags_len: nbytes as u64,
         };
 
-        let (got_header, got_flags) = build_file_header_and_flags(&targets, queries.len(), &sample, &MetadataCompression::default()).unwrap();
+        let (got_header, got_flags) = build_file_header_and_flags(&targets, queries.len(), &sample, &compression).unwrap();
 
         assert_eq!(got_header, expected_header);
         assert_eq!(got_flags, expected_flags);
@@ -387,11 +388,12 @@ mod tests {
         let sample = "sample";
 
         let flags = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
-        let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
+        let compression = MetadataCompression::BincodeStandard;
+        let nbytes = encode_file_flags(&flags, &compression).unwrap().len();
         let mut header = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
             n_queries: queries.len() as u32,
@@ -423,11 +425,12 @@ mod tests {
         let sample = "sample";
 
         let flags = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
-        let nbytes = encode_file_flags(&flags, &MetadataCompression::default()).unwrap().len();
+        let compression = MetadataCompression::BincodeStandard;
+        let nbytes = encode_file_flags(&flags, &compression).unwrap().len();
         let header = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
             n_queries: queries.len() as u32,
@@ -456,7 +459,8 @@ mod tests {
 
         let expected: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
 
-        let got = encode_file_flags(&flags, &MetadataCompression::default()).unwrap();
+        let compression = MetadataCompression::BincodeStandard;
+        let got = encode_file_flags(&flags, &compression).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -490,10 +494,11 @@ mod tests {
 
         let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0];
 
+        let compression = MetadataCompression::BincodeStandard;
         let expected = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: 3_u32,
             n_queries: 5_u32,
@@ -520,7 +525,8 @@ mod tests {
 
         let expected = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
 
-        let got = decode_file_flags(&data, &MetadataCompression::default()).unwrap();
+        let compression = MetadataCompression::BincodeStandard;
+        let got = decode_file_flags(&data, &compression).unwrap();
 
         assert_eq!(got, expected);
     }
@@ -557,10 +563,11 @@ mod tests {
         let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 1, 0, 16, 0, 0, 0, 0, 0, 0, 0];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
+        let compression = MetadataCompression::BincodeStandard;
         let expected = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: 3_u32,
             n_queries: 5_u32,
@@ -589,10 +596,11 @@ mod tests {
         let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
         let sample = "sample";
 
+        let compression = MetadataCompression::BincodeStandard;
         let header = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: 3_u32,
             n_queries: 5_u32,
@@ -626,11 +634,12 @@ mod tests {
         let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
         let sample = "sample";
 
+        let compression = MetadataCompression::BincodeStandard;
         let expected_flags = FileFlags { query_name: sample.as_bytes().to_vec(), target_names: targets.clone() };
         let expected_header = FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::V1_0_0.to_u8(),
-            metadata_compression: MetadataCompression::default().to_u8(),
+            metadata_compression: compression.to_u8(),
             fields_present: 0,
             n_targets: targets.len() as u32,
             n_queries: queries.len() as u32,
