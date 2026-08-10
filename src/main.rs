@@ -492,7 +492,11 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 conn_out.push(Box::new(std::io::stdout()));
             }
 
-            match ahda::merge_from_read_to_write(&mut conn_in, &mut conn_out[0], operation.as_ref().unwrap()) {
+            let mut opts = EncodeOpts::default();
+            opts.encode_query_names = true;
+            opts.rename_queries = false;
+            opts.metadata_compression = ahda::compression::MetadataCompression::Flate2;
+            match ahda::merge_from_read_to_write(&mut conn_in, &mut conn_out[0], operation.as_ref().unwrap(), opts) {
                 Ok(_) => Ok(()),
                 Err(e) => {
                     eprintln!("ahda: could not merge input files: {}", e);

@@ -1338,9 +1338,10 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
     conn_in: &mut [R],
     conn_out: &mut W,
     merge_op: &MergeOp,
+    opts: EncodeOpts,
 ) -> Result<(), E> {
     // Read first bitmap
-    let (mut bitmap_a, header_a, flags_a, block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
+    let (mut bitmap_a, header_a, flags_a, mut block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
 
     for conn in conn_in.iter_mut().skip(1) {
         decode_from_read_into_roaring(conn, merge_op, &mut bitmap_a)?;
@@ -1349,9 +1350,28 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
     let mut iter = bitmap_a.into_iter();
     let n_queries = header_a.n_queries as usize;
     let mut encoder = encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &flags_a.query_name, n_queries)?;
-    if let Some(query_names) = block_flags.queries {
-        encoder.set_query_names(&query_names);
+    if opts.encode_query_names && !opts.rename_queries {
+        if let Some(query_names) = block_flags.queries {
+            encoder.set_query_names(&query_names);
+        } else {
+            return Err(Box::new(crate::errors::QueryNamesNotFilled {}))
+        }
+    } else if opts.encode_query_names && opts.rename_queries {
+        if let Some(query_ids) = block_flags.query_ids {
+            let query_names = query_ids.iter().map(|query_id| {
+                let mut newname: Vec<u8> = opts.accession.clone();
+                newname.append(&mut query_id.to_string().as_bytes().to_vec());
+                newname
+            }).collect::<Vec<Vec<u8>>>();
+            encoder.set_query_names(&query_names);
+        } else {
+            return Err(Box::new(crate::errors::QueryIdsNotFilled {}))
+        }
+    } else {
+        block_flags.queries = None;
     }
+    encoder.set_metadata_compression(&opts.metadata_compression);
+
     conn_out.write_all(&encoder.encode_file_header_and_flags()?)?;
     for block in encoder {
         conn_out.write_all(&block?)?;
@@ -2016,6 +2036,8 @@ mod tests {
 
     #[test]
     fn merge_from_read_to_write() {
+        use crate::compression::MetadataCompression;
+        use super::EncodeOpts;
         use super::merge_from_read_to_write;
         use super::MergeOp;
 
@@ -2032,8 +2054,12 @@ mod tests {
             Cursor::new(data_bytes_3)
         ];
 
+        let mut opts = EncodeOpts::default();
+        opts.encode_query_names = true;
+        opts.rename_queries = false;
+        opts.metadata_compression = MetadataCompression::Flate2;
         let mut got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        merge_from_read_to_write(&mut data, &mut got, &MergeOp::Intersection).unwrap();
+        merge_from_read_to_write(&mut data, &mut got, &MergeOp::Intersection, opts).unwrap();
 
         assert_eq!(expected_bytes, *got.get_ref());
 
@@ -2041,6 +2067,8 @@ mod tests {
 
     #[test]
     fn merge_from_read_to_write_without_query_names() {
+        use crate::compression::MetadataCompression;
+        use super::EncodeOpts;
         use super::merge_from_read_to_write;
         use super::MergeOp;
 
@@ -2057,8 +2085,12 @@ mod tests {
             Cursor::new(data_bytes_3)
         ];
 
+        let mut opts = EncodeOpts::default();
+        opts.encode_query_names = true;
+        opts.rename_queries = false;
+        opts.metadata_compression = MetadataCompression::Flate2;
         let mut got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        merge_from_read_to_write(&mut data, &mut got, &MergeOp::Intersection).unwrap();
+        merge_from_read_to_write(&mut data, &mut got, &MergeOp::Intersection, opts).unwrap();
 
         assert_eq!(expected_bytes, *got.get_ref());
     }
