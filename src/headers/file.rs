@@ -100,6 +100,22 @@ impl FileHeader {
     }
 }
 
+impl Default for FileHeader {
+    fn default() -> FileHeader {
+        FileHeader {
+            ahda_header: build_ahda_header().unwrap(),
+            file_format: AhdaFormatVersion::default().to_u8(),
+            metadata_compression: MetadataCompression::default().to_u8(),
+            fields_present: crate::MASK_QUERY_IDS,
+            n_targets: 0_u32,
+            n_queries: 0_u32,
+            bitmap_type: BitmapType::default().to_u16(),
+            block_size: 0_u32,
+            flags_len: 0_u64,
+        }
+    }
+}
+
 /// Data shared with all blocks
 ///
 /// Variable length, use [FileHeader].flags_len to get size
