@@ -364,7 +364,7 @@ impl Default for EncodeOpts {
     /// opts.encode_query_names = false;
     /// opts.encode_target_names = false;
     /// opts.bitmap_type = None;
-    /// opts.metadata_compression = ahda::compression::MetadataCompression::BincodeStandard;
+    /// opts.metadata_compression = ahda::compression::MetadataCompression::Flate2;
     /// opts.rename_queries = false;
     /// # let expected = ahda::EncodeOpts::default();
     /// # assert_eq!(opts, expected);
@@ -452,7 +452,7 @@ pub struct PseudoAln{
 ///
 /// // Encode the mock inputs to data_bytes_1 and data_bytes_2.
 /// encode_to_write(&targets, &queries, data_1.clone(), &mut data_bytes_1, opts.clone()).unwrap();
-/// encode_to_write(&targets, &queries, data_2.clone(), &mut data_bytes_2, opts).unwrap();
+/// encode_to_write(&targets, &queries, data_2.clone(), &mut data_bytes_2, opts.clone()).unwrap();
 ///
 /// data_bytes_1.rewind();
 /// data_bytes_2.rewind();
@@ -461,7 +461,7 @@ pub struct PseudoAln{
 /// let mut inputs = vec![data_bytes_1, data_bytes_2];
 /// let mut output: Cursor<Vec<u8>> = Cursor::new(Vec::new());
 ///
-/// concatenate_from_read_to_write(&mut inputs, &mut output).unwrap();
+/// concatenate_from_read_to_write(&mut inputs, &mut output, opts).unwrap();
 /// output.rewind();
 ///
 /// // output contains the alignments from data_1 and data_2
@@ -673,6 +673,7 @@ pub fn encode_to_write<W: Write>(
         record
     });
     let mut encoder = encoder::Encoder::new(&mut records_iter, targets, &opts.accession, queries.len())?;
+    encoder.set_metadata_compression(&opts.metadata_compression);
 
     let bytes = encoder.encode_file_header_and_flags()?;
     conn_out.write_all(&bytes)?;
@@ -771,6 +772,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
     });
 
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
+    encoder.set_metadata_compression(&opts.metadata_compression);
 
     let mut bytes = encoder.encode_file_header_and_flags()?;
     for block in encoder.by_ref() {
@@ -870,6 +872,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     });
 
     let mut encoder = encoder::Encoder::new(&mut reader_unwrapped, &targets, &opts.accession, n_queries)?;
+    encoder.set_metadata_compression(&opts.metadata_compression);
 
     let bytes = encoder.encode_file_header_and_flags()?;
     conn_out.write_all(&bytes)?;
@@ -1163,7 +1166,7 @@ pub fn decode_to_write<W: Write>(
 ///                                      fields_present: 3,
 ///                                      bitmap_type: ahda::compression::BitmapType::Roaring32.to_u16(),
 ///                                      block_size: 65536_u32,
-///                                      flags_len: 44_u64,
+///                                      flags_len: 55_u64,
 ///                                    });
 /// let mut expected_flags = FileFlags::default();
 /// expected_flags.query_name = "sample".as_bytes().to_vec();
