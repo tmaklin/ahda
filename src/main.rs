@@ -321,7 +321,8 @@ fn main() -> Result<(),  Box<dyn std::error::Error>> {
                 return Ok(());
             }
 
-            match ahda::concatenate_from_read_to_write(&mut conn_in, &mut conn_out[0]) {
+            let opts = EncodeOpts::default();
+            match ahda::concatenate_from_read_to_write(&mut conn_in, &mut conn_out[0], opts) {
                 Ok(_) => Ok(()),
                 Err(e) => {
                     let mut msg =  input_files.iter().map(|x| x.to_string_lossy() + " ").collect::<String>();

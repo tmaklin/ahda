@@ -473,6 +473,7 @@ pub struct PseudoAln{
 pub fn concatenate_from_read_to_write<R: Read, W: Write>(
     conns: &mut [R],
     conn_out: &mut W,
+    opts: EncodeOpts,
 ) -> Result<(), E> {
     assert!(!conns.is_empty());
 
@@ -500,7 +501,7 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
         }
     })?;
 
-    let compression = MetadataCompression::default();
+    let compression = opts.metadata_compression;
     let (mut new_header, new_flags) = build_file_header_and_flags(&target_names, n_queries as usize, &query_name, &compression)?;
     new_header.fields_present = fields_present;
     let new_flags_bytes = encode_file_flags(&new_flags, &compression)?;
@@ -1365,7 +1366,9 @@ mod tests {
 
     #[test]
     fn concatenate_from_read_to_write() {
+        use crate::compression::MetadataCompression;
         use super::concatenate_from_read_to_write;
+        use super::EncodeOpts;
 
         use std::io::Cursor;
 
@@ -1381,6 +1384,9 @@ mod tests {
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         concatenate_from_read_to_write(&mut data, &mut bytes_got).unwrap();
+        let mut opts = EncodeOpts::default();
+        opts.metadata_compression = MetadataCompression::BincodeStandard;
+        concatenate_from_read_to_write(&mut data, &mut bytes_got, opts).unwrap();
 
         let got = bytes_got.get_mut();
 
@@ -1390,6 +1396,7 @@ mod tests {
     #[test]
     fn concatenate_from_read_to_write_with_duplicated_queries_fails() {
         use super::concatenate_from_read_to_write;
+        use super::EncodeOpts;
 
         use std::io::Cursor;
 
@@ -1402,7 +1409,8 @@ mod tests {
         let mut data = vec![data_1, data_2, data_3];
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        let got = concatenate_from_read_to_write(&mut data, &mut bytes_got);
+        let opts = EncodeOpts::default();
+        let got = concatenate_from_read_to_write(&mut data, &mut bytes_got, opts);
 
         assert!(got.is_err());
     }
@@ -1410,6 +1418,7 @@ mod tests {
     #[test]
     fn concatenate_from_read_to_write_with_incompatible_headers_fails() {
         use super::concatenate_from_read_to_write;
+        use super::EncodeOpts;
 
         use std::io::Cursor;
 
@@ -1422,7 +1431,8 @@ mod tests {
         let mut data = vec![data_1, data_2, data_3];
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
-        let got = concatenate_from_read_to_write(&mut data, &mut bytes_got);
+        let opts = EncodeOpts::default();
+        let got = concatenate_from_read_to_write(&mut data, &mut bytes_got, opts);
 
         assert!(got.is_err());
     }
