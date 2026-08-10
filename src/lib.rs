@@ -1341,10 +1341,14 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
     opts: EncodeOpts,
 ) -> Result<(), E> {
     // Read first bitmap
-    let (mut bitmap_a, header_a, flags_a, mut block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
+    let (mut bitmap_a, header_a, mut flags_a, mut block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
 
     for conn in conn_in.iter_mut().skip(1) {
         decode_from_read_into_roaring(conn, merge_op, &mut bitmap_a)?;
+    }
+
+    if !opts.accession.is_empty() {
+        flags_a.query_name = opts.accession.clone();
     }
 
     let mut iter = bitmap_a.into_iter();
