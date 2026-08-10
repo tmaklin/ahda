@@ -303,7 +303,7 @@ mod tests {
         let expected = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
         let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
 
-        let got = decode_block_flags(&data, &MetadataCompression::BincodeStandard).unwrap();
+        let got = decode_block_flags(&data, &MetadataCompression::Flate2).unwrap();
         assert_eq!(got, expected);
     }
 
@@ -317,7 +317,17 @@ mod tests {
 
         let expected = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
         let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
-        let header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: data_bytes.len() as u64, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
+        let header = BlockHeader {
+            num_records: 31,
+            placeholder1: 0,
+            block_len: 65511,
+            flags_len: data_bytes.len() as u64,
+            fields_present: 0,
+            placeholder2: 0,
+            placeholder3: 0,
+            bitmap_type: 0,
+            metadata_compression: 1,
+        };
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
         let got = read_block_flags(&header, &mut data).unwrap();
@@ -333,10 +343,10 @@ mod tests {
 
         use std::io::Cursor;
 
-        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
+        let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 97, 1, 98, 1, 99, 1, 3, 1, 0, 2];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let expected_header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: 33, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
+        let mut expected_header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: 13, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let expected_flags = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
 
         let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();
