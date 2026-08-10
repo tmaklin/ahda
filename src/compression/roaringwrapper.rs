@@ -158,7 +158,8 @@ pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,
 ) -> Result<(BitmapHolder, BlockFlags), E> {
-    let block_flags = decode_block_flags(&bytes[0..(block_header.flags_len as usize)])?;
+    let metadata_compression = MetadataCompression::from_u8(block_header.metadata_compression)?;
+    let block_flags = decode_block_flags(&bytes[0..(block_header.flags_len as usize)], &metadata_compression)?;
 
     let start_idx: usize = block_header.flags_len.try_into()?;
     let block_len: u64 = block_header.block_len as u64;

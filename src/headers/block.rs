@@ -164,7 +164,8 @@ pub fn read_block_flags<R: Read>(
 ) -> Result<BlockFlags, E> {
     let mut flags_bytes: Vec<u8> = vec![0; header.flags_len as usize];
     conn.read_exact(&mut flags_bytes)?;
-    let res = decode_block_flags(&flags_bytes)?;
+    let metadata_compression = MetadataCompression::from_u8(header.metadata_compression)?;
+    let res = decode_block_flags(&flags_bytes, &metadata_compression)?;
     Ok(res)
 }
 
@@ -205,9 +206,25 @@ pub fn encode_block_flags(
 
 pub fn decode_block_flags(
     bytes: &[u8],
+    compression: &MetadataCompression,
 ) -> Result<BlockFlags, E> {
     let bytes = inflate_bytes(bytes)?;
-    let flags: BlockFlags = decode_from_slice(&bytes, bincode::config::standard())?.0;
+    let flags: BlockFlags = match compression {
+        MetadataCompression::BincodeStandard => {
+            decode_from_slice(
+                &bytes,
+                bincode::config::standard(),
+            )?.0
+        },
+        MetadataCompression::Flate2 => {
+            let inflated = inflate_bytes(&bytes)?;
+            decode_from_slice(
+                &inflated,
+                bincode::config::standard(),
+            )?.0
+        },
+    };
+
 
     Ok(flags)
 }
@@ -282,11 +299,12 @@ mod tests {
     fn decode_block_flags() {
         use super::decode_block_flags;
         use super::BlockFlags;
+        use crate::compression::MetadataCompression;
 
         let expected = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
         let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
 
-        let got = decode_block_flags(&data).unwrap();
+        let got = decode_block_flags(&data, &MetadataCompression::BincodeStandard).unwrap();
         assert_eq!(got, expected);
     }
 
