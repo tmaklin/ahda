@@ -90,9 +90,9 @@ pub enum BitmapHolder {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum MetadataCompression {
     /// [bincode::config::standard]
-    #[default]
     BincodeStandard,
     /// Gz with flate2
+    #[default]
     Flate2,
 }
 
