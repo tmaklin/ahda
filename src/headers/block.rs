@@ -93,6 +93,22 @@ impl BlockHeader {
     }
 }
 
+impl Default for BlockHeader {
+    fn default() -> BlockHeader {
+        BlockHeader {
+            num_records: 0_u32,
+            metadata_compression: MetadataCompression::default().to_u8(),
+            bitmap_type: crate::compression::BitmapType::default().to_u16(),
+            block_len: 0_u32,
+            flags_len: 0_u64,
+            fields_present: crate::MASK_QUERY_IDS | crate::MASK_QUERIES,
+            placeholder1: 0,
+            placeholder2: 0,
+            placeholder3: 0,
+        }
+    }
+}
+
 /// Data about the records in this block
 ///
 /// Variable length, use [BlockHeader].flags_len to get size
