@@ -412,7 +412,8 @@ mod tests {
 
         let expected: Vec<u8> = vec![5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 100, 96, 98, 97, 6, 0, 14, 44, 25, 80, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
 
-        let header = FileHeader::default();
+        let mut header = FileHeader::default();
+        header.fields_present = crate::MASK_QUERY_IDS;
 
         let got = pack_block_roaring(&header, &query_ids, None, data).unwrap();
 
