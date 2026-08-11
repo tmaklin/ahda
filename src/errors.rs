@@ -56,7 +56,7 @@ impl std::fmt::Display for SetBitsIteratorNotSortedErr {
 }
 impl std::error::Error for SetBitsIteratorNotSortedErr {}
 
-/// Could not format [PseudoAln](crate::PseudoAln) as a Themisto plain text line.
+/// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a Themisto plain text line.
 #[derive(Debug, Clone)]
 pub struct ThemistoPrinterError;
 impl std::fmt::Display for ThemistoPrinterError {
@@ -66,7 +66,7 @@ impl std::fmt::Display for ThemistoPrinterError {
 }
 impl std::error::Error for ThemistoPrinterError {}
 
-/// Could not format [PseudoAln](crate::PseudoAln) as a SAM plain text line.
+/// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a SAM plain text line.
 #[derive(Debug, Clone)]
 pub struct SamPrinterError;
 impl std::fmt::Display for SamPrinterError {
@@ -76,7 +76,7 @@ impl std::fmt::Display for SamPrinterError {
 }
 impl std::error::Error for SamPrinterError {}
 
-/// Could not format [PseudoAln](crate::PseudoAln) as a Fulgor plain text line.
+/// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a Fulgor plain text line.
 #[derive(Debug, Clone)]
 pub struct FulgorPrinterError;
 impl std::fmt::Display for FulgorPrinterError {
@@ -86,7 +86,7 @@ impl std::fmt::Display for FulgorPrinterError {
 }
 impl std::error::Error for FulgorPrinterError {}
 
-/// Could not format [PseudoAln](crate::PseudoAln) as a ahda .tsv plain text line.
+/// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a ahda .tsv plain text line.
 #[derive(Debug, Clone)]
 pub struct AhdaTSVPrinterError;
 impl std::fmt::Display for AhdaTSVPrinterError {
@@ -96,7 +96,7 @@ impl std::fmt::Display for AhdaTSVPrinterError {
 }
 impl std::error::Error for AhdaTSVPrinterError {}
 
-/// Could not format [PseudoAln](crate::PseudoAln) as a Bifrost plain text line.
+/// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a Bifrost plain text line.
 #[derive(Debug, Clone)]
 pub struct BifrostPrinterError;
 impl std::fmt::Display for BifrostPrinterError {
@@ -106,7 +106,7 @@ impl std::fmt::Display for BifrostPrinterError {
 }
 impl std::error::Error for BifrostPrinterError {}
 
-/// Could not format [PseudoAln](crate::PseudoAln) as a Metagraph plain text line.
+/// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a Metagraph plain text line.
 #[derive(Debug, Clone)]
 pub struct MetagraphPrinterError;
 impl std::fmt::Display for MetagraphPrinterError {
@@ -172,7 +172,7 @@ impl std::fmt::Display for NeedQueryNamesErr {
 
 impl std::error::Error for NeedQueryNamesErr {}
 
-/// A [PseudoAln](crate::PseudoAln) record given to encoder does not contain `query_id` and/or `ones`.
+/// A [PseudoAln](crate::PseudoAln)(crate::PseudoAln) record given to encoder does not contain `query_id` and/or `ones`.
 #[derive(Debug, Clone)]
 pub struct EncodeError;
 impl std::fmt::Display for EncodeError {
@@ -202,7 +202,7 @@ impl std::fmt::Display for DuplicatedQueriesErr {
 }
 impl std::error::Error for DuplicatedQueriesErr {}
 
-/// [BlockFlags].query_ids is not filled.
+/// [BlockFlags](crate::headers::block::BlockFlags).query_ids is not filled.
 #[derive(Debug, Clone)]
 pub struct QueryIdsNotFilled;
 impl std::fmt::Display for QueryIdsNotFilled {
@@ -212,7 +212,7 @@ impl std::fmt::Display for QueryIdsNotFilled {
 }
 impl std::error::Error for QueryIdsNotFilled {}
 
-/// [BlockFlags].queries is not filled.
+/// [BlockFlags](crate::headers::block::BlockFlags).queries is not filled.
 #[derive(Debug, Clone)]
 pub struct QueryNamesNotFilled;
 impl std::fmt::Display for QueryNamesNotFilled {
@@ -242,7 +242,7 @@ impl std::fmt::Display for AhdaTSVHeaderNotConsumedError {
 }
 impl std::error::Error for AhdaTSVHeaderNotConsumedError {}
 
-/// Expected [PseudoAln].ones to be filled but it was empty
+/// Expected [PseudoAln](crate::PseudoAln).ones to be filled but it was empty
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesIsEmpty;
 impl std::fmt::Display for PseudoAlnOnesIsEmpty {
@@ -252,7 +252,7 @@ impl std::fmt::Display for PseudoAlnOnesIsEmpty {
 }
 impl std::error::Error for PseudoAlnOnesIsEmpty {}
 
-/// Expected [PseudoAln].ones to be filled but it was None
+/// Expected [PseudoAln](crate::PseudoAln).ones to be filled but it was None
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesIsNone;
 impl std::fmt::Display for PseudoAlnOnesIsNone {
@@ -262,7 +262,7 @@ impl std::fmt::Display for PseudoAlnOnesIsNone {
 }
 impl std::error::Error for PseudoAlnOnesIsNone {}
 
-/// Expected [PseudoAln].ones_names to be filled but it was empty
+/// Expected [PseudoAln](crate::PseudoAln).ones_names to be filled but it was empty
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesNamesIsEmpty;
 impl std::fmt::Display for PseudoAlnOnesNamesIsEmpty {
@@ -272,7 +272,7 @@ impl std::fmt::Display for PseudoAlnOnesNamesIsEmpty {
 }
 impl std::error::Error for PseudoAlnOnesNamesIsEmpty {}
 
-/// Expected [PseudoAln].query_name to be filled but it was empty
+/// Expected [PseudoAln](crate::PseudoAln).query_name to be filled but it was empty
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryNameIsEmpty;
 impl std::fmt::Display for PseudoAlnQueryNameIsEmpty {
@@ -282,7 +282,7 @@ impl std::fmt::Display for PseudoAlnQueryNameIsEmpty {
 }
 impl std::error::Error for PseudoAlnQueryNameIsEmpty {}
 
-/// Expected [PseudoAln].query_id to be filled but it was empty
+/// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was empty
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryIdIsEmpty;
 impl std::fmt::Display for PseudoAlnQueryIdIsEmpty {
@@ -292,7 +292,7 @@ impl std::fmt::Display for PseudoAlnQueryIdIsEmpty {
 }
 impl std::error::Error for PseudoAlnQueryIdIsEmpty {}
 
-/// Expected [PseudoAln].query_id to be filled but it was None
+/// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was None
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryIdIsNone;
 impl std::fmt::Display for PseudoAlnQueryIdIsNone {
@@ -342,7 +342,7 @@ impl std::fmt::Display for HeaderPromiseNotHonoured {
 }
 impl std::error::Error for HeaderPromiseNotHonoured {}
 
-/// Expected [PseudoAln].query_id to be filled but it was None
+/// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was None
 #[derive(Debug, Clone)]
 pub struct InvalidConversion {
     pub from: String,

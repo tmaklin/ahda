@@ -46,7 +46,7 @@ pub struct BlockHeader {
     /// Number of records (queries) stored in this block
     pub num_records: u32,
 
-    /// Compression method used for [BlockFlags], see [MetadataCompression](crate::compression::MetadataCompression).
+    /// Compression method used for [BlockFlags], see [MetadataCompression].
     pub metadata_compression: u8,
 
     /// Bitmap type used to encode this block, see [BitmapType](crate::compression::BitmapType) for details.

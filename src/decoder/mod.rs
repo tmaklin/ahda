@@ -22,8 +22,8 @@
 //! - [BitmapDecoder](bitmap_decoder::BitmapDecoder): decodes a [PseudoAln] record from
 //!   any struct that returns u64 indexes of aligned bits in a flattened
 //!   pseudoalignment. Currently, the intended use case is with
-//!   [RoaringBitmap](roaring::RoaringBitmap) or
-//!   [RoaringTreemap](roaring::RoaringTreemap) but in principle works with
+//!   [RoaringBitmap] or
+//!   [RoaringTreemap] but in principle works with
 //!   other structs that implement a similar iterator.
 //!
 //! Internally, Decoder reads in a single block at a time and uses BitmapDecoder
@@ -345,7 +345,7 @@ impl<R: Read> Decoder<'_, R> {
         }
     }
 
-    /// Get query ids in the current block, use [next_block] to advance.
+    /// Get query ids in the current block, use [Decoder::next_block] to advance.
     pub fn query_ids(
         &self,
     ) -> Option<Vec<u32>> {
@@ -356,14 +356,14 @@ impl<R: Read> Decoder<'_, R> {
         }
     }
 
-    /// Get query names in the current block if present, use [next_block] to advance.
+    /// Get query names in the current block if present, use [Decoder::next_block] to advance.
     pub fn query_names(
         &self,
     ) -> Option<Vec<Vec<u8>>> {
         Some(self.q_names.clone()?.iter().cloned().collect::<Vec<Vec<u8>>>())
     }
 
-    /// Get records in the current block, use [next_block] to advance.
+    /// Get records in the current block, use [Decoder::next_block] to advance.
     pub fn records(
         &self,
     ) -> Option<&Vec<PseudoAln>> {
@@ -374,7 +374,7 @@ impl<R: Read> Decoder<'_, R> {
         }
     }
 
-    /// Get bitmap in the current block, use [next_block] to advance.
+    /// Get bitmap in the current block, use [Decoder::next_block] to advance.
     pub fn bitmap(
         &self,
     ) -> Option<&BitmapHolder> {
@@ -385,7 +385,7 @@ impl<R: Read> Decoder<'_, R> {
         }
     }
 
-    /// Get bitmap in the current block, use [next_block] to advance.
+    /// Get bitmap in the current block, use [Decoder::next_block] to advance.
     pub fn block_flags(
         &self,
     ) -> Option<&BlockFlags> {

@@ -22,7 +22,7 @@
 //!
 //! To create a valid .ahda record, [Encoder::encode_file_header_and_flags] should be
 //! called first and its output included as the first bytes in the record. This
-//! method encodes the [FileHeader] and [FileFlags](crate::headers::file::FileFlags) corresponding to the data
+//! method encodes the [FileHeader] and [FileFlags] corresponding to the data
 //! stored in the Encoder.
 //!
 //! Block size can be controlled using [Encoder::set_block_size]. Larger blocks may
@@ -210,7 +210,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     /// Encode the [FileHeader] and [FileFlags] and return the encoded bytes.
     ///
     /// Will update the `fields_present` field of FileHeader if called before
-    /// writing any blocks with [next].
+    /// writing any blocks with [Encoder::next].
     ///
     pub fn encode_file_header_and_flags(
         &mut self,
