@@ -512,21 +512,23 @@ pub fn concatenate_from_read_to_write<R: Read, W: Write>(
 
     let mut seen_query_ids: HashSet<u32> = HashSet::with_capacity(new_header.n_queries as usize);
     for conn_in in conns.iter_mut() {
-        let (mut block_header, block_flags) = headers::block::read_block_header_and_flags(conn_in)?;
-        block_header.metadata_compression = compression.to_u8();
-        let bytes = headers::block::encode_block_header_and_flags(&mut block_header, &block_flags)?;
-        if let Some(query_ids) = block_flags.query_ids {
-            query_ids.into_iter().try_for_each(|id| {
-                if !seen_query_ids.insert(id) {
-                    return Err(Box::new(errors::DuplicatedQueriesErr{}))
-                }
-                Ok(())
-            })?;
-        } else {
-            return Err(Box::new(errors::QueryIdsNotFilled{}))
+        while let Ok((mut block_header, block_flags)) = headers::block::read_block_header_and_flags(conn_in) {
+            block_header.metadata_compression = compression.to_u8();
+            let bytes = headers::block::encode_block_header_and_flags(&mut block_header, &block_flags)?;
+            if let Some(query_ids) = block_flags.query_ids {
+                query_ids.into_iter().try_for_each(|id| {
+                    if !seen_query_ids.insert(id) {
+                        return Err(Box::new(errors::DuplicatedQueriesErr{}))
+                    }
+                    Ok(())
+                })?;
+            } else {
+                return Err(Box::new(errors::QueryIdsNotFilled{}))
+            }
+            conn_out.write_all(&bytes)?;
+            let mut block_contents = conn_in.take(block_header.block_len as u64);
+            std::io::copy(&mut block_contents, conn_out)?;
         }
-        conn_out.write_all(&bytes)?;
-        std::io::copy(conn_in, conn_out)?;
     }
     conn_out.flush()?;
     Ok(())
@@ -1465,6 +1467,26 @@ mod tests {
         let data_2 = Cursor::new(data_bytes_2);
         let data_3 = Cursor::new(data_bytes_3);
         let mut data = vec![data_1, data_2, data_3];
+
+        let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
+        let opts = EncodeOpts::default();
+        let got = concatenate_from_read_to_write(&mut data, &mut bytes_got, opts);
+
+        assert!(got.is_err());
+    }
+
+    #[test]
+    fn concatenate_from_read_to_write_with_multiple_blocks_and_duplicated_queries_fails() {
+        use super::concatenate_from_read_to_write;
+        use super::EncodeOpts;
+
+        use std::io::Cursor;
+
+        let data_bytes_1: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 4, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 2, 0, 0, 0, 1, 0, 0, 0, 34, 0, 0, 0, 42, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 226, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 49, 50, 49, 48, 2, 0, 26, 63, 239, 0, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 70, 6, 1, 48, 205, 196, 0, 0, 133, 36, 27, 152, 20, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 39, 0, 0, 0, 51, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 18, 116, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 51, 53, 180, 52, 48, 230, 71, 18, 49, 55, 53, 49, 102, 100, 98, 98, 6, 0, 108, 239, 38, 102, 40, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 22, 6, 86, 6, 54, 6, 0, 226, 13, 172, 28, 22, 0, 0, 0];
+        let data_bytes_2: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 3, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 10, 69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 2, 9, 99, 104, 114, 46, 102, 97, 115, 116, 97, 13, 112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97, 1, 0, 0, 0, 1, 0, 0, 0, 33, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 228, 119, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 55, 53, 49, 102, 100, 100, 6, 0, 66, 122, 30, 150, 21, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+        let data_1 = Cursor::new(data_bytes_1);
+        let data_2 = Cursor::new(data_bytes_2);
+        let mut data = vec![data_1, data_2];
 
         let mut bytes_got: Cursor<Vec<u8>> = Cursor::new(Vec::new());
         let opts = EncodeOpts::default();
