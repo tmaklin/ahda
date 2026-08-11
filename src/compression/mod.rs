@@ -15,24 +15,36 @@
 //! Wrappers for supported bitmap and metadata compression schemes.
 //!
 //! ## Bitmap compression schemes
+//!
 //! Currently supported:
 //! - Roaring bitmap
 //! - Roaring treemap
 //!
+//! ### Adding new bitmap compression schemes
+//!
 //! New schemes should implement functions to perform the following:
 //! - Convert a [PseudoAln] array to the bitmap representation.
-//! - Serialize the bitmap representation to bytes (u8).
-//! - Deserialize bytes (u8) to the bitmap representation.
-//! - Serialize the bitmap representation to a valid .ahda block record (u8 bytes).
-//! - Deserialize a valid .ahda block record (u8 bytes) to the bitmap representation.
+//! - Compress a bitmap into a valid ahda block.
+//! - Decompress an u8 array into a bitmap and [BlockFlags](crate::headers::block::BlockFlags).
+//! - Add the scheme to the [BitmapType] and [BitmapHolder] enums and handle it where required.
+//!
+//! See the [Roaring wrapper](roaringwrapper) for examples.
 //!
 //! ## Metadata compression schemes
+//!
 //! Currently supported:
 //! - Flate2
+//! - Bincode (standard encoding with no compression)
 //!
-//! New schemes should implement the following:
-//! - Compress bytes (u8).
-//! - Decompress bytes (u8).
+//! ### Adding new metadata compression schemes
+//!
+//! New schemes should implement functions that do the following:
+//! - Compress an u8 array and return an u8 vector.
+//! - Decompress an u8 array and return an u8 vector.
+//! - Add the scheme to the [MetadataCompression] enum and handle it where required.
+//!
+//! See the [Flate2 wrapper](gzwrapper) for examples.
+//!
 
 pub mod gzwrapper;
 pub mod roaringwrapper;
@@ -42,6 +54,9 @@ use roaring::RoaringTreemap;
 
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
+
+use crate::errors::HeaderPromiseNotHonoured;
+use crate::errors::InvalidConversion;
 
 use roaringwrapper::convert_to_roaring;
 use roaringwrapper::pack_block_roaring;
@@ -61,14 +76,38 @@ pub enum BitmapType {
 
 
 impl BitmapType {
+    /// Convert the u16 value stored in [FileHeader] or [BlockHeader](crate::headers::block::BlockHeader) into a valid BitmapType.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [InvalidConversion] if the u16 value does not correspond to a valid BitmapType.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::compression::BitmapType;
+    /// let u16_rep = 0_u16;
+    /// let bitmap_type = BitmapType::from_u16(u16_rep).unwrap();
+    /// assert_eq!(bitmap_type, BitmapType::Roaring32);
+    /// ```
     pub fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(BitmapType::Roaring32),
             1 => Ok(BitmapType::Roaring64),
-            _ => Err(Box::new(crate::errors::InvalidConversion { from: val.to_string(), to: "BitmapType".to_string() })),
+            _ => Err(Box::new(InvalidConversion { from: val.to_string(), to: "BitmapType".to_string() })),
         }
     }
 
+    /// Convert a BitmapType into a u16 value for storage in [FileHeader] or [BlockHeader](crate::headers::block::BlockHeader).
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::compression::BitmapType;
+    /// let bitmap_type = BitmapType::Roaring32;
+    /// let u16_rep = bitmap_type.to_u16();
+    /// assert_eq!(u16_rep, 0_u16);
+    /// ```
     pub fn to_u16(&self) -> u16 {
         match &self {
             BitmapType::Roaring32 => 0,
@@ -77,11 +116,13 @@ impl BitmapType {
     }
 }
 
-/// Holder for supported [BitmapTypes](BitmapType)
+/// Holder for supported [BitmapTypes](BitmapType).
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq)]
 pub enum BitmapHolder {
+    /// [RoaringBitmap] (32-bit address space).
     Roaring32(RoaringBitmap),
+    /// [RoaringTreemap] (64-bit address space).
     Roaring64(RoaringTreemap),
 }
 
@@ -89,23 +130,47 @@ pub enum BitmapHolder {
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum MetadataCompression {
-    /// [bincode::config::standard]
+    /// [Bincode](bincode::config::standard) without compression.
     BincodeStandard,
-    /// Gz with flate2
+    /// Gz compression with flate2.
     #[default]
     Flate2,
 }
 
 
 impl MetadataCompression {
+    /// Convert the u8 value stored in [FileHeader] or [BlockHeader](crate::headers::block::BlockHeader) into a valid MetadataCompression.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [InvalidConversion] if the u8 value does not correspond to a valid MetadataCompression.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::compression::MetadataCompression;
+    /// let u8_rep = 1_u8;
+    /// let compression_type = MetadataCompression::from_u8(u8_rep).unwrap();
+    /// assert_eq!(compression_type, MetadataCompression::Flate2);
+    /// ```
     pub fn from_u8(val: u8) -> Result<Self, E> {
         match val {
             0 => Ok(MetadataCompression::BincodeStandard),
             1 => Ok(MetadataCompression::Flate2),
-            _ => Err(Box::new(crate::errors::InvalidConversion { from: val.to_string(), to: "MetadataCompression".to_string() })),
+            _ => Err(Box::new(InvalidConversion { from: val.to_string(), to: "MetadataCompression".to_string() })),
         }
     }
 
+    /// Convert a MetadataCompression into a u8 value for storage in [FileHeader] or [BlockHeader](crate::headers::block::BlockHeader).
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::compression::MetadataCompression;
+    /// let compression_type = MetadataCompression::Flate2;
+    /// let u8_rep = compression_type.to_u8();
+    /// assert_eq!(u8_rep, 1_u8);
+    /// ```
     pub fn to_u8(&self) -> u8 {
         match &self {
             MetadataCompression::BincodeStandard => 0,
@@ -114,7 +179,44 @@ impl MetadataCompression {
     }
 }
 
-/// Compress a block of [PseudoAln] records.
+/// Compress a block of [PseudoAln] records using the compression types specified in the [FileHeader].
+///
+/// **Note**: this function assumes that the FileHeader is correctly specified for
+/// the input data. If you want to compress records without specifying the
+/// header manually, use [Encoder](crate::encoder::Encoder).
+///
+/// ## Errors
+///
+/// Returns [HeaderPromiseNotHonoured] if the FileHeader requires that a field
+/// in the [PseudoAln] records is filled but it was not.
+///
+/// ## Panics
+///
+/// Will panic if
+/// - Query names are filled for some records but not all.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::compression::pack_records;
+///
+/// let data = vec![
+///     PseudoAln{ones_names: Some(vec!["target_1".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("query_2".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec![]),  query_id: Some(0), ones: Some(vec![]), query_name: Some("query_1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["target_1".as_bytes().to_vec(), "target_7".as_bytes().to_vec()]),  query_id: Some(17), ones: Some(vec![0, 6]), query_name: Some("query_16".as_bytes().to_vec()) },
+/// ];
+///
+/// let mut header = FileHeader::default();
+/// header.n_queries = 20;
+/// header.n_targets = 10;
+///
+/// let expected: Vec<u8> = vec![3, 0, 0, 0, 1, 0, 0, 0, 39, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 47, 44, 77, 45, 170, 140, 55, 130, 210, 134, 28, 80, 218, 140, 145, 153, 145, 65, 16, 0, 133, 237, 180, 205, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 46, 134, 85, 12, 27, 24, 0, 255, 108, 49, 129, 22, 0, 0, 0];
+/// let got = pack_records(&header, data).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
 pub fn pack_records(
     file_header: &FileHeader,
     records: Vec<PseudoAln>,
@@ -123,10 +225,15 @@ pub fn pack_records(
         record.query_name.clone()
     }).collect();
 
-    let query_names = if queries.is_empty() { None } else { Some(queries) };
+    let query_names = if queries.is_empty() {
+        None
+    } else {
+        assert_eq!(queries.len(), records.len());
+        Some(queries)
+    };
 
     if query_names.is_none() && file_header.promises_query_names() {
-        return Err(Box::new(crate::errors::HeaderPromiseNotHonoured { promise: "PseudoAln::query_name".to_string() }))
+        return Err(Box::new(HeaderPromiseNotHonoured { promise: "PseudoAln::query_name".to_string() }))
     }
 
     let query_ids: Vec<u32> = records.iter().filter_map(|record| {

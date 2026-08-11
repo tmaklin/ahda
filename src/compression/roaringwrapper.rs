@@ -12,8 +12,14 @@
 // at your option.
 //
 
-//! Roaring treemap wrapper (64-bit address space).
-
+//! Roaring bitmap and treemap wrapper.
+//!
+//! Provides compression for 32-bit and 64-bit address space bitmaps via
+//! [RoaringBitmap] and [RoaringTreemap], respectively.
+//!
+//! When serialized, both bitmaps are additionally compressed with DEFLATE using
+//! [flate2](https://docs.rs/flate2).
+//!
 use crate::PseudoAln;
 use crate::headers::block::BlockFlags;
 use crate::headers::block::BlockHeader;
@@ -34,7 +40,54 @@ use roaring::treemap::RoaringTreemap;
 
 type E = Box<dyn std::error::Error>;
 
-/// Converts [PseudoAln] records to a BitmapHolder holding the bitmap type specified in [FileHeader]
+use crate::errors::PseudoAlnOnesIsNone;
+use crate::errors::PseudoAlnQueryIdIsNone;
+use crate::errors::HeaderPromiseNotHonoured;
+
+/// Converts [PseudoAln] records to a [BitmapHolder] holding the bitmap given in [FileHeader].
+///
+/// ## Errors
+///
+/// Returns [PseudoAlnOnesIsNone] if the records do not contain the indexes of
+/// the target sequences. Records that do not align against any target must
+/// provide an empty vector.
+///
+/// Returns [PseudoAlnQueryIdIsNone] if the records do not contain the index of
+/// the query sequence.
+///
+/// ## Usage
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::compression::BitmapHolder;
+/// use ahda::compression::roaringwrapper::convert_to_roaring;
+/// use roaring::bitmap::RoaringBitmap;
+///
+/// let data = vec![
+///     PseudoAln{ones_names: Some(vec!["target_1".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("query_2".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec![]),  query_id: Some(0), ones: Some(vec![]), query_name: Some("query_1".as_bytes().to_vec()) },
+///     PseudoAln{ones_names: Some(vec!["target_1".as_bytes().to_vec(), "target_7".as_bytes().to_vec()]),  query_id: Some(17), ones: Some(vec![0, 6]), query_name: Some("query_16".as_bytes().to_vec()) },
+/// ];
+///
+/// let n_targets = 10;
+/// let mut header = FileHeader::default();
+/// header.n_queries = 20;
+/// header.n_targets = n_targets;
+///
+/// let aligned_indexes: Vec<u32> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+/// let roaring_bitmap = RoaringBitmap::from_iter(aligned_indexes);
+///
+/// let expected = BitmapHolder::Roaring32(roaring_bitmap);
+/// let got = convert_to_roaring(&header, data).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
 pub fn convert_to_roaring(
     file_header: &FileHeader,
     records: Vec<PseudoAln>,
@@ -50,13 +103,13 @@ pub fn convert_to_roaring(
         let ones = if let Some(indexes) = &record.ones {
             indexes
         } else {
-            return Err(Box::new(crate::errors::PseudoAlnOnesIsNone{}))
+            return Err(Box::new(PseudoAlnOnesIsNone{}))
         };
 
         let idx = if let Some(query_id) = record.query_id {
             query_id
         } else {
-            return Err(Box::new(crate::errors::PseudoAlnQueryIdIsNone))
+            return Err(Box::new(PseudoAlnQueryIdIsNone{}))
         };
 
         match &mut bits {
@@ -78,6 +131,36 @@ pub fn convert_to_roaring(
     Ok(bits)
 }
 
+/// Serializes a [RoaringBitmap] or [RoaringTreemap] held in a [BitmapHolder].
+///
+/// Serializes the bitmap using either [RoaringBitmap::serialize_into] or
+/// [RoaringTreemap::serialize_into] and DEFLATEs the serialized
+/// bytes with [deflate_bytes].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::BitmapHolder;
+/// use ahda::compression::roaringwrapper::serialize_roaring;
+/// use roaring::bitmap::RoaringBitmap;
+///
+/// let n_targets = 10;
+/// let aligned_indexes: Vec<u32> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+/// let roaring_bitmap = RoaringBitmap::from_iter(aligned_indexes);
+///
+/// let data = BitmapHolder::Roaring32(roaring_bitmap);
+///
+/// let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 46, 134, 85, 12, 27, 24, 0, 255, 108, 49, 129, 22, 0, 0, 0];
+/// let got = serialize_roaring(data).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
 pub fn serialize_roaring(
     bits: BitmapHolder,
 ) -> Result<Vec<u8>, E> {
@@ -90,6 +173,33 @@ pub fn serialize_roaring(
     Ok(bytes)
 }
 
+/// Deserializes a [RoaringBitmap] from an u8 array.
+///
+/// INFLATEs the bytes with [inflate_bytes] and deserializes the bitmap using
+/// [RoaringBitmap::deserialize_from].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::roaringwrapper::deserialize_roaring32;
+/// use roaring::bitmap::RoaringBitmap;
+///
+/// let n_targets = 10;
+/// let aligned_indexes: Vec<u32> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+///
+/// let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 38, 6, 1, 6, 6, 6, 46, 134, 85, 12, 27, 24, 0, 255, 108, 49, 129, 22, 0, 0, 0];
+/// let expected = RoaringBitmap::from_iter(aligned_indexes);
+///
+/// let got = deserialize_roaring32(&data).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
 pub fn deserialize_roaring32(
     bytes: &[u8],
 ) -> Result<RoaringBitmap, E> {
@@ -98,6 +208,33 @@ pub fn deserialize_roaring32(
     Ok(bitmap)
 }
 
+/// Deserializes a [RoaringTreemap] from an u8 array.
+///
+/// INFLATEs the bytes with [inflate_bytes] and deserializes the bitmap using
+/// [RoaringTreemap::deserialize_from].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::roaringwrapper::deserialize_roaring64;
+/// use roaring::treemap::RoaringTreemap;
+///
+/// let n_targets = 10;
+/// let aligned_indexes: Vec<u64> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+///
+/// let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 64, 0, 43, 3, 6, 6, 70, 48, 139, 137, 65, 128, 129, 129, 129, 139, 97, 21, 195, 6, 6, 0, 3, 224, 235, 76, 34, 0, 0, 0];
+/// let expected = RoaringTreemap::from_iter(aligned_indexes);
+///
+/// let got = deserialize_roaring64(&data).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
 pub fn deserialize_roaring64(
     bytes: &[u8],
 ) -> Result<RoaringTreemap, E> {
@@ -106,6 +243,108 @@ pub fn deserialize_roaring64(
     Ok(bitmap)
 }
 
+/// Compress a block of [PseudoAln] records using a [RoaringBitmap] or a [RoaringTreemap].
+///
+/// Assumes that `query_ids` and `queries` are in the same order, ie. the
+/// query_id at some index IDX has its name at the same index IDX in `queries`.
+///
+/// **Note**: this function assumes that the FileHeader is correctly specified for
+/// the input data. If you want to compress records without specifying the
+/// header manually, use [Encoder](crate::encoder::Encoder).
+///
+/// ## Errors
+///
+/// Returns [HeaderPromiseNotHonoured] if the FileHeader requires that the query
+/// names are given but they were not.
+///
+/// ## Panics
+///
+/// Will panic if
+/// - Query names are filled for some query ids but not all.
+///
+/// ## Usage
+///
+/// ### Pack a block with query names given
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::compression::BitmapHolder;
+/// use ahda::compression::roaringwrapper::pack_block_roaring;
+/// use roaring::treemap::RoaringTreemap;
+///
+/// let query_ids: Vec<u32> = vec![
+///     1,
+///     0,
+///     17,
+/// ];
+///
+/// let query_names: Vec<Vec<u8>> = vec![
+///     b"query_2".to_vec(),
+///     b"query_1".to_vec(),
+///     b"query_16".to_vec(),
+/// ];
+///
+/// let n_targets = 10;
+/// let aligned_indexes: Vec<u64> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+///
+/// let bitmap = RoaringTreemap::from_iter(aligned_indexes);
+/// let bitmap_holder = BitmapHolder::Roaring64(bitmap);
+///
+/// let mut header = FileHeader::default();
+/// header.n_queries = 20;
+/// header.n_targets = 10;
+///
+/// let expected: Vec<u8> = vec![3, 0, 0, 0, 1, 1, 0, 0, 42, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 47, 44, 77, 45, 170, 140, 55, 130, 210, 134, 28, 80, 218, 140, 145, 153, 145, 65, 16, 0, 133, 237, 180, 205, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 64, 0, 43, 3, 6, 6, 70, 48, 139, 137, 65, 128, 129, 129, 129, 139, 97, 21, 195, 6, 6, 0, 3, 224, 235, 76, 34, 0, 0, 0];
+/// let got = pack_block_roaring(&header, &query_ids, Some(query_names), bitmap_holder).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
+///
+/// ### Pack a block without query names
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::compression::BitmapHolder;
+/// use ahda::compression::roaringwrapper::pack_block_roaring;
+/// use roaring::treemap::RoaringTreemap;
+///
+/// let query_ids: Vec<u32> = vec![
+///     1,
+///     0,
+///     17,
+/// ];
+///
+/// let n_targets = 10;
+/// let aligned_indexes: Vec<u64> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+///
+/// let bitmap = RoaringTreemap::from_iter(aligned_indexes);
+/// let bitmap_holder = BitmapHolder::Roaring64(bitmap);
+///
+/// let mut header = FileHeader::default();
+/// header.n_queries = 20;
+/// header.n_targets = 10;
+/// header.fields_present = 2_u16; // We have to set this manually, not recommended.
+///
+/// let expected: Vec<u8> = vec![3, 0, 0, 0, 1, 1, 0, 0, 42, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 102, 100, 16, 4, 0, 56, 109, 101, 245, 6, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 64, 0, 43, 3, 6, 6, 70, 48, 139, 137, 65, 128, 129, 129, 129, 139, 97, 21, 195, 6, 6, 0, 3, 224, 235, 76, 34, 0, 0, 0];
+/// let got = pack_block_roaring(&header, &query_ids, None, bitmap_holder).unwrap();
+///
+/// assert_eq!(got, expected);
+/// ```
+///
 pub fn pack_block_roaring(
     file_header: &FileHeader,
     query_ids: &[u32],
@@ -123,7 +362,7 @@ pub fn pack_block_roaring(
     if let Some(query_names) = &queries {
         assert_eq!(query_ids.len(), query_names.len());
     } else if file_header.promises_query_names() {
-        return Err(Box::new(crate::errors::HeaderPromiseNotHonoured { promise : "BlockFlags::queries".to_string() }))
+        return Err(Box::new(HeaderPromiseNotHonoured { promise : "BlockFlags::queries".to_string() }))
     }
 
     let flags: BlockFlags = BlockFlags{ queries, query_ids: Some(query_ids.to_vec()) };
@@ -154,6 +393,63 @@ pub fn pack_block_roaring(
     Ok(block)
 }
 
+/// Decompress a block of [PseudoAln] records and its [BlockFlags] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::headers::block::BlockHeader;
+/// use ahda::headers::block::BlockFlags;
+/// use ahda::headers::block::read_block_header;
+/// use ahda::compression::BitmapHolder;
+/// use ahda::compression::roaringwrapper::unpack_block_roaring;
+/// use roaring::treemap::RoaringTreemap;
+///
+/// use std::io::Cursor;
+///
+/// let query_ids: Vec<u32> = vec![
+///     1,
+///     0,
+///     17,
+/// ];
+///
+/// let query_names: Vec<Vec<u8>> = vec![
+///     b"query_2".to_vec(),
+///     b"query_1".to_vec(),
+///     b"query_16".to_vec(),
+/// ];
+///
+/// let n_targets = 10;
+/// let aligned_indexes: Vec<u64> = vec![
+///     // "query_2"
+///     0 + 1 * n_targets,
+///     // "query_16"
+///     0 + 17 * n_targets,
+///     6 + 17 * n_targets,
+/// ];
+///
+/// let bitmap = RoaringTreemap::from_iter(aligned_indexes);
+/// let expected_bitmap_holder = BitmapHolder::Roaring64(bitmap);
+/// let expected_block_flags = BlockFlags {
+///     queries: Some(query_names),
+///     query_ids: Some(query_ids),
+/// };
+///
+/// let bytes: Vec<u8> = vec![3, 0, 0, 0, 1, 1, 0, 0, 42, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 47, 44, 77, 45, 170, 140, 55, 130, 210, 134, 28, 80, 218, 140, 145, 153, 145, 65, 16, 0, 133, 237, 180, 205, 32, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 64, 0, 43, 3, 6, 6, 70, 48, 139, 137, 65, 128, 129, 129, 129, 139, 97, 21, 195, 6, 6, 0, 3, 224, 235, 76, 34, 0, 0, 0];
+/// let block_data_bytes = bytes[32..bytes.len()].to_vec(); // First 32 bytes contain the header
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+///
+/// let block_header = read_block_header(&mut data).unwrap();
+///
+/// eprintln!("{:?}", block_header);
+///
+/// let (got_bitmap, got_flags) = unpack_block_roaring(&block_data_bytes, &block_header).unwrap();
+///
+/// assert_eq!(got_bitmap, expected_bitmap_holder);
+/// assert_eq!(got_flags, expected_block_flags);
+/// ```
+///
 pub fn unpack_block_roaring(
     bytes: &[u8],
     block_header: &BlockHeader,

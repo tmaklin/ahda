@@ -13,7 +13,13 @@
 //
 
 //! Flate2 wrapper.
-
+//!
+//! Provides gz compression via [flate2](https://docs.rs/flate2) for metadata
+//! stored in [FileFlags](crate::headers::file::FileFlags) and
+//! [BlockFlags](crate::headers::block::BlockFlags).
+//!
+//! Compression level is fixed at flate2's default, which is 6.
+//!
 use flate2::write::GzEncoder;
 use flate2::write::GzDecoder;
 use flate2::Compression;
@@ -22,6 +28,22 @@ use std::io::Write;
 
 type E = Box<dyn std::error::Error>;
 
+/// Compress bytes.
+///
+/// ## Errors
+///
+/// Propragates errors from [GzEncoder].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::gzwrapper::deflate_bytes;
+///
+/// let data: Vec<u8> = b"some text to compress".to_vec();
+/// let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 43, 206, 207, 77, 85, 40, 73, 173, 40, 81, 40, 201, 87, 72, 206, 207, 45, 40, 74, 45, 46, 6, 0, 239, 184, 45, 49, 21, 0, 0, 0];
+/// let got = deflate_bytes(&data).unwrap();
+/// assert_eq!(got, expected);
+/// ```
 pub fn deflate_bytes(
     bytes: &[u8],
 ) -> Result<Vec<u8>, E> {
@@ -32,6 +54,22 @@ pub fn deflate_bytes(
     Ok(deflated)
 }
 
+/// Decompress bytes.
+///
+/// ## Errors
+///
+/// Propagates errors from [GzDecoder].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::gzwrapper::inflate_bytes;
+///
+/// let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 43, 206, 207, 77, 85, 40, 73, 173, 40, 81, 40, 201, 87, 72, 206, 207, 45, 40, 74, 45, 46, 6, 0, 239, 184, 45, 49, 21, 0, 0, 0];
+/// let expected: Vec<u8> = b"some text to compress".to_vec();
+/// let got = inflate_bytes(&data).unwrap();
+/// assert_eq!(got, expected);
+/// ```
 pub fn inflate_bytes(
     deflated: &[u8],
 ) -> Result<Vec<u8>, E> {

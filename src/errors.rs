@@ -252,7 +252,12 @@ impl std::fmt::Display for PseudoAlnOnesIsEmpty {
 }
 impl std::error::Error for PseudoAlnOnesIsEmpty {}
 
-/// Expected [PseudoAln](crate::PseudoAln).ones to be filled but it was None
+/// Expected [PseudoAln](crate::PseudoAln).ones to be filled but it was None.
+///
+/// ## Returned by
+///
+/// - [convert_to_roaring](crate::compression::roaringwrapper::convert_to_roaring).
+///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesIsNone;
 impl std::fmt::Display for PseudoAlnOnesIsNone {
@@ -292,7 +297,12 @@ impl std::fmt::Display for PseudoAlnQueryIdIsEmpty {
 }
 impl std::error::Error for PseudoAlnQueryIdIsEmpty {}
 
-/// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was None
+/// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was None.
+///
+/// ## Returned by
+///
+/// - [convert_to_roaring](crate::compression::roaringwrapper::convert_to_roaring).
+///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryIdIsNone;
 impl std::fmt::Display for PseudoAlnQueryIdIsNone {
@@ -330,7 +340,13 @@ impl std::fmt::Display for MapDoesNotContainIndex {
 }
 impl std::error::Error for MapDoesNotContainIndex {}
 
-/// Key was not found in a map
+/// A [FileHeader](crate::headers::file::FileHeader) or [BlockHeader](crate::headers::block::BlockHeader) promised a field is filled but it was not.
+///
+/// ## Returned by
+///
+/// - [pack_records](crate::compression::pack_records).
+/// - [pack_block_roaring](crate::compression::roaringwrapper::pack_block_roaring).
+///
 #[derive(Debug, Clone)]
 pub struct HeaderPromiseNotHonoured {
     pub promise: String,
@@ -342,7 +358,12 @@ impl std::fmt::Display for HeaderPromiseNotHonoured {
 }
 impl std::error::Error for HeaderPromiseNotHonoured {}
 
-/// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was None
+/// Cannot convert between two values.
+///
+/// ## Returned by
+///
+/// - [BitmapType::from_u16](crate::compression::BitmapType::from_u16).
+/// - [MetadataCompression::from_u16](crate::compression::MetadataCompression::from_u8).
 #[derive(Debug, Clone)]
 pub struct InvalidConversion {
     pub from: String,
