@@ -346,7 +346,7 @@ mod tests {
         let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 97, 1, 98, 1, 99, 1, 3, 1, 0, 2];
         let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
 
-        let mut expected_header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: 13, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
+        let expected_header = BlockHeader{ num_records: 31, placeholder1: 0, block_len: 65511, flags_len: 13, fields_present: 0, placeholder2: 0, placeholder3: 0, bitmap_type: 0, metadata_compression: 0 };
         let expected_flags = BlockFlags{ queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]), query_ids: Some(vec![1, 0, 2]) };
 
         let (got_header, got_flags) = read_block_header_and_flags(&mut data).unwrap();
