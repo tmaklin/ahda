@@ -106,7 +106,7 @@ impl Default for FileHeader {
             ahda_header: build_ahda_header().unwrap(),
             file_format: AhdaFormatVersion::default().to_u8(),
             metadata_compression: MetadataCompression::default().to_u8(),
-            fields_present: crate::MASK_QUERY_IDS,
+            fields_present: crate::MASK_QUERY_IDS | crate::MASK_QUERIES,
             n_targets: 0_u32,
             n_queries: 0_u32,
             bitmap_type: BitmapType::default().to_u16(),
