@@ -116,6 +116,9 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
     pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Result<Vec<u8>, E> {
+        if self.blocks_written == 0 {
+            self.update_fields_present();
+        }
         let mut flags_bytes = encode_file_flags(&self.flags, &MetadataCompression::from_u8(self.header.metadata_compression)?)?;
         self.header.flags_len = flags_bytes.len() as u64;
         let mut header_bytes = encode_file_header(&self.header)?;
