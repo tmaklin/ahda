@@ -203,6 +203,11 @@ impl std::fmt::Display for DuplicatedQueriesErr {
 impl std::error::Error for DuplicatedQueriesErr {}
 
 /// [BlockFlags](crate::headers::block::BlockFlags).query_ids is not filled.
+///
+/// ## Returned by
+///
+/// - [alns_from_set_bits](crate::decoder::Decoder::alns_from_set_bits). (private method)
+///
 #[derive(Debug, Clone)]
 pub struct QueryIdsNotFilled;
 impl std::fmt::Display for QueryIdsNotFilled {
@@ -257,6 +262,7 @@ impl std::error::Error for PseudoAlnOnesIsEmpty {}
 /// ## Returned by
 ///
 /// - [convert_to_roaring](crate::compression::roaringwrapper::convert_to_roaring).
+/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesIsNone;
@@ -266,6 +272,21 @@ impl std::fmt::Display for PseudoAlnOnesIsNone {
     }
 }
 impl std::error::Error for PseudoAlnOnesIsNone {}
+
+/// Expected [PseudoAln](crate::PseudoAln).ones_names to be filled but it was None
+///
+/// ## Returned by
+///
+/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+///
+#[derive(Debug, Clone)]
+pub struct PseudoAlnOnesNamesIsNone;
+impl std::fmt::Display for PseudoAlnOnesNamesIsNone {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `ones_names` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnOnesNamesIsNone {}
 
 /// Expected [PseudoAln](crate::PseudoAln).ones_names to be filled but it was empty
 #[derive(Debug, Clone)]
@@ -302,6 +323,8 @@ impl std::error::Error for PseudoAlnQueryIdIsEmpty {}
 /// ## Returned by
 ///
 /// - [convert_to_roaring](crate::compression::roaringwrapper::convert_to_roaring).
+/// - [alns_from_set_bits](crate::decoder::Decoder::alns_from_set_bits) (private method).
+/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryIdIsNone;
@@ -313,6 +336,11 @@ impl std::fmt::Display for PseudoAlnQueryIdIsNone {
 impl std::error::Error for PseudoAlnQueryIdIsNone {}
 
 /// Key was not found in a map
+///
+/// ## Returned by
+///
+/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+///
 #[derive(Debug, Clone)]
 pub struct KeyNotFound {
     pub key: Vec<u8>,
@@ -326,7 +354,12 @@ impl std::fmt::Display for KeyNotFound {
 }
 impl std::error::Error for KeyNotFound {}
 
-/// Key was not found in a map
+/// Map contains less records than the requested index
+///
+/// ## Returned by
+///
+/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+///
 #[derive(Debug, Clone)]
 pub struct MapDoesNotContainIndex {
     pub index: usize,
@@ -346,6 +379,7 @@ impl std::error::Error for MapDoesNotContainIndex {}
 ///
 /// - [pack_records](crate::compression::pack_records).
 /// - [pack_block_roaring](crate::compression::roaringwrapper::pack_block_roaring).
+/// - [alns_from_set_bits](crate::decoder::Decoder::alns_from_set_bits). (private method)
 ///
 #[derive(Debug, Clone)]
 pub struct HeaderPromiseNotHonoured {
@@ -364,6 +398,7 @@ impl std::error::Error for HeaderPromiseNotHonoured {}
 ///
 /// - [BitmapType::from_u16](crate::compression::BitmapType::from_u16).
 /// - [MetadataCompression::from_u16](crate::compression::MetadataCompression::from_u8).
+///
 #[derive(Debug, Clone)]
 pub struct InvalidConversion {
     pub from: String,

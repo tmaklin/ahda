@@ -14,6 +14,39 @@
 use crate::PseudoAln;
 use crate::headers::file::FileHeader;
 
+/// Decoder for an iterator over the set bit indexes in some bitmap.
+///
+/// This struct is useful for generating [PseudoAln]s from any struct that can
+/// be iterated to get the indexes of alignment targets. Only the queries with
+/// at least one alignment will be returned.
+///
+/// The PseudoAlns returned by this struct will have the query index and target
+/// indexes fields filled.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::decoder::bitmap_decoder::BitmapDecoder;
+///
+/// let set_bits_indexes: Vec<u64> = vec![0, 4, 5, 7];
+/// let mut set_bits_iter = set_bits_indexes.into_iter();
+///
+/// let n_targets = 2_u64;
+/// let mut decoder = BitmapDecoder::new_with_dim(&mut set_bits_iter, n_targets);
+///
+/// let records = decoder.collect::<Vec<PseudoAln>>();
+///
+/// // Note how the query sequence with index 1 is not included because neither
+/// // of the bits corresponding to it (2 and 3) are set.
+/// let expected_records = vec![
+///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(0), query_name: None },
+///     PseudoAln { ones: Some(vec![0, 1]), ones_names: None, query_id: Some(2), query_name: None },
+///     PseudoAln { ones: Some(vec![1]), ones_names: None, query_id: Some(3), query_name: None },
+/// ];
+///
+/// assert_eq!(records, expected_records);
+/// ```
 pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Inputs
     bits_iter: &'a mut I,
@@ -48,6 +81,33 @@ impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u64> {
 impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u64>{
     type Item = PseudoAln;
 
+    /// Get the next record
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::bitmap_decoder::BitmapDecoder;
+    /// use ahda::headers::file::FileHeader;
+    ///
+    /// let set_bits_indexes: Vec<u64> = vec![0, 2, 4, 5, 7];
+    /// let mut set_bits_iter = set_bits_indexes.into_iter();
+    ///
+    /// let n_targets = 2_u64;
+    /// let mut decoder = BitmapDecoder::new_with_dim(&mut set_bits_iter, n_targets);
+    ///
+    /// let record = decoder.next();
+    /// assert!(record.is_some());
+    ///
+    /// let expected_record = PseudoAln {
+    ///     ones: Some(vec![0]),
+    ///     query_id: Some(0),
+    ///     ones_names: None,
+    ///     query_name : None,
+    /// };
+    ///
+    /// assert_eq!(record.unwrap(), expected_record);
+    /// ```
     fn next(
         &mut self,
     ) -> Option<Self::Item> {

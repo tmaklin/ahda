@@ -153,6 +153,69 @@ use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
 
+use crate::errors::{
+    HeaderPromiseNotHonoured,
+    KeyNotFound,
+    MapDoesNotContainIndex,
+    PseudoAlnQueryIdIsNone,
+    PseudoAlnOnesIsNone,
+    PseudoAlnOnesNamesIsNone,
+    QueryIdsNotFilled,
+};
+
+/// Decoder for a [Read] containing the complete ahda file.
+///
+/// ## Usage
+///
+/// ### Read one record at a time
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::decoder::Decoder;
+/// use std::io::Cursor;
+///
+/// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+/// let decoder = Decoder::new(&mut data).unwrap();
+///
+/// let expected: Vec<PseudoAln> = vec![
+///     PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]), query_id: Some(0), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49]) },
+///     PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]), query_id: Some(1), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50]) },
+///     PseudoAln { ones: Some(vec![0, 1]), ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97], vec![112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97]]), query_id: Some(2), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51]) },
+///     PseudoAln { ones: Some(vec![1]), ones_names: Some(vec![vec![112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97]]), query_id: Some(3), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51]) },
+///     PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(4), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54]) },
+/// ];
+///
+/// for (idx, record) in decoder.enumerate() {
+///     let got = record.unwrap();
+///     assert_eq!(got, expected[idx]);
+/// }
+/// ```
+///
+/// ### Read all available records
+///
+/// ```rust
+/// use ahda::PseudoAln;
+/// use ahda::decoder::Decoder;
+/// use std::io::Cursor;
+///
+/// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+/// let decoder = Decoder::new(&mut data).unwrap();
+///
+/// let expected: Vec<PseudoAln> = vec![
+///     PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]), query_id: Some(0), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49]) },
+///     PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]), query_id: Some(1), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50]) },
+///     PseudoAln { ones: Some(vec![0, 1]), ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97], vec![112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97]]), query_id: Some(2), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51]) },
+///     PseudoAln { ones: Some(vec![1]), ones_names: Some(vec![vec![112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97]]), query_id: Some(3), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51]) },
+///     PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(4), query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54]) },
+/// ];
+///
+/// let records: Vec<PseudoAln> = decoder.map(|record| record.unwrap()).collect();
+///
+/// assert_eq!(records, expected);
+/// ```
+///
 pub struct Decoder<'a, R: Read> {
     // Inputs
     conn: &'a mut R,
@@ -177,6 +240,19 @@ pub struct Decoder<'a, R: Read> {
 }
 
 impl<'a, R: Read> Decoder<'a, R> {
+    /// Initialize a new Decoder from a [Read] containing a valid ahda file
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    /// let decoder = Decoder::new(&mut data);
+    /// assert!(decoder.is_ok());
+    /// ```
     pub fn new(
         conn: &'a mut R,
     ) -> Result<Self, E> {
@@ -206,6 +282,33 @@ impl<'a, R: Read> Decoder<'a, R> {
         })
     }
 
+    /// Should Decoder fill the `query_id` field for each record?
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// decoder.fill_query_id(false);
+    ///
+    /// let expected = PseudoAln {
+    ///         ones: Some(vec![0]),
+    ///         ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]),
+    ///         query_id: None,
+    ///         query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49]),
+    /// };
+    ///
+    /// let record: PseudoAln = decoder.next().unwrap().unwrap();
+    ///
+    /// assert_eq!(record, expected);
+    /// ```
+    ///
     pub fn fill_query_id(
         &mut self,
         val: bool,
@@ -213,6 +316,32 @@ impl<'a, R: Read> Decoder<'a, R> {
         self.fill_query_id = val;
     }
 
+    /// Should Decoder fill the `query_name` field for each record?
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// decoder.fill_query_name(false);
+    ///
+    /// let expected = PseudoAln {
+    ///         ones: Some(vec![0]),
+    ///         ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]),
+    ///         query_id: Some(0),
+    ///         query_name: None,
+    /// };
+    ///
+    /// let record: PseudoAln = decoder.next().unwrap().unwrap();
+    ///
+    /// assert_eq!(record, expected);
+    /// ```
+    ///
     pub fn fill_query_name(
         &mut self,
         val: bool,
@@ -220,6 +349,33 @@ impl<'a, R: Read> Decoder<'a, R> {
         self.fill_query_name = val;
     }
 
+    /// Should Decoder fill the `ones` field for each record?
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// decoder.fill_target_ids(false);
+    ///
+    /// let expected = PseudoAln {
+    ///         ones: None,
+    ///         ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]),
+    ///         query_id: Some(0),
+    ///         query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49]),
+    /// };
+    ///
+    /// let record: PseudoAln = decoder.next().unwrap().unwrap();
+    ///
+    /// assert_eq!(record, expected);
+    /// ```
+    ///
     pub fn fill_target_ids(
         &mut self,
         val: bool,
@@ -227,6 +383,33 @@ impl<'a, R: Read> Decoder<'a, R> {
         self.fill_target_ids = val;
     }
 
+    /// Should Decoder fill the `ones_names` field for each record?
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// decoder.fill_target_names(false);
+    ///
+    /// let expected = PseudoAln {
+    ///         ones: Some(vec![0]),
+    ///         ones_names: None,
+    ///         query_id: Some(0),
+    ///         query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49]),
+    /// };
+    ///
+    /// let record: PseudoAln = decoder.next().unwrap().unwrap();
+    ///
+    /// assert_eq!(record, expected);
+    /// ```
+    ///
     pub fn fill_target_names(
         &mut self,
         val: bool,
@@ -237,6 +420,7 @@ impl<'a, R: Read> Decoder<'a, R> {
 
 impl<R: Read> Decoder<'_, R> {
 
+    /// Update internal state given a bitmap and block flags
     fn alns_from_set_bits(
         &mut self,
         block_flags: &BlockFlags,
@@ -261,7 +445,7 @@ impl<R: Read> Decoder<'_, R> {
             for record in &self.block {
                 match record.query_id {
                     Some(id) => aligned_ids.push(id),
-                    None => return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+                    None => return Err(Box::new(PseudoAlnQueryIdIsNone{}))
                 }
             }
             let seen: HashSet<u32> = HashSet::from_iter(aligned_ids);
@@ -274,14 +458,14 @@ impl<R: Read> Decoder<'_, R> {
             }));
             self.q_ids = IndexSet::from_iter(query_ids.iter().cloned());
         } else {
-            return Err(Box::new(crate::errors::QueryIdsNotFilled{}))
+            return Err(Box::new(QueryIdsNotFilled{}))
         }
 
         self.q_names = if self.header.promises_query_names() {
             if let Some(query_names) = block_flags.queries.as_ref() {
                 Some(IndexSet::from_iter(query_names.iter().cloned()))
             } else {
-                return Err(Box::new(crate::errors::HeaderPromiseNotHonoured { promise: "`BlockFlags::queries`".to_string() } ))
+                return Err(Box::new(HeaderPromiseNotHonoured { promise: "`BlockFlags::queries`".to_string() } ))
             }
         } else {
             None
@@ -292,12 +476,68 @@ impl<R: Read> Decoder<'_, R> {
 
     }
 
+    /// Get the [FileHeader] decoded from the input.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use ahda::headers::file::FileHeader;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    ///
+    /// let expected = FileHeader {
+    ///     ahda_header: [97_u8, 104, 100, 97, 0, 0],
+    ///     file_format: 0,
+    ///     metadata_compression: 1,
+    ///     fields_present: 3,
+    ///     n_targets: 2,
+    ///     n_queries: 5,
+    ///     bitmap_type: 0,
+    ///     block_size: 65536,
+    ///     flags_len: 51,
+    /// };
+    ///
+    /// let got = decoder.file_header();
+    ///
+    /// assert_eq!(got, &expected);
+    /// ```
+    ///
     pub fn file_header(
         &self,
     ) -> &FileHeader {
         &self.header
     }
 
+    /// Get the [FileFlags] decoded from the input.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use ahda::headers::file::FileFlags;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    ///
+    /// let mut expected = FileFlags::default();
+    /// expected.query_name = vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54];
+    /// expected.target_names = vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97], vec![112, 108, 97, 115, 109, 105, 100, 46, 102, 97, 115, 116, 97]];
+    ///
+    /// let got = decoder.file_flags();
+    ///
+    /// assert_eq!(got, &expected);
+    /// ```
+    ///
     pub fn file_flags(
         &self,
     ) -> &FileFlags {
@@ -305,6 +545,62 @@ impl<R: Read> Decoder<'_, R> {
     }
 
     /// Read next block and update internal state.
+    ///
+    /// Use [Decoder::query_ids], [Decoder::query_names], [Decoder::records],
+    /// [Decoder::bitmap], and [Decoder::block_flags] to access the contents
+    /// after calling this.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::compression::BitmapHolder;
+    /// use ahda::decoder::Decoder;
+    /// use ahda::headers::block::BlockFlags;
+    /// use ahda::headers::file::FileFlags;
+    /// use roaring::bitmap::RoaringBitmap;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// let ret = decoder.next_block().unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let expected_query_names = Some(vec![vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54]]);
+    /// let query_names = decoder.query_names();
+    /// assert_eq!(query_names, expected_query_names);
+    ///
+    /// let expected_query_ids = Some(vec![0, 1, 2, 3, 4]);
+    /// let query_ids = decoder.query_ids();
+    /// assert_eq!(query_ids, expected_query_ids);
+    ///
+    /// let expected_block_flags = Some(BlockFlags {
+    ///     queries: expected_query_names,
+    ///     query_ids: expected_query_ids,
+    /// });
+    /// let block_flags = decoder.block_flags();
+    /// assert_eq!(block_flags, expected_block_flags.as_ref());
+    ///
+    /// let expected_records = Some(vec![
+    ///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(0), query_name: None },
+    ///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(1), query_name: None },
+    ///     PseudoAln { ones: Some(vec![0, 1]), ones_names: None, query_id: Some(2), query_name: None },
+    ///     PseudoAln { ones: Some(vec![1]), ones_names: None, query_id: Some(3), query_name: None },
+    ///     PseudoAln { ones: Some(vec![]), ones_names: None, query_id: Some(4), query_name: None },
+    /// ]);
+    /// let records = decoder.records();
+    /// assert_eq!(records, expected_records.as_ref());
+    ///
+    /// let expected_bitmap = Some(BitmapHolder::Roaring32(RoaringBitmap::from_iter(vec![0, 2, 4, 5, 7])));
+    /// let bitmap = decoder.bitmap();
+    /// assert_eq!(bitmap, expected_bitmap.as_ref());
+    ///
+    /// let ret = decoder.next_block();
+    /// assert!(ret.is_none());
+    /// ```
+    ///
     pub fn next_block(
         &mut self,
     ) -> Option<Result<(), E>> {
@@ -346,6 +642,25 @@ impl<R: Read> Decoder<'_, R> {
     }
 
     /// Get query ids in the current block, use [Decoder::next_block] to advance.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// let ret = decoder.next_block().unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let expected_query_ids = Some(vec![0, 1, 2, 3, 4]);
+    /// let query_ids = decoder.query_ids();
+    /// assert_eq!(query_ids, expected_query_ids);
+    /// ```
+    ///
     pub fn query_ids(
         &self,
     ) -> Option<Vec<u32>> {
@@ -357,6 +672,25 @@ impl<R: Read> Decoder<'_, R> {
     }
 
     /// Get query names in the current block if present, use [Decoder::next_block] to advance.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// let ret = decoder.next_block().unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let expected_query_names = Some(vec![vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54]]);
+    /// let query_names = decoder.query_names();
+    /// assert_eq!(query_names, expected_query_names);
+    /// ```
+    ///
     pub fn query_names(
         &self,
     ) -> Option<Vec<Vec<u8>>> {
@@ -364,6 +698,32 @@ impl<R: Read> Decoder<'_, R> {
     }
 
     /// Get records in the current block, use [Decoder::next_block] to advance.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// let ret = decoder.next_block().unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let expected_records = Some(vec![
+    ///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(0), query_name: None },
+    ///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(1), query_name: None },
+    ///     PseudoAln { ones: Some(vec![0, 1]), ones_names: None, query_id: Some(2), query_name: None },
+    ///     PseudoAln { ones: Some(vec![1]), ones_names: None, query_id: Some(3), query_name: None },
+    ///     PseudoAln { ones: Some(vec![]), ones_names: None, query_id: Some(4), query_name: None },
+    /// ]);
+    /// let records = decoder.records();
+    /// assert_eq!(records, expected_records.as_ref());
+    /// ```
+    ///
     pub fn records(
         &self,
     ) -> Option<&Vec<PseudoAln>> {
@@ -375,6 +735,27 @@ impl<R: Read> Decoder<'_, R> {
     }
 
     /// Get bitmap in the current block, use [Decoder::next_block] to advance.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::compression::BitmapHolder;
+    /// use ahda::decoder::Decoder;
+    /// use roaring::bitmap::RoaringBitmap;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// let ret = decoder.next_block().unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let expected_bitmap = Some(BitmapHolder::Roaring32(RoaringBitmap::from_iter(vec![0, 2, 4, 5, 7])));
+    /// let bitmap = decoder.bitmap();
+    /// assert_eq!(bitmap, expected_bitmap.as_ref());
+    /// ```
+    ///
     pub fn bitmap(
         &self,
     ) -> Option<&BitmapHolder> {
@@ -386,12 +767,48 @@ impl<R: Read> Decoder<'_, R> {
     }
 
     /// Get bitmap in the current block, use [Decoder::next_block] to advance.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::decoder::Decoder;
+    /// use ahda::headers::block::BlockFlags;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// let ret = decoder.next_block().unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let expected_query_names = Some(vec![vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54]]);
+    /// let expected_query_ids = Some(vec![0, 1, 2, 3, 4]);
+    /// let expected_block_flags = Some(BlockFlags {
+    ///     queries: Some(vec![vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 50], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 54, 53, 49, 57, 48, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 55, 53, 52, 51], vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49, 54]]),
+    ///     query_ids: Some(vec![0, 1, 2, 3, 4]),
+    /// });
+    ///
+    /// let block_flags = decoder.block_flags();
+    /// assert_eq!(block_flags, expected_block_flags.as_ref());
+    /// ```
+    ///
     pub fn block_flags(
         &self,
     ) -> Option<&BlockFlags> {
         self.block_flags.as_ref()
     }
 
+    /// Update the fields in a PseudoAln based on what was requested.
+    ///
+    /// This function is called from within [Decoder::next].
+    ///
+    /// Use
+    /// - [Decoder::fill_query_id] to request filling the query index.
+    /// - [Decoder::fill_query_name] to request the query name.
+    /// - [Decoder::fill_target_ids] to request target indexes.
+    /// - [Decoder::fill_target_names] to request target names;
+    ///
     fn fill_record(
         &self,
         record: &mut PseudoAln,
@@ -405,26 +822,26 @@ impl<R: Read> Decoder<'_, R> {
                 Some(key) => {
                     match self.q_names.as_ref().unwrap().get_index_of(key) {
                         Some(query_id) => record.query_id = Some(query_id.try_into()?),
-                        None => return Err(Box::new(crate::errors::KeyNotFound { key: key.clone(), map_name: "Decoder::q_names".to_string() })),
+                        None => return Err(Box::new(KeyNotFound { key: key.clone(), map_name: "Decoder::q_names".to_string() })),
                     }
                 },
-                None => return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{})),
+                None => return Err(Box::new(PseudoAlnQueryIdIsNone{})),
             }
         }
 
         if record.query_name.is_none() && self.fill_query_name {
             let key: u32 = match record.query_id {
                 Some(query_id) => query_id,
-                None => return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{})),
+                None => return Err(Box::new(PseudoAlnQueryIdIsNone{})),
             };
             let index = match self.q_ids.get_index_of(&key) {
                 Some(index) => index,
-                None => return Err(Box::new(crate::errors::KeyNotFound { key: key.to_string().as_bytes().to_vec(), map_name: "Decoder::q_ids".to_string() }))
+                None => return Err(Box::new(KeyNotFound { key: key.to_string().as_bytes().to_vec(), map_name: "Decoder::q_ids".to_string() }))
             };
             let query_name = if let Some(q_names) = &self.q_names {
                 match q_names.get_index(index) {
                     Some(q_name) => q_name.clone(),
-                    None => return Err(Box::new(crate::errors::MapDoesNotContainIndex { index, map_name: "Decoder::q_names".to_string() }))
+                    None => return Err(Box::new(MapDoesNotContainIndex { index, map_name: "Decoder::q_names".to_string() }))
                 }
             } else {
                 let mut new_name = self.flags.query_name.clone();
@@ -442,12 +859,12 @@ impl<R: Read> Decoder<'_, R> {
                     let key: usize = (*target_idx).try_into()?;
                     match self.t_names.get_index(key) {
                         Some(target_name) => ones_names.push(target_name.clone()),
-                        None => return Err(Box::new(crate::errors::MapDoesNotContainIndex { index: key, map_name: "Decoder::t_names".to_string() })),
+                        None => return Err(Box::new(MapDoesNotContainIndex { index: key, map_name: "Decoder::t_names".to_string() })),
                     }
                 }
                 record.ones_names = Some(ones_names);
             } else {
-                return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+                return Err(Box::new(PseudoAlnOnesIsNone{}))
             }
         }
 
@@ -457,14 +874,34 @@ impl<R: Read> Decoder<'_, R> {
                 for target_name in ones_names {
                     match self.t_names.get_index_of(target_name) {
                         Some(target_idx) => ones.push(target_idx.try_into()?),
-                        None => return Err(Box::new(crate::errors::KeyNotFound { key: target_name.clone(), map_name: "Decoder::t_names".to_string() })),
+                        None => return Err(Box::new(KeyNotFound { key: target_name.clone(), map_name: "Decoder::t_names".to_string() })),
                     }
                 }
                 record.ones = Some(ones);
             } else {
-                return Err(Box::new(crate::errors::PseudoAlnOnesNamesIsEmpty{}))
+                return Err(Box::new(PseudoAlnOnesNamesIsNone{}))
             }
         }
+
+        if !self.fill_query_id {
+            record.query_id = None;
+        }
+
+
+        if !self.fill_query_name {
+            record.query_name = None;
+        }
+
+
+        if !self.fill_target_ids {
+            record.ones = None;
+        }
+
+
+        if !self.fill_target_names {
+            record.ones_names = None;
+        }
+
         Ok(())
     }
 
@@ -473,6 +910,67 @@ impl<R: Read> Decoder<'_, R> {
 impl<R: Read> Iterator for Decoder<'_, R> {
     type Item = Result<PseudoAln, E>;
 
+    /// Get the next PseudoAln record
+    ///
+    /// ## Usage
+    ///
+    /// ### Get a record and fill all fields.
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    ///
+    /// let expected_record = PseudoAln {
+    ///     ones: Some(vec![0]),
+    ///     ones_names: Some(vec![vec![99, 104, 114, 46, 102, 97, 115, 116, 97]]),
+    ///     query_id: Some(0),
+    ///     query_name: Some(vec![69, 82, 82, 52, 48, 51, 53, 49, 50, 54, 46, 49]),
+    /// };
+    /// let ret = decoder.next();
+    /// assert!(ret.is_some());
+    ///
+    /// let ret = ret.unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let record = ret.unwrap();
+    /// assert_eq!(record, expected_record);
+    /// ```
+    ///
+    /// ### Get a record without filling some fields
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::decoder::Decoder;
+    /// use std::io::Cursor;
+    ///
+    /// let bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 51, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 227, 114, 13, 10, 50, 49, 48, 54, 53, 52, 50, 99, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 66, 30, 44, 81, 36, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 65, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 229, 113, 13, 10, 50, 49, 48, 54, 53, 52, 50, 211, 51, 68, 230, 24, 9, 34, 113, 204, 76, 13, 45, 13, 140, 249, 145, 68, 204, 77, 77, 140, 121, 145, 245, 154, 49, 178, 50, 48, 50, 49, 179, 0, 0, 22, 232, 102, 239, 83, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(bytes);
+    ///
+    /// let mut decoder = Decoder::new(&mut data).unwrap();
+    /// decoder.fill_target_names(false);
+    /// decoder.fill_query_name(false);
+    ///
+    /// let expected_record = PseudoAln {
+    ///     ones: Some(vec![0]),
+    ///     ones_names: None,
+    ///     query_id: Some(0),
+    ///     query_name: None,
+    /// };
+    /// let ret = decoder.next();
+    /// assert!(ret.is_some());
+    ///
+    /// let ret = ret.unwrap();
+    /// assert!(ret.is_ok());
+    ///
+    /// let record = ret.unwrap();
+    /// assert_eq!(record, expected_record);
+    /// ```
     fn next(
         &mut self,
     ) -> Option<Self::Item> {
