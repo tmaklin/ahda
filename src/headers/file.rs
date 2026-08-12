@@ -144,7 +144,7 @@ pub fn build_ahda_header() -> Result<[u8; 6], E> {
 
 pub fn check_ahda_header(
     bytes: [u8; 6],
-) -> Result<String, E> {
+) -> Result<AhdaVersion, E> {
     let mut is_ahda = true;
     is_ahda &= bytes[0] == 97;
     is_ahda &= bytes[1] == 104;
@@ -152,14 +152,10 @@ pub fn check_ahda_header(
     is_ahda &= bytes[3] == 97;
 
     let version_bytes: [u8; 2] = [bytes[4], bytes[5]];
-    let version: u16 = u16::from_le_bytes(version_bytes);
-    let version_str: String = match version {
-        0 => "0.1.0".to_string(),
-        _ => "".to_string(),
-    };
+    let try_version = AhdaVersion::from_le_bytes(version_bytes);
 
     if is_ahda {
-        Ok(version_str)
+        try_version
     } else {
         Err(Box::new(crate::errors::AhdaHeaderError))
     }

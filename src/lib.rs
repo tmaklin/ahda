@@ -208,6 +208,11 @@ pub enum AhdaVersion {
 }
 
 impl AhdaVersion {
+    pub fn from_le_bytes(bytes: [u8; 2]) -> Result<Self, E> {
+        let version_u16 = u16::from_le_bytes(bytes);
+        Self::from_u16(version_u16)
+    }
+
     pub fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(AhdaVersion::V0_1_0),
