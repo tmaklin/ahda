@@ -13,6 +13,135 @@
 //
 
 //! Encoder implementation for an iterator over set bit indexes.
+//!
+//! Implements a struct that can be used to encode data from any iterator over
+//! the aligned target indexes.
+//!
+//! **Note**: The iterator must be sorted.
+//!
+//! The aligned target indexes are assumed to index a flattened `n_queries x
+//! n_targets` matrix in **row-major** order.
+//!
+//! For example, an iterator over the flattened `3 x 2` matrix containing the
+//! indexes `[0, 2, 5]` implies the following alignments:
+//!
+//! - First query aligned against target with index 0.
+//! - Second query aligned against target with index 0.
+//! - Third query aligned against target with index 1.
+//!
+//! To create a valid .ahda record, [BitmapEncoder::encode_file_header_and_flags] should be
+//! called first and its output included as the first bytes in the record. This
+//! method encodes the [FileHeader] and [FileFlags] corresponding to the data
+//! stored in the BitmapEncoder.
+//!
+//! Block size can be controlled using [BitmapEncoder::set_block_size]. Larger blocks may
+//! result in better compression ratios but require more memory to encode and
+//! decode.
+//!
+//! BitmapEncoder will store the pseudoalignment using a [RoaringBitmap] if the
+//! number of target sequences times the number of query sequences is less than
+//! 2^32. Otherwise, a [RoaringTreemap] will be used.
+//!
+//! ## Usage
+//!
+//! ### Encode a vector of alignment target indexes
+//!
+//! ```rust
+//! use ahda::PseudoAln;
+//! use ahda::encoder::bitmap_encoder::BitmapEncoder;
+//! use std::io::Cursor;
+//!
+//! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+//! let name = "sample".as_bytes().to_vec();
+//!
+//! let set_bits_indexes: Vec<u64> = vec![0, 2, 4, 5, 7];
+//! let n_records = 5;
+//! let mut iter = set_bits_indexes.into_iter();
+//!
+//! let mut encoder = BitmapEncoder::new(&mut iter, &targets, &name, n_records).expect("Encoder");
+//! encoder.set_block_size(3);
+//!
+//! let mut header_and_flags: Vec<u8> = encoder.encode_file_header_and_flags().expect("Bytes");
+//!
+//! let mut all_blocks: Vec<u8> = encoder.flat_map(|block| {
+//!     assert!(block.is_ok());
+//!     block.unwrap()
+//! }).collect();
+//!
+//! let mut bytes: Vec<u8> = header_and_flags;
+//! bytes.append(&mut all_blocks);
+//!
+//! let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 2, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 3, 0, 0, 0, 47, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 43, 78, 204, 45, 200, 73, 101, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 98, 108, 248, 160, 32, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 38, 0, 0, 0, 26, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 102, 96, 100, 2, 0, 144, 119, 2, 105, 6, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 102, 6, 1, 48, 205, 196, 192, 194, 192, 202, 0, 0, 122, 0, 30, 128, 24, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 33, 0, 0, 0, 25, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 98, 102, 1, 0, 204, 211, 90, 81, 5, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+//! assert_eq!(&bytes, &expected_bytes);
+//!
+//! // The alignments can be decoded from `bytes`
+//!
+//! let mut input: Cursor<Vec<u8>> = Cursor::new(bytes);
+//! let (_file_header, _file_flags, alns) = ahda::decode_from_read(&mut input).unwrap();
+//!
+//! // Note how the `query_name` field has been filled with names of the format <name>.<query_id> because we did not encode the query names.
+//!
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![b"chr.fasta".to_vec()]), query_id: Some(0), query_name: Some("sample.1".as_bytes().to_vec()) });
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![b"chr.fasta".to_vec()]), query_id: Some(1), query_name: Some("sample.2".as_bytes().to_vec()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1]), ones_names: Some(vec![b"chr.fasta".to_vec(), b"plasmid.fasta".to_vec()]), query_id: Some(2), query_name: Some("sample.3".as_bytes().to_vec()) });
+//! assert_eq!(alns[3], PseudoAln { ones: Some(vec![1]), ones_names: Some(vec![b"plasmid.fasta".to_vec()]), query_id: Some(3), query_name: Some("sample.4".as_bytes().to_vec()) });
+//! assert_eq!(alns[4], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(4), query_name: Some("sample.5".as_bytes().to_vec()) });
+//! assert_eq!(alns.len(), 5);
+//! ```
+//!
+//! ### Encode and add query names
+//!
+//! ```rust
+//! use ahda::PseudoAln;
+//! use ahda::encoder::bitmap_encoder::BitmapEncoder;
+//! use std::io::Cursor;
+//!
+//! let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+//! let name = "sample".as_bytes().to_vec();
+//!
+//! let set_bits_indexes: Vec<u64> = vec![0, 2, 4, 5, 7];
+//! let n_records = 5;
+//! let mut iter = set_bits_indexes.into_iter();
+//!
+//! let query_names: Vec<Vec<u8>> = vec![
+//!     b"r1".to_vec(),
+//!     b"r2".to_vec(),
+//!     b"r651903".to_vec(),
+//!     b"r7543".to_vec(),
+//!     b"r16".to_vec(),
+//! ];
+//!
+//! let mut encoder = BitmapEncoder::new(&mut iter, &targets, &name, n_records).expect("Encoder");
+//! encoder.set_block_size(3);
+//! encoder.set_query_names(&query_names);
+//!
+//! let mut header_and_flags: Vec<u8> = encoder.encode_file_header_and_flags().expect("Bytes");
+//!
+//! let mut all_blocks: Vec<u8> = encoder.flat_map(|block| {
+//!     assert!(block.is_ok());
+//!     block.unwrap()
+//! }).collect();
+//!
+//! let mut bytes: Vec<u8> = header_and_flags;
+//! bytes.append(&mut all_blocks);
+//!
+//! let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 3, 0, 2, 0, 0, 0, 5, 0, 0, 0, 0, 0, 3, 0, 0, 0, 47, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 43, 78, 204, 45, 200, 73, 101, 226, 76, 206, 40, 210, 75, 75, 44, 46, 73, 228, 45, 200, 73, 44, 206, 205, 76, 129, 240, 0, 98, 108, 248, 160, 32, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 38, 0, 0, 0, 41, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 42, 50, 100, 42, 50, 98, 47, 50, 51, 53, 180, 52, 48, 102, 100, 102, 96, 100, 2, 0, 211, 23, 107, 190, 21, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 102, 6, 1, 48, 205, 196, 192, 194, 192, 202, 0, 0, 122, 0, 30, 128, 24, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 33, 0, 0, 0, 36, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 98, 45, 50, 55, 53, 49, 102, 46, 50, 52, 99, 100, 98, 102, 1, 0, 105, 81, 49, 120, 16, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 128, 0, 1, 6, 6, 6, 118, 6, 0, 71, 48, 17, 238, 18, 0, 0, 0];
+//! assert_eq!(bytes, expected_bytes);
+//!
+//! // The alignments can be decoded from `bytes`
+//!
+//! let mut input: Cursor<Vec<u8>> = Cursor::new(bytes);
+//! let (_file_header, _file_flags, alns) = ahda::decode_from_read(&mut input).unwrap();
+//!
+//! // Note how the `query_name` field now contains the names we supplied via `set_query_names(&query_names)`
+//!
+//! assert_eq!(alns[0], PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![b"chr.fasta".to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) });
+//! assert_eq!(alns[1], PseudoAln { ones: Some(vec![0]), ones_names: Some(vec![b"chr.fasta".to_vec()]), query_id: Some(1), query_name: Some("r2".as_bytes().to_vec()) });
+//! assert_eq!(alns[2], PseudoAln { ones: Some(vec![0, 1]), ones_names: Some(vec![b"chr.fasta".to_vec(), b"plasmid.fasta".to_vec()]), query_id: Some(2), query_name: Some("r651903".as_bytes().to_vec()) });
+//! assert_eq!(alns[3], PseudoAln { ones: Some(vec![1]), ones_names: Some(vec![b"plasmid.fasta".to_vec()]), query_id: Some(3), query_name: Some("r7543".as_bytes().to_vec()) });
+//! assert_eq!(alns[4], PseudoAln { ones: Some(vec![]), ones_names: Some(vec![]), query_id: Some(4), query_name: Some("r16".as_bytes().to_vec()) });
+//! assert_eq!(alns.len(), 5);
+//! ```
 
 use crate::headers::file::FileHeader;
 use crate::headers::file::FileFlags;
@@ -28,6 +157,8 @@ use roaring::RoaringBitmap;
 use roaring::RoaringTreemap;
 
 type E = Box<dyn std::error::Error>;
+
+use crate::errors::SetBitsIteratorNotSorted;
 
 pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     // Input iterator
@@ -50,6 +181,21 @@ pub struct BitmapEncoder<'a, I: Iterator> where I: Iterator<Item=u64> {
 }
 
 impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
+    /// Construct from a [FileHeader] and [FileFlags]
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::encoder::bitmap_encoder::BitmapEncoder;
+    /// use ahda::headers::file::{FileHeader, FileFlags};
+    ///
+    /// let header = FileHeader::default();
+    /// let flags = FileFlags::default();
+    /// let set_bit_idxs: Vec<u64> = Vec::new();
+    /// let mut iter = set_bit_idxs.into_iter();
+    /// let encoder = BitmapEncoder::new_from_header_and_flags(&mut iter, header, flags);
+    /// assert!(encoder.is_ok());
+    /// ```
     pub fn new_from_header_and_flags(
         set_bits: &'a mut I,
         header: FileHeader,
@@ -69,6 +215,21 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         })
     }
 
+    /// Construct from info needed to build the [FileHeader] and [FileFlags].
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::encoder::bitmap_encoder::BitmapEncoder;
+    ///
+    /// let targets: Vec<Vec<u8>> = Vec::new();
+    /// let sample_name: Vec<u8> = Vec::new();
+    /// let n_queries: usize = 0;
+    /// let set_bit_idxs: Vec<u64> = Vec::new();
+    /// let mut iter = set_bit_idxs.into_iter();
+    /// let encoder = BitmapEncoder::new(&mut iter, &targets, &sample_name, n_queries);
+    /// assert!(encoder.is_ok());
+    /// ```
     pub fn new(
         set_bits: &'a mut I,
         targets: &[Vec<u8>],
@@ -95,7 +256,8 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         }
     }
 
-    /// Make the encoder write query names
+    /// Make the encoder encode the query names for each block's
+    /// [BlockFlags](crate::headers::block::BlockFlags).
     pub fn set_query_names(
         &mut self,
         query_names: &[Vec<u8>],
@@ -104,6 +266,9 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
         self.update_fields_present();
     }
 
+    /// Change the compression method for [FileFlags] and
+    /// [BlockFlags](crate::headers::block::BlockFlags), see
+    /// [crate::compression::MetadataCompression] for available options.
     pub fn set_metadata_compression(
         &mut self,
         metadata_compression: &MetadataCompression,
@@ -113,6 +278,29 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
 }
 
 impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
+    /// Encode the [FileHeader] and [FileFlags] and return the encoded bytes.
+    ///
+    /// Will update the `fields_present` field of FileHeader if called before
+    /// writing any blocks with [BitmapEncoder::next].
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::encoder::bitmap_encoder::BitmapEncoder;
+    ///
+    /// let targets: Vec<Vec<u8>> = Vec::new();
+    /// let sample_name: Vec<u8> = Vec::new();
+    /// let n_queries: usize = 0;
+    /// let set_bit_idxs: Vec<u64> = Vec::new();
+    /// let mut iter = set_bit_idxs.into_iter();
+    /// let mut encoder = BitmapEncoder::new(&mut iter, &targets, &sample_name, n_queries).expect("Encoder");
+    ///
+    /// let bytes = encoder.encode_file_header_and_flags();
+    /// assert!(bytes.is_ok());
+    ///
+    /// let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 22, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 0, 0, 255, 18, 217, 65, 2, 0, 0, 0];
+    /// assert_eq!(bytes.unwrap(), expected_bytes);
+    /// ```
     pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Result<Vec<u8>, E> {
@@ -130,6 +318,12 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
         Ok(out)
     }
 
+    /// Change the number of [PseudoAln](crate::PseudoAln)s stored per block.
+    ///
+    /// If the underlying bitmap uses a 32-bit address space, the block size is
+    /// capped at `u32::MAX / n_targets` regardless of the input argument. For
+    /// 64-bit address space, the block size is capped at `u64::MAX /
+    /// n_targets`.
     pub fn set_block_size(
         &mut self,
         block_size: usize
@@ -198,6 +392,42 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
 impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
     type Item = Result<Vec<u8>, E>;
 
+    /// Encode the next block of records.
+    ///
+    /// Returns bytes containing the encoded
+    /// [BlockHeader](crate::headers::block::BlockHeader),
+    /// [BlockFlags](crate::headers::block::BlockFlags), and
+    /// [PseudoAln](crate::PseudoAln) vector corresponding to the set bit
+    /// indexes for this block.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [SetBitsIteratorNotSorted] if the set bit indexes iterator given
+    /// to the constructor was not sorted.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::encoder::bitmap_encoder::BitmapEncoder;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let name = "sample".as_bytes().to_vec();
+    ///
+    /// let set_bits_indexes: Vec<u64> = vec![0, 2, 4, 5, 7];
+    /// let n_records = 5;
+    /// let mut iter = set_bits_indexes.into_iter();
+    ///
+    /// let mut encoder = BitmapEncoder::new(&mut iter, &targets, &name, n_records).expect("Encoder");
+    ///
+    /// let next_block = encoder.next();
+    /// assert!(next_block.is_some());
+    /// assert!(next_block.as_ref().unwrap().is_ok());
+    ///
+    /// let bytes = next_block.unwrap().unwrap();
+    /// let expected_bytes: Vec<u8> = vec![5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 196, 192, 194, 192, 202, 192, 206, 0, 0, 47, 109, 177, 38, 26, 0, 0, 0];
+    ///
+    /// assert_eq!(bytes, expected_bytes);
+    /// ```
     fn next(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {
@@ -206,7 +436,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
         loop {
             if let Some(next_idx) = self.set_bits.next() {
                 if next_idx < self.prev_idx {
-                    return Some(Err(Box::new(crate::errors::SetBitsIteratorNotSortedErr{})))
+                    return Some(Err(Box::new(SetBitsIteratorNotSorted{})))
                 }
                 self.prev_idx = next_idx;
 

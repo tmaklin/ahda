@@ -156,6 +156,7 @@ use crate::compression::pack_records;
 
 type E = Box<dyn std::error::Error>;
 
+/// Encoder for an iterator over [PseudoAln]s.
 pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
     records: &'a mut I,
@@ -170,6 +171,22 @@ pub struct Encoder<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
+    /// Construct from a [FileHeader] and [FileFlags]
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::encoder::Encoder;
+    /// use ahda::headers::file::{FileHeader, FileFlags};
+    ///
+    /// let header = FileHeader::default();
+    /// let flags = FileFlags::default();
+    /// let records: Vec<PseudoAln> = Vec::new();
+    /// let mut iter = records.into_iter();
+    /// let encoder = Encoder::new_from_header_and_flags(&mut iter, header, flags);
+    /// assert!(encoder.is_ok());
+    /// ```
     pub fn new_from_header_and_flags(
         records: &'a mut I,
         header: FileHeader,
@@ -188,6 +205,21 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         })
     }
 
+    /// Construct from info needed to build the [FileHeader] and [FileFlags].
+    ///
+    /// ## Usage
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::encoder::Encoder;
+    ///
+    /// let targets: Vec<Vec<u8>> = Vec::new();
+    /// let sample_name: Vec<u8> = Vec::new();
+    /// let n_queries: usize = 0;
+    /// let records: Vec<PseudoAln> = Vec::new();
+    /// let mut iter = records.into_iter();
+    /// let encoder = Encoder::new(&mut iter, &targets, &sample_name, n_queries);
+    /// assert!(encoder.is_ok());
+    /// ```
     pub fn new(
         records: &'a mut I,
         targets: &[Vec<u8>],
@@ -198,6 +230,9 @@ impl<'a, I: Iterator> Encoder<'a, I> where I: Iterator<Item=PseudoAln> {
         Self::new_from_header_and_flags(records, header, flags)
     }
 
+    /// Change the compression method for [FileFlags] and
+    /// [BlockFlags](crate::headers::block::BlockFlags), see
+    /// [crate::compression::MetadataCompression] for available options.
     pub fn set_metadata_compression(
         &mut self,
         metadata_compression: &MetadataCompression,
@@ -212,6 +247,24 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     /// Will update the `fields_present` field of FileHeader if called before
     /// writing any blocks with [Encoder::next].
     ///
+    /// ## Usage
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::encoder::Encoder;
+    ///
+    /// let targets: Vec<Vec<u8>> = Vec::new();
+    /// let sample_name: Vec<u8> = Vec::new();
+    /// let n_queries: usize = 0;
+    /// let records: Vec<PseudoAln> = Vec::new();
+    /// let mut iter = records.into_iter();
+    /// let mut encoder = Encoder::new(&mut iter, &targets, &sample_name, n_queries).expect("Encoder");
+    ///
+    /// let bytes = encoder.encode_file_header_and_flags();
+    /// assert!(bytes.is_ok());
+    ///
+    /// let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 22, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 0, 0, 255, 18, 217, 65, 2, 0, 0, 0];
+    /// assert_eq!(bytes.unwrap(), expected_bytes);
+    /// ```
     pub fn encode_file_header_and_flags(
         &mut self,
     ) -> Result<Vec<u8>, E> {
@@ -278,7 +331,7 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         }
     }
 
-    /// Get the next block to internal buffer
+    /// Update internal state to prepare for encoding the next block.
     fn next_block(
         &mut self,
     ) -> Option<()> {
@@ -301,6 +354,42 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
 impl<I: Iterator> Iterator for Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
     type Item = Result<Vec<u8>, E>;
 
+    /// Encode the next records block.
+    ///
+    /// Returns bytes containing the encoded
+    /// [BlockHeader](crate::headers::block::BlockHeader),
+    /// [BlockFlags](crate::headers::block::BlockFlags), and [PseudoAln] vector.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::PseudoAln;
+    /// use ahda::encoder::Encoder;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let name = "sample".as_bytes().to_vec();
+    ///
+    /// let records = vec![
+    ///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(0), query_name: None },
+    ///     PseudoAln { ones: Some(vec![0]), ones_names: None, query_id: Some(1), query_name: None },
+    ///     PseudoAln { ones: Some(vec![0, 1]), ones_names: None, query_id: Some(2), query_name: None },
+    ///     PseudoAln { ones: Some(vec![1]), ones_names: None, query_id: Some(3), query_name: None },
+    ///     PseudoAln { ones: Some(vec![]), ones_names: None, query_id: Some(4), query_name: None },
+    /// ];
+    /// let n_records = records.len();
+    /// let mut iter = records.into_iter();
+    ///
+    /// let mut encoder = Encoder::new(&mut iter, &targets, &name, n_records).expect("Encoder");
+    ///
+    /// let next_block = encoder.next();
+    /// assert!(next_block.is_some());
+    /// assert!(next_block.as_ref().unwrap().is_ok());
+    ///
+    /// let bytes = next_block.unwrap().unwrap();;
+    /// let expected_bytes: Vec<u8> = vec![5, 0, 0, 0, 1, 0, 0, 0, 40, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 96, 100, 101, 96, 100, 98, 102, 1, 0, 191, 97, 224, 4, 8, 0, 0, 0, 31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 179, 50, 96, 96, 96, 100, 0, 1, 22, 6, 1, 48, 205, 204, 192, 198, 192, 206, 192, 197, 0, 0, 124, 122, 116, 184, 26, 0, 0, 0];
+    ///
+    /// assert_eq!(bytes, expected_bytes);
+    /// ```
     fn next(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {

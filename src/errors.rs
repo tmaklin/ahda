@@ -47,14 +47,19 @@ impl std::fmt::Display for AhdaHeaderError {
 impl std::error::Error for AhdaHeaderError {}
 
 /// Set bits iterator given to [BitmapEncoder](crate::encoder::bitmap_encoder::BitmapEncoder) is not sorted.
+///
+/// ## Returned by
+///
+/// - [BitmapEncoder::next](crate::encoder::bitmap_encoder::BitmapEncoder::next).
+///
 #[derive(Debug, Clone)]
-pub struct SetBitsIteratorNotSortedErr;
-impl std::fmt::Display for SetBitsIteratorNotSortedErr {
+pub struct SetBitsIteratorNotSorted;
+impl std::fmt::Display for SetBitsIteratorNotSorted {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "`set_bits` iterator given to BitmapEncoder::new() (argument #1) must be sorted.")
     }
 }
-impl std::error::Error for SetBitsIteratorNotSortedErr {}
+impl std::error::Error for SetBitsIteratorNotSorted {}
 
 /// Could not format [PseudoAln](crate::PseudoAln)(crate::PseudoAln) as a Themisto plain text line.
 #[derive(Debug, Clone)]
