@@ -179,7 +179,7 @@ pub fn build_file_header_and_flags(
     // Adjust block size to fit within 32-bit address space if using RoaringBitmaps
     let block_size: u32 = match bitmap_type {
         BitmapType::Roaring32 => {
-            let mut block_size = ((u32::MAX as u64) / (n_targets as u64)).min(65537_u64) as u32;
+            let mut block_size = ((u32::MAX as u64) / (n_targets.max(1_usize) as u64)).min(65537_u64) as u32;
             block_size = if block_size == 1 { 2 } else { block_size - 1 };
             block_size
         },
