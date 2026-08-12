@@ -19,19 +19,28 @@ pub struct BitmapDecoder<'a, I: Iterator> where I: Iterator<Item=u64> {
     bits_iter: &'a mut I,
     index: Option<u64>,
 
-    file_header: FileHeader,
+    n_targets: u64,
 }
 
 impl<'a, I: Iterator> BitmapDecoder<'a, I> where I: Iterator<Item=u64> {
+    /// Construct from an iterator over set bits and a [FileHeader].
     pub fn new(
         bits_iter: &'a mut I,
         file_header: FileHeader,
     ) -> Self {
+        let n_targets = file_header.n_targets as u64;
+        Self::new_with_dim(bits_iter, n_targets)
+    }
 
+    /// Construct from an iterator over set bits and the number of columns.
+    pub fn new_with_dim(
+        bits_iter: &'a mut I,
+        n_cols: u64,
+    ) -> Self {
         BitmapDecoder {
             bits_iter,
-            file_header,
             index: None,
+            n_targets: n_cols,
         }
     }
 }
@@ -45,10 +54,9 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u64>{
         let mut ones: Vec<u32> = Vec::new();
         let mut query_id: Option<u32> = None;
 
-        let n_targets: u64 = self.file_header.n_targets as u64;
         if let Some(set_bit_idx) = self.index {
-            let query_idx = set_bit_idx / n_targets;
-            let target_idx = set_bit_idx % n_targets;
+            let query_idx = set_bit_idx / self.n_targets;
+            let target_idx = set_bit_idx % self.n_targets;
             ones.push(target_idx as u32);
             query_id = Some(query_idx as u32);
             self.index = None;
@@ -56,11 +64,11 @@ impl<I: Iterator> Iterator for BitmapDecoder<'_, I> where I: Iterator<Item=u64>{
 
         for idx in self.bits_iter.by_ref() {
             self.index = Some(idx);
-            let query_idx = idx / n_targets;
+            let query_idx = idx / self.n_targets;
             if query_id.is_some() && query_idx as u32 != *query_id.as_ref().unwrap() {
                 break;
             }
-            let target_idx = idx % n_targets;
+            let target_idx = idx % self.n_targets;
             self.index = None;
             ones.push(target_idx as u32);
             query_id = Some(query_idx as u32);
