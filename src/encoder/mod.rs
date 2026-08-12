@@ -234,23 +234,32 @@ impl<I: Iterator> Encoder<'_, I> where I: Iterator<Item=PseudoAln> {
         Ok(out)
     }
 
+    /// Change the number of [PseudoAln]s stored per block.
+    ///
+    /// If the underlying bitmap uses a 32-bit address space, the block size is
+    /// capped at `u32::MAX / n_targets` regardless of the input argument. For
+    /// 64-bit address space, the block size is capped at `u64::MAX /
+    /// n_targets`.
+    ///
     pub fn set_block_size(
         &mut self,
         block_size: usize
     ) -> Result<(), E> {
-        let new_block_size: u32 = match BitmapType::from_u16(self.header.bitmap_type)? {
+        let new_block_size: u64 = match BitmapType::from_u16(self.header.bitmap_type)? {
             BitmapType::Roaring32 => {
-                if block_size as u64 > 65537_u64 {
-                    65536_u32
-                } else {
-                    block_size.try_into()?
-                }
+                let max_block_size = u32::MAX as u64 / self.header.n_targets as u64;
+                let block_size_u32: u32 = block_size.try_into().unwrap_or(u32::MAX);
+                (block_size_u32 as u64).min(max_block_size)
             },
             BitmapType::Roaring64 => {
-                block_size.try_into()?
+                let max_block_size = u64::MAX / self.header.n_targets as u64;
+                let block_size_u64 = block_size as u64;
+                block_size_u64.min(max_block_size)
             },
         };
-        self.header.block_size = new_block_size.max(2);
+        let new_block_size_u32: u32 = new_block_size.try_into().unwrap_or(u32::MAX);
+        let min_block_size: u32 = 1;
+        self.header.block_size = new_block_size_u32.max(min_block_size);
         Ok(())
     }
 
