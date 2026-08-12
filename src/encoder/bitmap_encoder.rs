@@ -152,7 +152,8 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
         Ok(())
     }
 
-    pub fn build_roaring32(
+    /// Build a RoaringBitmap from the set bit indexes of the current block.
+    fn build_roaring32(
         &mut self
     ) -> Option<RoaringBitmap> {
         if !self.bits_buffer.is_empty() && self.end {
@@ -172,7 +173,8 @@ impl<I: Iterator> BitmapEncoder<'_, I> where I: Iterator<Item=u64> {
         }
     }
 
-    pub fn build_roaring64(
+    /// Build a RoaringTreemap from the set bit indexes of the current block.
+    fn build_roaring64(
         &mut self
     ) -> Option<RoaringTreemap> {
         if !self.bits_buffer.is_empty() && self.end {
