@@ -18,13 +18,13 @@ use crate::Format;
 
 /// Not a valid [ahda library version](crate::AhdaVersion).
 #[derive(Debug, Clone)]
-pub struct AhdaVersionErr;
-impl std::fmt::Display for AhdaVersionErr {
+pub struct AhdaVersionError;
+impl std::fmt::Display for AhdaVersionError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Not a valid AhdaVersion")
     }
 }
-impl std::error::Error for AhdaVersionErr {}
+impl std::error::Error for AhdaVersionError {}
 
 /// Not a valid [ahda file format version](crate::AhdaFormatVersion).
 #[derive(Debug, Clone)]
@@ -37,6 +37,11 @@ impl std::fmt::Display for AhdaFormatVersionErr {
 impl std::error::Error for AhdaFormatVersionErr {}
 
 /// Binary data given to [check_ahda_header](crate::headers::file::check_ahda_header) does not start with the ahda header bytes.
+///
+/// ## Returned by
+///
+/// - [check_ahda_header](crate::headers::file::check_ahda_header).
+///
 #[derive(Debug, Clone)]
 pub struct AhdaHeaderError;
 impl std::fmt::Display for AhdaHeaderError {

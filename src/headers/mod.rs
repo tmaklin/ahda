@@ -19,11 +19,11 @@
 //! filled and must contain the specific records in order to create a valid
 //! .ahda record.
 //!
-//! In addition to the headers, .ahda records may contain
+//! In addition to the headers, .ahda records contain
 //! [FileFlags](file::FileFlags) and [BlockFlags](block::BlockFlags) which are
-//! more flexible in their contents. These structs may include any information
-//! but their encoded length must be recorded in [FileHeader](file::FileHeader)
-//! or [BlockHeader](block::BlockHeader).
+//! more flexible in their contents. These structs include variable length
+//! information about the encoded data. Their encoded length must be recorded in
+//! [FileHeader](file::FileHeader) or [BlockHeader](block::BlockHeader).
 //!
 //! ## File header and flags
 //!
@@ -31,27 +31,25 @@
 //!
 //! A FileHeader must contain this information:
 //!
-//! - Number of alignment targets.
-//! - Total number of query sequences.
-//! - Length of the FileFlags block (bytes).
-//! - Input format.
-//!
-//! In addition, the header contains three placeholder values (8 + 8 + 2 bytes)
-//! that are currently not used.
+//! - Bytes identifying the data as a .ahda file.
+//! - Bytes providing the ahda library version.
+//! - The metadata compression method used for FileFlags.
+//! - Fields that must be present in every BlockFlags that follows.
+//! - Number of target sequences in the alignment.
+//! - Number of query sequences in the alignment. This may be 0 if the number was not known in advance.
+//! - Type of bitmap stored in the blocks. This may differ for each block if they were not generated with the ahda encode API.
+//! - Number of records stored in each block. This may be lower for each individual block.
+//! - The number of bytes containing the FileFlags that follow the header.
 //!
 //! An encoded FileHeader is always 32 bytes long and appears at the start of a
 //! valid .ahda record.
 //!
 //! ### FileFlags
 //!
-//! A FileFlags should contain this information:
+//! FileFlags must contain this information:
 //!
 //! - A name identifying the query file.
 //! - Names of the alignment target sequences.
-//!
-//! The flags may also contain other information. In this case, a custom
-//! implementation of the flags and the associated encoding/decoding functions
-//! should be used.
 //!
 //! ## Block header and flags
 //!
@@ -59,21 +57,28 @@
 //!
 //! A BlockHeader must contain the following information:
 //!
-//! - Number of records in the block.
-//! - Length of the rest of the block (bytes). This includes the BlockFlags section.
-//! - Length of the BlockFlags section (bytes).
-//! - Start index of the block (this is not used).
-//! - Two placeholder values, consisting of 8 and 4 bytes.
+//! - Number of records stored in this block.
+//! - The metadata compression method used for BlockFlags.
+//! - Type of bitmap stored in this block.
+//! - A 1 byte unused placeholder value.
+//! - The number of bytes in the block contents that follow the BlockFlags bytes.
+//! - Number of bytes containing the BlockFlags that follow the header.
+//! - Fields that are present in the BlockFlags.
+//! - A 2 byte unused placeholder value.
+//! - A 8 byte unused placeholder value.
+//!
+//! An encoded BlockHeader is always 32 bytes long and appears at the start of a
+//! valid .ahda block.
 //!
 //! ### BlockFlags
 //!
-//! A BlockFlags should contain this information:
+//! BlockFlags may contain this information:
 //!
 //! - Names of the query sequences, eg. the names identifying the reads in a .fastq file.
 //! - Indexes of the same query sequences in the original input.
 //!
-//! The flags may also contain other information, that possibly requires a
-//! custom implementation to read and/or write.
+//! The current implementation assumes that the query indexes are always present
+//! if the record was generated using the ahda library.
 //!
 
 pub mod block;

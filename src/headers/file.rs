@@ -11,6 +11,9 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! File header and file flags used in the encoded format.
+
 use crate::AhdaVersion;
 use crate::AhdaFormatVersion;
 use crate::compression::BitmapType;
@@ -25,6 +28,8 @@ use crate::compression::gzwrapper::deflate_bytes;
 use crate::compression::gzwrapper::inflate_bytes;
 
 type E = Box<dyn std::error::Error>;
+
+use crate::errors::AhdaHeaderError;
 
 /// File header for encoded data
 ///
@@ -87,12 +92,14 @@ pub struct FileHeader {
 }
 
 impl FileHeader {
+    /// Does the header require the encoded data to contain the query names?
     pub fn promises_query_names(
         &self,
     ) -> bool {
         (self.fields_present & crate::MASK_QUERIES) != 0
     }
 
+    /// Does the header require the encoded data to contain the query indexes?
     pub fn promises_query_ids(
         &self,
     ) -> bool {
@@ -101,6 +108,14 @@ impl FileHeader {
 }
 
 impl Default for FileHeader {
+    /// Initialize a header with default values.
+    ///
+    /// **Note**: This header is not a valid ahda header for most cases. Update
+    /// the fields accordingly before using.
+    ///
+    /// You should prefer initializing headers via
+    /// [Encoder::new](crate::encoder::Encoder::new) or
+    /// [BitmapEncoder::new](crate::encoder::bitmap_encoder::BitmapEncoder::new).
     fn default() -> FileHeader {
         FileHeader {
             ahda_header: build_ahda_header().unwrap(),
@@ -132,6 +147,11 @@ pub struct FileFlags {
     /// Name and index of target sequences
     pub target_names: Vec<Vec<u8>>,
 }
+
+/// Build the first 6 bytes identifying the data as an ahda record.
+///
+/// First four bytes can be used to check that a binary record is an ahda record.
+/// Next two bytes can be used to check which version of ahda was used to generate this file.
 pub fn build_ahda_header() -> Result<[u8; 6], E> {
     const VERSION: &str = env!("CARGO_PKG_VERSION");
     let mut header = [97_u8, 104, 100, 97, 0, 0];
@@ -142,6 +162,26 @@ pub fn build_ahda_header() -> Result<[u8; 6], E> {
     Ok(header)
 }
 
+/// Check that some bytes correspond to a valid ahda header.
+///
+/// Returns the [AhdaVersion] corresponding to the last two bytes.
+///
+/// ## Errors
+///
+/// - Returns [AhdaHeaderError] if the first four bytes are not [97, 104, 100, 97].
+/// - Returns [AhdaVersionError](crate::errors::AhdaVersionError) if the next two bytes do not correspond to a valid [AhdaVersion].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaVersion;
+/// use ahda::headers::file::check_ahda_header;
+///
+/// let bytes: [u8; 6] = [97, 104, 100, 97, 0, 0];
+/// let version = check_ahda_header(bytes);
+/// assert!(version.is_ok());
+/// assert_eq!(version.unwrap(), AhdaVersion::V0_1_0);
+/// ```
 pub fn check_ahda_header(
     bytes: [u8; 6],
 ) -> Result<AhdaVersion, E> {
@@ -157,10 +197,52 @@ pub fn check_ahda_header(
     if is_ahda {
         try_version
     } else {
-        Err(Box::new(crate::errors::AhdaHeaderError))
+        Err(Box::new(AhdaHeaderError))
     }
 }
 
+/// Build a [FileHeader] and [FileFlags] corresponding to some inputs.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::build_file_header_and_flags;
+/// use ahda::headers::file::encode_file_flags;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::headers::file::FileFlags;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let mut expected_flags = FileFlags::default();
+/// expected_flags.query_name = sample.clone();
+/// expected_flags.target_names = targets.clone();
+///
+/// let encoded_flags_len = encode_file_flags(&expected_flags, &compression).unwrap().len();
+/// let expected_header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: encoded_flags_len as u64,
+/// };
+///
+/// let (got_header, got_flags) = build_file_header_and_flags(&targets, queries.len(), &sample, &compression).unwrap();
+///
+/// assert_eq!(got_header, expected_header);
+/// assert_eq!(got_flags, expected_flags);
+/// ```
 pub fn build_file_header_and_flags(
     targets: &[Vec<u8>],
     n_queries: usize,
@@ -202,6 +284,49 @@ pub fn build_file_header_and_flags(
     Ok((header, flags))
 }
 
+/// Encode a [FileHeader] and [FileFlags].
+///
+/// Will update the `flags_len` field in the input FileHeader to match the
+/// encoded length of the input FileFlags.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::encode_file_header_and_flags;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::headers::file::FileFlags;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let mut header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 0_u64, // Note we can set this to 0
+/// };
+/// let mut flags = FileFlags::default();
+/// flags.query_name = sample.clone();
+/// flags.target_names = targets.clone();
+///
+/// let bytes = encode_file_header_and_flags(&mut header, &flags);
+///
+/// let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+/// assert!(bytes.is_ok());
+/// assert_eq!(bytes.unwrap(), expected_bytes);
+/// ```
 pub fn encode_file_header_and_flags(
     header: &mut FileHeader,
     flags: &FileFlags,
@@ -215,6 +340,48 @@ pub fn encode_file_header_and_flags(
     Ok(bytes)
 }
 
+/// Decode a [FileHeader] and [FileFlags] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::decode_file_header_and_flags;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::headers::file::FileFlags;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let expected_header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 14_u64,
+/// };
+/// let mut expected_flags = FileFlags::default();
+/// expected_flags.query_name = sample.clone();
+/// expected_flags.target_names = targets.clone();
+///
+/// let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+///
+/// let got = decode_file_header_and_flags(&data);
+/// assert!(got.is_ok());
+/// let (header, flags) = got.unwrap();
+/// assert_eq!(header, expected_header);
+/// assert_eq!(flags, expected_flags);
+/// ```
 pub fn decode_file_header_and_flags(
     bytes: &[u8],
 ) -> Result<(FileHeader, FileFlags), E> {
@@ -224,6 +391,41 @@ pub fn decode_file_header_and_flags(
     Ok((header, flags))
 }
 
+/// Encode a [FileHeader].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::encode_file_header;
+/// use ahda::headers::file::FileHeader;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 14_u64,
+/// };
+///
+/// let bytes = encode_file_header(&header);
+///
+/// let expected_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0];
+/// assert!(bytes.is_ok());
+/// assert_eq!(bytes.unwrap(), expected_bytes);
+/// ```
 pub fn encode_file_header(
     header: &FileHeader,
 ) -> Result<Vec<u8>, E> {
@@ -237,6 +439,42 @@ pub fn encode_file_header(
     Ok(bytes)
 }
 
+/// Decode a [FileHeader] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::decode_file_header;
+/// use ahda::headers::file::FileHeader;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let expected_header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 14_u64,
+/// };
+///
+/// let data: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0];
+///
+/// let got = decode_file_header(&data);
+/// assert!(got.is_ok());
+/// let header = got.unwrap();
+/// assert_eq!(header, expected_header);
+/// ```
 pub fn decode_file_header(
     header_bytes: &[u8],
 ) -> Result<FileHeader, E> {
@@ -252,6 +490,42 @@ pub fn decode_file_header(
     Ok(decode_from_slice(header_bytes, bincode::config::standard().with_fixed_int_encoding())?.0)
 }
 
+/// Read and decode a [FileHeader] from [Read].
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::read_file_header;
+/// use ahda::headers::file::FileHeader;
+/// use std::io::Cursor;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let expected_header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 14_u64,
+/// };
+///
+/// let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+///
+/// let got = read_file_header(&mut data);
+/// assert!(got.is_ok());
+/// let header = got.unwrap();
+/// assert_eq!(header, expected_header);
+/// ```
 pub fn read_file_header<R: Read>(
     conn: &mut R,
 ) -> Result<FileHeader, E> {
@@ -261,6 +535,48 @@ pub fn read_file_header<R: Read>(
     Ok(res)
 }
 
+/// Read and decode [FileFlags] from [Read].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::read_file_flags;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::headers::file::FileFlags;
+/// use ahda::compression::MetadataCompression;
+/// use std::io::Cursor;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let mut expected_flags = FileFlags::default();
+/// expected_flags.query_name = sample.clone();
+/// expected_flags.target_names = targets.clone();
+///
+/// let header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: MetadataCompression::BincodeStandard.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 14_u64,
+/// };
+///
+/// let data_bytes: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+///
+/// let got = read_file_flags(&header, &mut data);
+/// assert!(got.is_ok());
+/// let flags = got.unwrap();
+/// assert_eq!(flags, expected_flags);
+/// ```
 pub fn read_file_flags<R: Read>(
     header: &FileHeader,
     conn: &mut R,
@@ -271,6 +587,50 @@ pub fn read_file_flags<R: Read>(
     Ok(res)
 }
 
+/// Read and decode a [FileHeader] and [FileFlags] from [Read].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::read_file_header_and_flags;
+/// use ahda::headers::file::FileHeader;
+/// use ahda::headers::file::FileFlags;
+/// use std::io::Cursor;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let compression = MetadataCompression::BincodeStandard;
+///
+/// let expected_header = FileHeader {
+///     ahda_header: build_ahda_header().unwrap(),
+///     file_format: AhdaFormatVersion::V1_0_0.to_u8(),
+///     metadata_compression: compression.to_u8(),
+///     fields_present: 0,
+///     n_targets: targets.len() as u32,
+///     n_queries: queries.len() as u32,
+///     bitmap_type: BitmapType::Roaring32.to_u16(),
+///     block_size: 65536_u32,
+///     flags_len: 14_u64,
+/// };
+/// let mut expected_flags = FileFlags::default();
+/// expected_flags.query_name = sample.clone();
+/// expected_flags.target_names = targets.clone();
+///
+/// let data_bytes: Vec<u8> = vec![97, 104, 100, 97, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 0, 14, 0, 0, 0, 0, 0, 0, 0, 6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+///
+/// let got = read_file_header_and_flags(&mut data);
+/// assert!(got.is_ok());
+/// let (header, flags) = got.unwrap();
+/// assert_eq!(header, expected_header);
+/// assert_eq!(flags, expected_flags);
+/// ```
 pub fn read_file_header_and_flags<R: Read>(
     conn: &mut R,
 ) -> Result<(FileHeader, FileFlags), E> {
@@ -279,6 +639,33 @@ pub fn read_file_header_and_flags<R: Read>(
     Ok((header, flags))
 }
 
+/// Decode a [FileHeader] and [FileFlags] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::AhdaFormatVersion;
+/// use ahda::compression::MetadataCompression;
+/// use ahda::compression::BitmapType;
+/// use ahda::headers::file::build_ahda_header;
+/// use ahda::headers::file::encode_file_flags;
+/// use ahda::headers::file::FileFlags;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let queries = vec!["1".as_bytes().to_vec(), "2".as_bytes().to_vec(), "3".as_bytes().to_vec(), "4".as_bytes().to_vec(), "5".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let compression = MetadataCompression::BincodeStandard;
+/// let mut flags = FileFlags::default();
+/// flags.query_name = sample.clone();
+/// flags.target_names = targets.clone();
+///
+/// let expected_bytes: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+///
+/// let got = encode_file_flags(&flags, &compression);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected_bytes);
+/// ```
 pub fn encode_file_flags(
     flags: &FileFlags,
     compression: &MetadataCompression
@@ -306,6 +693,30 @@ pub fn encode_file_flags(
     Ok(bytes)
 }
 
+/// Decode [FileFlags] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::headers::file::decode_file_flags;
+/// use ahda::headers::file::FileFlags;
+/// use ahda::compression::MetadataCompression;
+/// use std::io::Cursor;
+///
+/// let targets = vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()];
+/// let sample = "sample".as_bytes().to_vec();
+///
+/// let mut expected_flags = FileFlags::default();
+/// expected_flags.query_name = sample.clone();
+/// expected_flags.target_names = targets.clone();
+///
+/// let data: Vec<u8> = vec![6, 115, 97, 109, 112, 108, 101, 3, 1, 97, 1, 98, 1, 99];
+///
+/// let got = decode_file_flags(&data, &MetadataCompression::BincodeStandard);
+/// assert!(got.is_ok());
+/// let flags = got.unwrap();
+/// assert_eq!(flags, expected_flags);
+/// ```
 pub fn decode_file_flags(
     bytes: &[u8],
     compression: &MetadataCompression

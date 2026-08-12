@@ -216,7 +216,7 @@ impl AhdaVersion {
     pub fn from_u16(val: u16) -> Result<Self, E> {
         match val {
             0 => Ok(AhdaVersion::V0_1_0),
-            _ => Err(Box::new(errors::AhdaVersionErr)),
+            _ => Err(Box::new(errors::AhdaVersionError)),
         }
     }
 
@@ -228,12 +228,12 @@ impl AhdaVersion {
 }
 
 impl std::str::FromStr for AhdaVersion {
-    type Err = errors::AhdaVersionErr;
+    type Err = errors::AhdaVersionError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "0.1.0" => Ok(Self::V0_1_0),
-            _ => Err(errors::AhdaVersionErr{}),
+            _ => Err(errors::AhdaVersionError{}),
 
         }
     }

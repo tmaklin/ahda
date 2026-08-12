@@ -11,6 +11,9 @@
 // the MIT license, <LICENSE-MIT> or <http://opensource.org/licenses/MIT>,
 // at your option.
 //
+
+//! Block header and block flags used in the encoded format.
+
 use crate::compression::gzwrapper::deflate_bytes;
 use crate::compression::gzwrapper::inflate_bytes;
 
@@ -80,12 +83,14 @@ pub struct BlockHeader {
 }
 
 impl BlockHeader {
+    /// Does the header require the encoded data to contain the query names?
     pub fn promises_query_names(
         &self,
     ) -> bool {
         (self.fields_present & crate::MASK_QUERIES) != 0
     }
 
+    /// Does the header require the encoded data to contain the query indexes?
     pub fn promises_query_ids(
         &self,
     ) -> bool {
@@ -94,6 +99,13 @@ impl BlockHeader {
 }
 
 impl Default for BlockHeader {
+    /// Initialize a header with default values.
+    ///
+    /// **Note**: This header is not a valid ahda header for most cases. Update
+    /// the fields accordingly before using.
+    ///
+    /// If you need to encode individual ahda blocks, prefer using
+    /// [pack_records](crate::compression::pack_records).
     fn default() -> BlockHeader {
         BlockHeader {
             num_records: 0_u32,
@@ -113,15 +125,16 @@ impl Default for BlockHeader {
 ///
 /// Variable length, use [BlockHeader].flags_len to get size
 ///
-/// Must contain these fields:
+/// May contain these fields:
 /// - `queries`: Names of the query sequences in the original query file.
 /// - `query_ids`: Indexes of the query sequences in the original query file.
 ///
-/// `queries` and `query_ids` must be in the same order, ie. the data in both
-/// arrays at the same index corresponds to the same record.
+/// If both `queries` and `query_ids` are given, they must be in the same order,
+/// ie. the data in both arrays at the same index corresponds to the same
+/// record.
 ///
-/// The current implementation of ahda assumes that `queries` and `query_ids`
-/// are always present and filled.
+/// The current implementation of ahda assumes that `query_ids` is always
+/// present and filled.
 ///
 #[derive(Clone, Decode, Debug, Encode, PartialEq)]
 pub struct BlockFlags {
@@ -132,6 +145,29 @@ pub struct BlockFlags {
 }
 
 impl BlockFlags {
+    /// Get the `fields_present` value to store in this block's [BlockHeader].
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::headers::block::BlockFlags;
+    ///
+    /// let mut flags = BlockFlags {
+    ///     queries: None,
+    ///     query_ids: None,
+    /// };
+    ///
+    /// assert_eq!(flags.fields_present(), 0_u16);
+    ///
+    /// flags.queries = Some(vec![]);
+    /// assert_eq!(flags.fields_present(), 1_u16);
+    ///
+    /// flags.query_ids = Some(vec![]);
+    /// assert_eq!(flags.fields_present(), 3_u16);
+    ///
+    /// flags.queries = None;
+    /// assert_eq!(flags.fields_present(), 2_u16);
+    /// ```
     pub fn fields_present(
         &self,
     ) -> u16 {
@@ -146,6 +182,31 @@ impl BlockFlags {
     }
 }
 
+/// Encode a [BlockHeader].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::headers::block::encode_block_header;
+/// use ahda::headers::block::BlockHeader;
+///
+/// let data = BlockHeader {
+///     num_records: 31,
+///     placeholder1: 0,
+///     block_len: 65511,
+///     flags_len: 921,
+///     fields_present: 0,
+///     placeholder2: 0,
+///     placeholder3: 0,
+///     bitmap_type: 0, metadata_compression: 0
+/// };
+///
+/// let expected: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 153, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+///
+/// let got = encode_block_header(&data);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected);
+/// ```
 pub fn encode_block_header(
     header: &BlockHeader,
 ) -> Result<Vec<u8>, E> {
@@ -159,12 +220,64 @@ pub fn encode_block_header(
     Ok(bytes)
 }
 
+/// Decode a [BlockHeader] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::headers::block::decode_block_header;
+/// use ahda::headers::block::BlockHeader;
+///
+/// let expected_header = BlockHeader {
+///     num_records: 31,
+///     placeholder1: 0,
+///     block_len: 65511,
+///     flags_len: 921,
+///     fields_present: 0,
+///     placeholder2: 0,
+///     placeholder3: 0,
+///     bitmap_type: 0, metadata_compression: 0
+/// };
+///
+/// let data: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 153, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+///
+/// let got = decode_block_header(&data);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected_header);
+/// ```
 pub fn decode_block_header(
     header_bytes: &[u8],
 ) -> Result<BlockHeader, E> {
     Ok(decode_from_slice(header_bytes, bincode::config::standard().with_fixed_int_encoding())?.0)
 }
 
+/// Read a [BlockHeader] from a [Read].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::headers::block::read_block_header;
+/// use ahda::headers::block::BlockHeader;
+/// use std::io::Cursor;
+///
+/// let expected_header = BlockHeader {
+///     num_records: 31,
+///     placeholder1: 0,
+///     block_len: 65511,
+///     flags_len: 921,
+///     fields_present: 0,
+///     placeholder2: 0,
+///     placeholder3: 0,
+///     bitmap_type: 0, metadata_compression: 0
+/// };
+///
+/// let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 153, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+///
+/// let got = read_block_header(&mut data);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected_header);
+/// ```
 pub fn read_block_header<R: Read>(
     conn: &mut R,
 ) -> Result<BlockHeader, E> {
@@ -174,6 +287,41 @@ pub fn read_block_header<R: Read>(
     Ok(res)
 }
 
+/// Read [BlockFlags] from a [Read].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::MetadataCompression;
+/// use ahda::headers::block::read_block_flags;
+/// use ahda::headers::block::BlockFlags;
+/// use ahda::headers::block::BlockHeader;
+/// use std::io::Cursor;
+///
+/// let header = BlockHeader {
+///     num_records: 0,
+///     placeholder1: 0,
+///     block_len: 0,
+///     flags_len: 33,
+///     fields_present: 0,
+///     placeholder2: 0,
+///     placeholder3: 0,
+///     bitmap_type: 0,
+///     metadata_compression: MetadataCompression::Flate2.to_u8(),
+/// };
+///
+/// let expected_flags = BlockFlags {
+///     queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]),
+///     query_ids: Some(vec![1, 0, 2]),
+/// };
+///
+/// let data_bytes: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+///
+/// let got = read_block_flags(&header, &mut data);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected_flags);
+/// ```
 pub fn read_block_flags<R: Read>(
     header: &BlockHeader,
     conn: &mut R,
@@ -185,6 +333,42 @@ pub fn read_block_flags<R: Read>(
     Ok(res)
 }
 
+/// Read a [BlockHeader] and [BlockFlags] from a [Read].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::MetadataCompression;
+/// use ahda::headers::block::read_block_header_and_flags;
+/// use ahda::headers::block::BlockHeader;
+/// use ahda::headers::block::BlockFlags;
+/// use std::io::Cursor;
+///
+/// let expected_header = BlockHeader {
+///     num_records: 31,
+///     placeholder1: 0,
+///     block_len: 65511,
+///     flags_len: 13,
+///     fields_present: 0,
+///     placeholder2: 0,
+///     placeholder3: 0,
+///     bitmap_type: 0,
+///     metadata_compression: 0,
+/// };
+/// let expected_flags = BlockFlags {
+///     queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]),
+///     query_ids: Some(vec![1, 0, 2])
+/// };
+///
+/// let data_bytes: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 97, 1, 98, 1, 99, 1, 3, 1, 0, 2];
+/// let mut data: Cursor<Vec<u8>> = Cursor::new(data_bytes);
+///
+/// let got = read_block_header_and_flags(&mut data);
+/// assert!(got.is_ok());
+/// let (header, flags) = got.unwrap();
+/// assert_eq!(header, expected_header);
+/// assert_eq!(flags, expected_flags);
+/// ```
 pub fn read_block_header_and_flags<R: Read>(
     conn: &mut R,
 ) -> Result<(BlockHeader, BlockFlags), E> {
@@ -193,6 +377,26 @@ pub fn read_block_header_and_flags<R: Read>(
     Ok((header, flags))
 }
 
+/// Encode [BlockFlags].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::MetadataCompression;
+/// use ahda::headers::block::encode_block_flags;
+/// use ahda::headers::block::BlockFlags;
+///
+/// let flags = BlockFlags {
+///     queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]),
+///     query_ids: Some(vec![1, 0, 2]),
+/// };
+///
+/// let expected: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
+///
+/// let got = encode_block_flags(&flags, &MetadataCompression::Flate2);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected);
+/// ```
 pub fn encode_block_flags(
     flags: &BlockFlags,
     compression: &MetadataCompression,
@@ -220,6 +424,26 @@ pub fn encode_block_flags(
     Ok(bytes)
 }
 
+/// Decode [BlockFlags] from an u8 array.
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::MetadataCompression;
+/// use ahda::headers::block::decode_block_flags;
+/// use ahda::headers::block::BlockFlags;
+///
+/// let expected_flags = BlockFlags {
+///     queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]),
+///     query_ids: Some(vec![1, 0, 2]),
+/// };
+///
+/// let data: Vec<u8> = vec![31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 99, 100, 102, 76, 100, 76, 98, 76, 102, 100, 102, 100, 96, 2, 0, 249, 181, 108, 55, 13, 0, 0, 0];
+///
+/// let got = decode_block_flags(&data, &MetadataCompression::Flate2);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected_flags);
+/// ```
 pub fn decode_block_flags(
     bytes: &[u8],
     compression: &MetadataCompression,
@@ -244,6 +468,39 @@ pub fn decode_block_flags(
     Ok(flags)
 }
 
+/// Encode a [BlockHeader] and [BlockFlags].
+///
+/// ## Usage
+///
+/// ```rust
+/// use ahda::compression::MetadataCompression;
+/// use ahda::headers::block::encode_block_header_and_flags;
+/// use ahda::headers::block::BlockHeader;
+/// use ahda::headers::block::BlockFlags;
+/// use std::io::Cursor;
+///
+/// let mut header = BlockHeader {
+///     num_records: 31,
+///     placeholder1: 0,
+///     block_len: 65511,
+///     flags_len: 0, // Note we don't need to set this
+///     fields_present: 0,
+///     placeholder2: 0,
+///     placeholder3: 0,
+///     bitmap_type: 0,
+///     metadata_compression: 0,
+/// };
+/// let flags = BlockFlags {
+///     queries: Some(vec!["a".as_bytes().to_vec(), "b".as_bytes().to_vec(), "c".as_bytes().to_vec()]),
+///     query_ids: Some(vec![1, 0, 2])
+/// };
+///
+/// let expected: Vec<u8> = vec![31, 0, 0, 0, 0, 0, 0, 0, 231, 255, 0, 0, 13, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 3, 1, 97, 1, 98, 1, 99, 1, 3, 1, 0, 2];
+///
+/// let got = encode_block_header_and_flags(&mut header, &flags);
+/// assert!(got.is_ok());
+/// assert_eq!(got.unwrap(), expected);
+/// ```
 pub fn encode_block_header_and_flags(
     header: &mut BlockHeader,
     flags: &BlockFlags,
