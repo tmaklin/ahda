@@ -220,7 +220,7 @@ pub fn decode_file_header_and_flags(
 ) -> Result<(FileHeader, FileFlags), E> {
     let header = decode_file_header(&bytes[0..32])?;
     assert!(bytes.len() >= 32 + header.flags_len as usize);
-    let flags = decode_file_flags(&bytes[32..(header.flags_len as usize)], &MetadataCompression::from_u8(header.metadata_compression)?)?;
+    let flags = decode_file_flags(&bytes[32..(32 + header.flags_len as usize)], &MetadataCompression::from_u8(header.metadata_compression)?)?;
     Ok((header, flags))
 }
 
