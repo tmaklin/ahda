@@ -80,11 +80,18 @@ impl<'a, I: Iterator> BitmapEncoder<'a, I> where I: Iterator<Item=u64> {
     }
 
     /// Update `fields_present` in stored FileHeader.
+    ///
+    /// [MASK_QUERY_IDS](crate::MASK_QUERY_IDS) is always set,
+    /// [MASK_QUERIES](crate::MASK_QUERIES) will be set if query names have been
+    /// supplied via [BitmapEncoder::set_query_names].
     fn update_fields_present(
         &mut self,
     ) {
         if self.query_names.is_some() {
             self.header.fields_present |= crate::MASK_QUERIES;
+        }
+        if self.query_names.is_none() {
+            self.header.fields_present = crate::MASK_QUERY_IDS;
         }
     }
 
