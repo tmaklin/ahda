@@ -158,15 +158,15 @@ impl std::error::Error for CorruptedInputErr {}
 
 /// Input format given to [Parser](crate::parser::Parser) requires supplying the target sequence names.
 #[derive(Debug, Clone)]
-pub struct NeedTargetSequencesErr {
+pub struct NeedTargetSequences {
     pub format: Format,
 }
-impl std::fmt::Display for NeedTargetSequencesErr {
+impl std::fmt::Display for NeedTargetSequences {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "Detected input format `{}` requires supplying the target sequence names.", self.format)
     }
 }
-impl std::error::Error for NeedTargetSequencesErr {}
+impl std::error::Error for NeedTargetSequences {}
 
 /// Input format given to [Parser](crate::parser::Parser) requires supplying the query sequence names.
 #[derive(Debug, Clone)]

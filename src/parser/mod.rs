@@ -101,6 +101,7 @@ use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
 
+use crate::errors::NeedTargetSequences;
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
     buf: Cursor<Vec<u8>>,
@@ -145,7 +146,7 @@ impl<'a, R: Read> Parser<'a, R> {
         } else if let Some(targets) = targets_from_header {
             ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
         } else {
-            return Err(Box::new(crate::errors::NeedTargetSequencesErr{ format: ret.format }))
+            return Err(Box::new(NeedTargetSequences{ format: ret.format }))
         }
 
         if let Some(conn_query_names) = conn_query_names {
@@ -182,7 +183,7 @@ impl<'a, R: Read> Parser<'a, R> {
         } else if let Some(targets) = targets_from_header {
             ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
         } else {
-            return Err(Box::new(crate::errors::NeedTargetSequencesErr{ format: ret.format }))
+            return Err(Box::new(crate::errors::NeedTargetSequences{ format: ret.format }))
         }
 
         if let Some(conn_query_names) = conn_query_names {

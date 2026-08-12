@@ -606,7 +606,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
         target_names
     } else {
         let format = reader.format;
-        return Err(Box::new(errors::NeedTargetSequencesErr { format }))
+        return Err(Box::new(errors::NeedTargetSequences { format }))
     };
 
     let mut reader_unwrapped = reader.map(|record| record.unwrap());
@@ -759,7 +759,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
         target_names
     } else {
         let format = reader.format;
-        return Err(Box::new(errors::NeedTargetSequencesErr { format }))
+        return Err(Box::new(errors::NeedTargetSequences { format }))
     };
 
     let mut reader_unwrapped = reader.enumerate().map(|(idx, try_record)| {
@@ -859,7 +859,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
         target_names
     } else {
         let format = reader.format;
-        return Err(Box::new(errors::NeedTargetSequencesErr { format }))
+        return Err(Box::new(errors::NeedTargetSequences { format }))
     };
 
     let mut reader_unwrapped = reader.enumerate().map(|(idx, try_record)| {
