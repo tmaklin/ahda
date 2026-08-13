@@ -202,7 +202,7 @@ impl<R: Read> Parser<'_, R> {
     ///
     /// Returns None if the header has already been consumed by calling [Parser::next].
     /// This is checked by looking whether target_to_pos contains anything.
-    pub fn read_header(
+    fn read_header(
         &mut self,
     ) -> Result<Option<Vec<Vec<u8>>>, E> {
         if !self.target_to_pos.is_empty() || self.buf.get_ref().is_empty() {
