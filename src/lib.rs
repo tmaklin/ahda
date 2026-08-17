@@ -601,7 +601,7 @@ pub fn convert_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, 
     conn_out: &mut W,
 ) -> Result<(), E> {
     let reader = crate::parser::Parser::new(conn_in, queries, targets)?;
-    let n_queries = reader.len();
+    let n_queries = reader.len().unwrap_or(0);
     let targets = if let Some(target_names) = reader.get_targets() {
         target_names
     } else {
@@ -749,7 +749,7 @@ pub fn encode_from_read<R: Read, T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec
 
     reader.fill_target_names(opts.encode_target_names);
     reader.fill_query_name(opts.encode_query_names && have_queries);
-    let n_queries = reader.len();
+    let n_queries = reader.len().unwrap_or(0);
 
     if !have_queries && reader.format != Format::Metagraph && reader.format != Format::Themisto && reader.format != Format::AhdaTSV {
         return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: reader.format }))
@@ -849,7 +849,7 @@ pub fn encode_from_read_to_write<R: Read, W: Write, T: Iterator<Item=Vec<u8>>, Q
     };
     reader.fill_target_names(opts.encode_target_names);
     reader.fill_query_name(opts.encode_query_names && have_queries && !opts.rename_queries);
-    let n_queries = reader.len();
+    let n_queries = reader.len().unwrap_or(0);
 
     if !have_queries && reader.format != Format::Metagraph && reader.format != Format::Themisto && reader.format != Format::AhdaTSV {
         return Err(Box::new(crate::errors::NeedQueryNamesErr{ format: reader.format }))

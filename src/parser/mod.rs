@@ -132,7 +132,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
         let mut ret = Self {
             reader, buf, format,
-            query_to_pos: IndexSet::new(),
+            query_to_pos: None,
             target_to_pos: IndexSet::new(),
             fill_query_id: true,
             fill_query_name: true,
@@ -150,7 +150,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
 
         if let Some(conn_query_names) = conn_query_names {
-            ret.query_to_pos = IndexSet::<Vec<u8>>::from_iter(conn_query_names);
+            ret.query_to_pos = Some(IndexSet::<Vec<u8>>::from_iter(conn_query_names));
         }
 
         Ok(ret)
@@ -169,7 +169,7 @@ impl<'a, R: Read> Parser<'a, R> {
 
         let mut ret = Self {
             reader, buf, format,
-            query_to_pos: IndexSet::new(),
+            query_to_pos: None,
             target_to_pos: IndexSet::new(),
             fill_query_id: true,
             fill_query_name: true,
@@ -187,7 +187,7 @@ impl<'a, R: Read> Parser<'a, R> {
         }
 
         if let Some(conn_query_names) = conn_query_names {
-            ret.query_to_pos = IndexSet::<Vec<u8>>::from_iter(conn_query_names);
+            ret.query_to_pos = Some(IndexSet::<Vec<u8>>::from_iter(conn_query_names));
         }
 
         Ok(ret)
@@ -273,20 +273,25 @@ impl<R: Read> Parser<'_, R> {
     /// Returns the number of query records in the input fastX file
     pub fn len(
         &self,
-    ) -> usize {
-        self.query_to_pos.len()
+    ) -> Option<usize> {
+        self.query_to_pos.as_ref().map(|x| x.len())
     }
 
     pub fn is_empty(
         &self,
-    ) -> bool {
-        self.query_to_pos.is_empty()
+    ) -> Option<bool> {
+        self.query_to_pos.as_ref().map(|x| x.is_empty())
     }
 
     pub fn get_targets(
         &self,
     ) -> Option<Vec<Vec<u8>>> {
-        Some(self.target_to_pos.iter().cloned().collect())
+        if self.target_to_pos.is_empty() {
+            unreachable!("Parser cannot be initialized without target sequence names.")
+        } else {
+            Some(self.target_to_pos.iter().cloned().collect())
+        }
+
     }
 
     fn fill_record(
@@ -296,7 +301,7 @@ impl<R: Read> Parser<'_, R> {
         if record.query_id.is_none() && self.fill_query_id {
             if let Some(query_name) = record.query_name.as_ref() {
                 let key: Vec<u8> = query_name.to_vec();
-                match self.query_to_pos.get_index_of(&key) {
+                match self.query_to_pos.as_ref().unwrap().get_index_of(&key) {
                     Some(query_index) => {
                         record.query_id = Some(query_index as u32);
                     },
@@ -311,7 +316,7 @@ impl<R: Read> Parser<'_, R> {
 
         if record.query_name.is_none() && self.fill_query_name {
             if let Some(query_id) = record.query_id.as_ref() {
-                match self.query_to_pos.get_index(*query_id as usize) {
+                match self.query_to_pos.as_ref().unwrap().get_index(*query_id as usize) {
                     Some(query_name) => {
                         record.query_name = Some(query_name.to_vec());
                     },
@@ -375,14 +380,14 @@ impl<R: Read> Parser<'_, R> {
         &mut self,
         val: bool,
     ) {
-        self.fill_query_id = val;
+        self.fill_query_id = val && self.query_to_pos.is_some();
     }
 
     pub fn fill_query_name(
         &mut self,
         val: bool,
     ) {
-        self.fill_query_name = val;
+        self.fill_query_name = val && self.query_to_pos.is_some();
     }
 
     pub fn fill_target_ids(
