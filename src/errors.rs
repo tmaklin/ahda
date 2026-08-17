@@ -283,7 +283,8 @@ impl std::error::Error for PseudoAlnOnesIsEmpty {}
 /// ## Returned by
 ///
 /// - [convert_to_roaring](crate::compression::roaringwrapper::convert_to_roaring).
-/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Decoder::fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Parser::fill_record][crate::parser::Parser::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesIsNone;
@@ -298,7 +299,8 @@ impl std::error::Error for PseudoAlnOnesIsNone {}
 ///
 /// ## Returned by
 ///
-/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Decoder::fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Parser::fill_record][crate::parser::Parser::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnOnesNamesIsNone;
@@ -329,6 +331,21 @@ impl std::fmt::Display for PseudoAlnQueryNameIsEmpty {
 }
 impl std::error::Error for PseudoAlnQueryNameIsEmpty {}
 
+/// Expected [PseudoAln](crate::PseudoAln).query_name to be filled but it was None
+///
+/// ## Returned by
+///
+/// - [Parser::fill_record][crate::parser::Parser::fill_record] (private method).
+///
+#[derive(Debug, Clone)]
+pub struct PseudoAlnQueryNameIsNone;
+impl std::fmt::Display for PseudoAlnQueryNameIsNone {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "Field `query_name` of PseudoAln is set but empty.")
+    }
+}
+impl std::error::Error for PseudoAlnQueryNameIsNone {}
+
 /// Expected [PseudoAln](crate::PseudoAln).query_id to be filled but it was empty
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryIdIsEmpty;
@@ -345,7 +362,8 @@ impl std::error::Error for PseudoAlnQueryIdIsEmpty {}
 ///
 /// - [convert_to_roaring](crate::compression::roaringwrapper::convert_to_roaring).
 /// - [alns_from_set_bits](crate::decoder::Decoder::alns_from_set_bits) (private method).
-/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Decoder::fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Parser::fill_record][crate::parser::Parser::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct PseudoAlnQueryIdIsNone;
@@ -360,7 +378,8 @@ impl std::error::Error for PseudoAlnQueryIdIsNone {}
 ///
 /// ## Returned by
 ///
-/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Decoder::fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Parser::fill_record][crate::parser::Parser::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct KeyNotFound {
@@ -379,7 +398,8 @@ impl std::error::Error for KeyNotFound {}
 ///
 /// ## Returned by
 ///
-/// - [fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Decoder::fill_record][crate::decoder::Decoder::fill_record] (private method).
+/// - [Parser::fill_record][crate::parser::Parser::fill_record] (private method).
 ///
 #[derive(Debug, Clone)]
 pub struct MapDoesNotContainIndex {

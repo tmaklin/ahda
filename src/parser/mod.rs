@@ -101,7 +101,16 @@ use std::io::Read;
 
 type E = Box<dyn std::error::Error>;
 
-use crate::errors::NeedTargetSequences;
+use crate::errors::{
+    CorruptedInputErr,
+    NeedTargetSequences,
+    KeyNotFound,
+    MapDoesNotContainIndex,
+    PseudoAlnQueryNameIsNone,
+    PseudoAlnQueryIdIsNone,
+    PseudoAlnOnesIsNone,
+    PseudoAlnOnesNamesIsNone,
+};
 
 /// Parser for plain text data.
 pub struct Parser<'a, R: Read> {
@@ -344,6 +353,10 @@ impl<R: Read> Parser<'_, R> {
     /// Returns None if the header has already been consumed by calling [Parser::next].
     /// This is checked by looking whether target_to_pos contains anything.
     ///
+    /// ## Errors
+    ///
+    /// - [CorruptedInputErr] if the header should be present but it can't be parsed.
+    ///
     fn read_header(
         &mut self,
     ) -> Result<Option<Vec<Vec<u8>>>, E> {
@@ -359,7 +372,7 @@ impl<R: Read> Parser<'_, R> {
                 let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
                 let mut records = contents.split(separator);
                 // Consume `query_name`
-                records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+                records.next().ok_or(CorruptedInputErr{})?;
                 let mut target_names: Vec<Vec<u8>> = Vec::new();
                 for record in records {
                     target_names.push(record.as_bytes().to_vec());
@@ -396,9 +409,9 @@ impl<R: Read> Parser<'_, R> {
                 let contents: String = self.buf.get_ref().iter().map(|x| *x as char).collect();
                 let mut records = contents.split(separator);
                 // Consume `query_index`
-                records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+                records.next().ok_or(CorruptedInputErr{})?;
                 // Consume `query_name`
-                records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+                records.next().ok_or(CorruptedInputErr{})?;
                 let mut target_names: Vec<Vec<u8>> = Vec::new();
                 for record in records {
                     target_names.push(record.as_bytes().to_vec());
@@ -608,6 +621,16 @@ impl<R: Read> Parser<'_, R> {
     }
 
     /// Fill the empty fields in a [PseudoAln].
+    ///
+    /// ## Errors
+    ///
+    /// - [KeyNotFound]
+    /// - [PseudoAlnQueryNameIsNone]
+    /// - [MapDoesNotContainIndex]
+    /// - [PseudoAlnQueryIdIsNone]
+    /// - [PseudoAlnOnesIsNone]
+    /// - [PseudoAlnOnesNamesIsNone]
+    ///
     fn fill_record(
         &mut self,
         record: &mut PseudoAln,
@@ -620,11 +643,11 @@ impl<R: Read> Parser<'_, R> {
                         record.query_id = Some(query_index as u32);
                     },
                     None => {
-                        return Err(Box::new(crate::errors::KeyNotFound { key, map_name: "Parser::query_to_pos".to_string() }))
+                        return Err(Box::new(KeyNotFound { key, map_name: "Parser::query_to_pos".to_string() }))
                     },
                 }
             } else {
-                return Err(Box::new(crate::errors::PseudoAlnQueryNameIsEmpty{}))
+                return Err(Box::new(PseudoAlnQueryNameIsNone{}))
             }
         }
 
@@ -635,11 +658,11 @@ impl<R: Read> Parser<'_, R> {
                         record.query_name = Some(query_name.to_vec());
                     },
                     None => {
-                        return Err(Box::new(crate::errors::MapDoesNotContainIndex { index: *query_id as usize, map_name: "Parser::query_to_pos".to_string() }))
+                        return Err(Box::new(MapDoesNotContainIndex { index: *query_id as usize, map_name: "Parser::query_to_pos".to_string() }))
                     }
                 }
             } else {
-                return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+                return Err(Box::new(PseudoAlnQueryIdIsNone{}))
             }
         }
 
@@ -649,13 +672,13 @@ impl<R: Read> Parser<'_, R> {
                 for target_idx in ones {
                     let target_name = match self.target_to_pos.get_index(*target_idx as usize) {
                         Some(target_name) => target_name,
-                        None => return Err(Box::new(crate::errors::MapDoesNotContainIndex { index: *target_idx as usize, map_name: "Parser::target_to_pos".to_string() })),
+                        None => return Err(Box::new(MapDoesNotContainIndex { index: *target_idx as usize, map_name: "Parser::target_to_pos".to_string() })),
                     };
                     ones_names.push(target_name.clone());
                 }
                 record.ones_names = Some(ones_names);
             } else {
-                return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+                return Err(Box::new(PseudoAlnOnesIsNone{}))
             }
         }
 
@@ -665,13 +688,13 @@ impl<R: Read> Parser<'_, R> {
                 for target_name in ones_names {
                     let target_idx = match self.target_to_pos.get_index_of(target_name) {
                         Some(target_idx) => target_idx,
-                        None => return Err(Box::new(crate::errors::KeyNotFound { key: target_name.clone(), map_name: "Parser::target_to_pos".to_string() })),
+                        None => return Err(Box::new(KeyNotFound { key: target_name.clone(), map_name: "Parser::target_to_pos".to_string() })),
                     };
                     ones.push(target_idx as u32);
                 }
                 record.ones = Some(ones);
             } else {
-                return Err(Box::new(crate::errors::PseudoAlnOnesNamesIsEmpty{}))
+                return Err(Box::new(PseudoAlnOnesNamesIsNone{}))
             }
         }
 
@@ -697,6 +720,44 @@ impl<R: Read> Parser<'_, R> {
     ///
     /// Will be overriden if the Parser was initialized without query names, as
     /// [Parser::fill_record] needs them to fill the field.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec(),
+    ///     b"r1\t0\n".to_vec(),
+    ///     b"r2\t0\n".to_vec(),
+    ///     b"r651903\t1\t1\n".to_vec(),
+    ///     b"r16\t0\n".to_vec(),
+    ///     b"r7543\t2\t0\t1\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// let mut parser = parser.unwrap();
+    ///
+    /// // Default is to fill
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().query_id.is_some());
+    ///
+    /// // We can change it
+    /// parser.fill_query_id(false);
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().query_id.is_none());
+    /// ```
     pub fn fill_query_id(
         &mut self,
         val: bool,
@@ -711,6 +772,43 @@ impl<R: Read> Parser<'_, R> {
     ///
     /// Will be overriden if the Parser was initialized without query names, as
     /// [Parser::fill_record] needs them to fill the field.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"1 0\n".to_vec(),
+    ///     b"2 0\n".to_vec(),
+    ///     b"651903 1\n".to_vec(),
+    ///     b"16 0\n".to_vec(),
+    ///     b"7543 2 0 1\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// let mut parser = parser.unwrap();
+    ///
+    /// // Default is to fill
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().query_name.is_some());
+    ///
+    /// // We can change it
+    /// parser.fill_query_name(false);
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().query_name.is_none());
+    /// ```
     pub fn fill_query_name(
         &mut self,
         val: bool,
@@ -722,6 +820,42 @@ impl<R: Read> Parser<'_, R> {
     ///
     /// Suggest to try to fill the field `ones` if the input does not
     /// contain this information.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// let mut parser = parser.unwrap();
+    ///
+    /// // Default is to fill
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().ones.is_some());
+    ///
+    /// // We can change it
+    /// parser.fill_target_ids(false);
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().ones.is_none());
+    /// ```
     pub fn fill_target_ids(
         &mut self,
         val: bool,
@@ -733,6 +867,43 @@ impl<R: Read> Parser<'_, R> {
     ///
     /// Suggest to try to fill the field `ones_names` if the input does not
     /// contain this information.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"1 0\n".to_vec(),
+    ///     b"2 0\n".to_vec(),
+    ///     b"651903 1\n".to_vec(),
+    ///     b"16 0\n".to_vec(),
+    ///     b"7543 2 0 1\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// let mut parser = parser.unwrap();
+    ///
+    /// // Default is to fill
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().ones_names.is_some());
+    ///
+    /// // We can change it
+    /// parser.fill_target_names(false);
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    /// assert!(record.unwrap().unwrap().ones_names.is_none());
+    /// ```
     pub fn fill_target_names(
         &mut self,
         val: bool,
@@ -744,6 +915,40 @@ impl<R: Read> Parser<'_, R> {
 impl<R: Read> Iterator for Parser<'_, R> {
     type Item = Result<PseudoAln, E>;
 
+    /// Parse the next record
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec(),
+    ///     b"r1\t0\n".to_vec(),
+    ///     b"r2\t0\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// let mut parser = parser.unwrap();
+    ///
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    ///
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_some());
+    ///
+    /// let record = parser.next();
+    /// assert!(record.as_ref().is_none());
+    /// ```
     fn next(
         &mut self,
     ) -> Option<Result<PseudoAln, E>> {
