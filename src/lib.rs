@@ -311,6 +311,87 @@ impl std::fmt::Display for Format {
     }
 }
 
+impl Format {
+    /// Guess the input format from plaintext bytes
+    ///
+    /// Supports:
+    /// - SAM
+    /// - Themisto
+    /// - Bifrost
+    /// - Fulgor
+    /// - Metagraph
+    ///
+    /// ## Errors
+    /// ### [CorruptedInputErr](crate::errors::CorruptedInputErr)
+    /// Input bytes do not contain the expected data.
+    ///
+    /// ### [AmbiguousInputFormatErr](crate::errors::AmbiguousInputFormatErr)
+    /// Input format is either fulgor or metagraph but cannot be inferred with certainty.
+    ///
+    /// ### [UnrecognizedInputFormatErr](crate::errors::UnrecognizedInputFormatErr)
+    /// Could not infer input format.
+    ///
+    pub fn from_bytes(
+        bytes: &[u8],
+    ) -> Result<Self, E> {
+        let first_line: Vec<u8> = if bytes.contains(&b'\n') {
+            let linebreak = match bytes.iter().position(|x| *x == b'\n') {
+                Some(ret) => ret,
+                None => return Err(Box::new(crate::errors::CorruptedInputErr{})),
+            };
+            bytes[0..linebreak].to_vec()
+        } else {
+            bytes.to_vec()
+        };
+
+        #[cfg(feature = "sam")]
+        if bytes.len() > 2 {
+            let sam: bool = bytes[0] == b'@' && bytes[1] == b'H' && bytes[2] == b'D';
+            if sam {
+                return Ok(Format::SAM)
+            }
+        }
+
+        let not_themisto: bool = first_line.contains(&b'\t');
+        if !not_themisto {
+            return Ok(Format::Themisto)
+        }
+
+        let line = first_line.clone().iter().map(|x| *x as char).collect::<String>();
+        let mut records = line.split('\t');
+
+        let first_record = records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+        let bifrost: bool = first_record == "query_name";
+        if bifrost {
+            return Ok(Format::Bifrost)
+        }
+        let ahda_tsv: bool = first_record == "query_index";
+        if ahda_tsv {
+            return Ok(Format::AhdaTSV)
+        }
+
+        let maybe_metagraph: bool = first_record.parse::<u32>().is_ok();
+
+        let next = records.next().ok_or(crate::errors::CorruptedInputErr{})?;
+
+        let fulgor: bool = next.parse::<u32>().is_ok();
+
+        if fulgor && maybe_metagraph {
+            return Err(Box::new(crate::errors::AmbiguousInputFormatErr{}))
+        }
+
+        if fulgor {
+            return Ok(Format::Fulgor)
+        }
+
+        if maybe_metagraph {
+            return Ok(Format::Metagraph)
+        }
+
+        Err(Box::new(crate::errors::UnrecognizedInputFormatErr{}))
+    }
+}
+
 /// Supported set operations for [decode_from_read_into_roaring].
 #[non_exhaustive]
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -1397,6 +1478,77 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
 
 #[cfg(test)]
 mod tests {
+
+
+    #[test]
+    fn guess_format_themisto() {
+        use super::Format;
+
+        let data: Vec<u8> = b"202678 1\n202728\n651964 0 1\n651966 0 1\n1166624 0\n1166625 0\n1166626 1".to_vec();
+        let got = Format::from_bytes(&data).unwrap();
+        let expected = Format::Themisto;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn guess_format_fulgor() {
+        use super::Format;
+
+        let mut data: Vec<u8> = b"ERR4035126.4996\t0\n".to_vec();
+        data.append(&mut b"ERR4035126.1262953\t1\t0\n".to_vec());
+        data.append(&mut b"ERR4035126.1262954\t1\t1\n".to_vec());
+
+        let got = Format::from_bytes(&data).unwrap();
+        let expected = Format::Fulgor;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn guess_format_bifrost() {
+        use super::Format;
+
+        let mut data: Vec<u8> = b"query_name\tchromosome.fasta\tplasmid.fasta\n".to_vec();
+        data.append(&mut b"ERR4035126.1262953\t1\t0\t15\n".to_vec());
+        data.append(&mut b"ERR4035126.1262954\t1\t1\t0\n".to_vec());
+
+        let got = Format::from_bytes(&data).unwrap();
+        let expected = Format::Bifrost;
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn guess_format_metagraph() {
+        use super::Format;
+
+        let mut data: Vec<u8> = b"30\tERR4035126.16\t\n".to_vec();
+        data.append(&mut b"15084\tERR4035126.7543\tplasmid.fasta\n".to_vec());
+
+        let got = Format::from_bytes(&data).unwrap();
+        let expected = Format::Metagraph;
+
+        assert_eq!(got, expected);
+    }
+
+
+    #[test]
+    #[cfg(feature = "sam")]
+    fn guess_format_sam() {
+        use super::Format;
+
+        let mut data: Vec<u8> = b"@HD\tVN:1.5\tSO:unsorted\tGO:query\n".to_vec();
+        data.append(&mut b"@SQ\tSN:OZ038621.1\tLN:5535987\n".to_vec());
+        data.append(&mut b"@SQ\tSN:OZ038622.1\tLN:104814\n".to_vec());
+        data.append(&mut b"@PG\tID:bwa\tPN:bwa\tVN:0.7.19-r1273\tCL:bwa mem -t 10 -o fwd_test.sam GCA_964037205.1_30348_1_60_genomic.fna ERR4035126_1.fastq.gz\n".to_vec());
+        data.append(&mut b"ERR4035126.1\t16\tOZ038621.1\t4541508\t60\t151M\t*\t0\t0\tAGTATTTAGTGACCTAAGTCAATAAAATTTTAATTTACTCACGGCAGGTAACCAGTTCAGAAGCTGCTATCAGACACTCTTTTTTTAATCCACACAGAGACATATTGCCCGTTGCAGTCAGAATGAAAAGCTGAAAATCACTTACTAAGGC FJ<<JJFJAA<-JFAJFAF<JFFJJJJJJJFJFJJA<A<AJJAAAFFJJJJFJJFJFJAJJ7JJJJJFJJJJJFFJFFJFJJJJJJFJ7FFJAJJJJJJJJFJJFJJFJFJJJJFJJFJJJJJJJJJFFJJJJJJJJJJJJJFJJJFFAAA\tNM:i:0\tMD:Z:151\tAS:i:151\tXS:i:0\n".to_vec());
+
+        let got = Format::from_bytes(&data).unwrap();
+        let expected = Format::SAM;
+
+        assert_eq!(got, expected);
+    }
 
     #[test]
     fn concatenate_from_read_to_write() {
