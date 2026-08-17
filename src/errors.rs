@@ -147,6 +147,11 @@ impl std::fmt::Display for AmbiguousInputFormatErr {
 impl std::error::Error for AmbiguousInputFormatErr {}
 
 /// Plaintext data given to [Parser](crate::parser::Parser) is not in the expected format.
+///
+/// ## Returned by
+///
+/// - [Parser::read_header](crate::parser::Parser::read_header) (private method).
+///
 #[derive(Debug, Clone)]
 pub struct CorruptedInputErr;
 impl std::fmt::Display for CorruptedInputErr {
@@ -157,6 +162,12 @@ impl std::fmt::Display for CorruptedInputErr {
 impl std::error::Error for CorruptedInputErr {}
 
 /// Input format given to [Parser](crate::parser::Parser) requires supplying the target sequence names.
+///
+/// ## Returned by
+///
+/// - [Parser::new](crate::parser::Parser::new).
+/// - [Parser::new_with_format](crate::parser::Parser::new_with_format).
+///
 #[derive(Debug, Clone)]
 pub struct NeedTargetSequences {
     pub format: Format,

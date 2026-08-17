@@ -102,12 +102,14 @@ use std::io::Read;
 type E = Box<dyn std::error::Error>;
 
 use crate::errors::NeedTargetSequences;
+
+/// Parser for plain text data.
 pub struct Parser<'a, R: Read> {
     reader: BufReader<&'a mut R>,
     buf: Cursor<Vec<u8>>,
     pub format: Format,
 
-    query_to_pos: IndexSet<Vec<u8>>,
+    query_to_pos: Option<IndexSet<Vec<u8>>>,
     target_to_pos: IndexSet<Vec<u8>>,
 
     // What values to fill in the records
@@ -119,6 +121,99 @@ pub struct Parser<'a, R: Read> {
 
 impl<'a, R: Read> Parser<'a, R> {
 
+    /// Initialize from a [Read] and optional query, target sequence names.
+    ///
+    /// Attempts to automatically detect the input format.
+    ///
+    /// ## Errors
+    ///
+    /// Returns [NeedTargetsSequences] if the detected format requires supplying
+    /// the target sequence names.
+    ///
+    /// ## Usage
+    ///
+    /// ### Initialize with query and target names
+    ///
+    /// This initialization will work for all input [Format]s.
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// ```
+    ///
+    /// ### Initialize without query names
+    ///
+    /// Works for all formats but encoding the data may require supplying the
+    /// query names if the plain text format does not include the query index.
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let queries_it =  None::<&mut std::iter::Empty<Vec<u8>>>;
+    /// let parser = Parser::new(&mut data, queries_it, Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// ```
+    ///
+    /// ### Initialize without target names
+    ///
+    /// Works for the AhdaTSV Bifrost, and SAM formats.
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// // Format: AhdaTSV
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"query_index\tquery_name\tchromosome.fasta\tplasmid.fasta\n".to_vec(),
+    ///     b"0\tFastqQuery.1\t0\t0\n".to_vec(),
+    ///     b"1\tFastqQuery.2\t0\t0\n".to_vec(),
+    ///     b"2\tFastqQuery.3\t1\t0\n".to_vec(),
+    ///     b"135608\tFastqQuery.135609\t1\t1\n".to_vec(),
+    ///     b"100818\tFastqQuery.100819\t0\t1\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let targets_it = None::<&mut std::iter::Empty<Vec<u8>>>;
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), targets_it);
+    ///
+    /// assert!(parser.is_ok());
+    /// ```
+    ///
     pub fn new<T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
         conn_query_names: Option<&mut Q>,
@@ -156,6 +251,52 @@ impl<'a, R: Read> Parser<'a, R> {
         Ok(ret)
     }
 
+    /// Initialize with a specified input [Format].
+    ///
+    /// ## Errors
+    ///
+    /// Returns [NeedTargetsSequences] if the detected format requires supplying
+    /// the target sequence names.
+    ///
+    /// ## Usage
+    ///
+    /// ### Initialize for ambiguous input format
+    ///
+    /// ```
+    /// use ahda::Format;
+    /// use ahda::parser::Parser;
+    /// use std::io::{Cursor, Seek};
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    ///
+    /// // Format: Fulgor
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"11301\t0".to_vec(),
+    ///     b"4995\t0".to_vec(),
+    ///     b"7542\t1\t1".to_vec(),
+    ///     b"15782\t0".to_vec(),
+    ///     b"652016\t2\t0\t1".to_vec(),
+    ///     b"100817\t1\t1".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// // Format is ambiguous so the constructor will return an error
+    /// assert!(parser.is_err());
+    ///
+    /// // We can force the format since we know what it is
+    /// // Note that the previous constructor consumed the first line from the input so we need to rewind it!
+    /// data.rewind().unwrap();
+    ///
+    /// let format = Format::Fulgor;
+    /// let parser = Parser::new_with_format(&mut data, Some(&mut queries_it), Some(&mut targets_it), format);
+    /// assert!(parser.is_ok());
+    /// ```
+    ///
     pub fn new_with_format<T: Iterator<Item=Vec<u8>>, Q: Iterator<Item=Vec<u8>>>(
         conn_pseudoalns: &'a mut R,
         conn_query_names: Option<&mut Q>,
@@ -183,7 +324,7 @@ impl<'a, R: Read> Parser<'a, R> {
         } else if let Some(targets) = targets_from_header {
             ret.target_to_pos = IndexSet::<Vec<u8>>::from_iter(targets);
         } else {
-            return Err(Box::new(crate::errors::NeedTargetSequences{ format: ret.format }))
+            return Err(Box::new(NeedTargetSequences{ format: ret.format }))
         }
 
         if let Some(conn_query_names) = conn_query_names {
@@ -202,6 +343,7 @@ impl<R: Read> Parser<'_, R> {
     ///
     /// Returns None if the header has already been consumed by calling [Parser::next].
     /// This is checked by looking whether target_to_pos contains anything.
+    ///
     fn read_header(
         &mut self,
     ) -> Result<Option<Vec<Vec<u8>>>, E> {
@@ -270,19 +412,190 @@ impl<R: Read> Parser<'_, R> {
         }
     }
 
-    /// Returns the number of query records in the input fastX file
+    /// Returns the number of query records in the input fastX file.
+    ///
+    /// Will return None if the Parser was initialized without query names.
+    ///
+    /// ## Usage
+    ///
+    /// ### Initialized with query names
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    /// let n_queries = queries.len();
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.as_ref().is_ok());
+    /// assert!(parser.as_ref().unwrap().len().is_some());
+    /// assert!(parser.as_ref().unwrap().len().unwrap() == n_queries);
+    /// ```
+    ///
+    /// ### Initialized without query names
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let queries_it =  None::<&mut std::iter::Empty<Vec<u8>>>;
+    /// let parser = Parser::new(&mut data, queries_it, Some(&mut targets_it));
+    ///
+    /// assert!(parser.as_ref().is_ok());
+    /// assert!(parser.as_ref().unwrap().len().is_none());
+    /// ```
     pub fn len(
         &self,
     ) -> Option<usize> {
         self.query_to_pos.as_ref().map(|x| x.len())
     }
 
+    /// Does the input contain any queries?
+    ///
+    /// Will return None if the Parser was initialized without query names.
+    ///
+    /// Will return Some(true) if the parser was initialized with query names of length 0.
+    ///
+    /// ## Usage
+    ///
+    /// ### Initialized with query names
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![b"r1".to_vec(), b"r2".to_vec(), b"r651903".to_vec(), b"r7543".to_vec(), b"r16".to_vec()];
+    /// let n_queries = queries.len();
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.as_ref().is_ok());
+    /// assert!(parser.as_ref().unwrap().is_empty().is_some());
+    /// assert!(parser.as_ref().unwrap().is_empty().unwrap() == false);
+    /// ```
+    ///
+    /// ### Initialized without query names
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let queries_it =  None::<&mut std::iter::Empty<Vec<u8>>>;
+    /// let parser = Parser::new(&mut data, queries_it, Some(&mut targets_it));
+    ///
+    /// assert!(parser.as_ref().is_ok());
+    /// assert!(parser.as_ref().unwrap().is_empty().is_none());
+    /// ```
+    ///
+    /// ### Initialized with empty query names
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec![];
+    /// let n_queries = queries.len();
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.into_iter();
+    /// let mut queries_it = queries.into_iter();
+    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
+    ///
+    /// assert!(parser.as_ref().is_ok());
+    /// assert!(parser.as_ref().unwrap().is_empty().is_some());
+    /// assert!(parser.as_ref().unwrap().is_empty().unwrap() == true);
+    /// ```
     pub fn is_empty(
         &self,
     ) -> Option<bool> {
-        self.query_to_pos.as_ref().map(|x| x.is_empty())
+        self.len().map(|len| len == 0)
     }
 
+    /// Returns the target sequence names.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::parser::Parser;
+    /// use std::io::Cursor;
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    ///
+    /// // Format: Metagraph
+    /// let plaintext: Vec<u8> = vec![
+    ///     b"0\tr1\tvirus.fasta\n".to_vec(),
+    ///     b"3\tr7543\tchr.fasta:virus.fasta\n".to_vec(),
+    ///     b"4\tr16\tchr.fasta:plasmid.fasta:virus.fasta\n".to_vec(),
+    ///     b"2\tr651903\t\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
+    /// let mut targets_it = targets.clone().into_iter();
+    /// let queries_it =  None::<&mut std::iter::Empty<Vec<u8>>>;
+    /// let parser = Parser::new(&mut data, queries_it, Some(&mut targets_it));
+    ///
+    /// assert!(parser.is_ok());
+    /// assert_eq!(parser.unwrap().get_targets().unwrap(), targets);
+    /// ```
     pub fn get_targets(
         &self,
     ) -> Option<Vec<Vec<u8>>> {
@@ -294,6 +607,7 @@ impl<R: Read> Parser<'_, R> {
 
     }
 
+    /// Fill the empty fields in a [PseudoAln].
     fn fill_record(
         &mut self,
         record: &mut PseudoAln,
@@ -376,6 +690,13 @@ impl<R: Read> Parser<'_, R> {
         Ok(())
     }
 
+    /// Should Parser fill the `query_id` field for each record?
+    ///
+    /// Suggest to try to fill the field `query_id` if the input does not
+    /// contain this information.
+    ///
+    /// Will be overriden if the Parser was initialized without query names, as
+    /// [Parser::fill_record] needs them to fill the field.
     pub fn fill_query_id(
         &mut self,
         val: bool,
@@ -383,6 +704,13 @@ impl<R: Read> Parser<'_, R> {
         self.fill_query_id = val && self.query_to_pos.is_some();
     }
 
+    /// Should Parser fill the `query_name` field for each record?
+    ///
+    /// Suggest to try to fill the field `query_name` if the input does not
+    /// contain this information.
+    ///
+    /// Will be overriden if the Parser was initialized without query names, as
+    /// [Parser::fill_record] needs them to fill the field.
     pub fn fill_query_name(
         &mut self,
         val: bool,
@@ -390,6 +718,10 @@ impl<R: Read> Parser<'_, R> {
         self.fill_query_name = val && self.query_to_pos.is_some();
     }
 
+    /// Should Parser fill the `ones` field for each record?
+    ///
+    /// Suggest to try to fill the field `ones` if the input does not
+    /// contain this information.
     pub fn fill_target_ids(
         &mut self,
         val: bool,
@@ -397,6 +729,10 @@ impl<R: Read> Parser<'_, R> {
         self.fill_target_ids = val;
     }
 
+    /// Should Parser fill the `ones_names` field for each record?
+    ///
+    /// Suggest to try to fill the field `ones_names` if the input does not
+    /// contain this information.
     pub fn fill_target_names(
         &mut self,
         val: bool,
