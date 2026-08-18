@@ -158,6 +158,7 @@ pub mod themisto;
 
 type E = Box<dyn std::error::Error>;
 
+/// Format [PseudoAln] as plain text data,
 pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
     // Inputs
     records: &'a mut I,
@@ -173,6 +174,25 @@ pub struct Printer<'a, I: Iterator> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
+    /// # Initialize with required info about the records.
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::Format;
+    /// use ahda::PseudoAln;
+    /// use ahda::printer::Printer;
+    ///
+    /// let data: Vec<PseudoAln> = Vec::new();
+    /// let targets: Vec<Vec<u8>> = Vec::new();
+    /// let sample_name: Vec<u8> = Vec::new();
+    /// let n_queries: usize = 0;
+    /// let format = Format::default();
+    ///
+    /// let mut data_it = data.into_iter();
+    /// let printer = Printer::new(&mut data_it, &targets, &sample_name, n_queries, format);
+    /// assert!(printer.is_ok());
+    /// ```
     pub fn new(
         records: &'a mut I,
         targets: &[Vec<u8>],
@@ -184,6 +204,25 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         Printer::new_from_header_and_flags(records, header, flags, format)
     }
 
+    /// Initialize from a [FileHeader] and [FileFlags].
+    ///
+    /// ## Usage
+    ///
+    /// ```rust
+    /// use ahda::Format;
+    /// use ahda::PseudoAln;
+    /// use ahda::headers::file::{FileHeader, FileFlags};
+    /// use ahda::printer::Printer;
+    ///
+    /// let data: Vec<PseudoAln> = Vec::new();
+    /// let format = Format::default();
+    /// let header = FileHeader::default();
+    /// let flags = FileFlags::default();
+    ///
+    /// let mut data_it = data.into_iter();
+    /// let printer = Printer::new_from_header_and_flags(&mut data_it, header, flags, format);
+    /// assert!(printer.is_ok());
+    /// ```
     pub fn new_from_header_and_flags(
         records: &'a mut I,
         header: FileHeader,
@@ -253,6 +292,76 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
 impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoAln> {
     type Item = Result<Vec<u8>, E>;
 
+    /// Get the next record
+    ///
+    /// ## Usage
+    ///
+    /// ### Print records in a format without a header line
+    ///
+    /// ```rust
+    /// use ahda::{Format, PseudoAln};
+    /// use ahda::printer::Printer;
+    /// use std::io::{Cursor, Write};
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec!["r1".as_bytes().to_vec(), "r2".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()];
+    /// let name = "sample".as_bytes().to_vec();
+    ///
+    /// let data = vec![
+    ///                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
+    /// ];
+    ///
+    /// let expected: Vec<u8> = b"0\tr1\tvirus.fasta\n".to_vec();
+    ///
+    /// let mut iter = data.into_iter();
+    ///
+    /// let printer = Printer::new(&mut iter, &targets, &name, queries.len(), Format::Metagraph);
+    /// assert!(printer.is_ok());
+    /// let mut printer = printer.unwrap();
+    ///
+    /// let record = printer.next();
+    /// assert!(record.is_some());
+    /// assert!(record.as_ref().unwrap().is_ok());
+    /// assert_eq!(record.unwrap().unwrap(), expected);
+    ///
+    /// let record = printer.next();
+    /// assert!(record.is_none());
+    /// ```
+    ///
+    /// ### Print records in a format with a header line
+    ///
+    /// ```rust
+    /// use ahda::{Format, PseudoAln};
+    /// use ahda::printer::Printer;
+    /// use std::io::{Cursor, Write};
+    ///
+    /// let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec(), "virus.fasta".as_bytes().to_vec()];
+    /// let queries = vec!["r1".as_bytes().to_vec(), "r2".as_bytes().to_vec(), "r651903".as_bytes().to_vec(), "r7543".as_bytes().to_vec(), "r16".as_bytes().to_vec()];
+    /// let name = "sample".as_bytes().to_vec();
+    ///
+    /// let data = vec![
+    ///                 PseudoAln { ones: Some(vec![2]), ones_names: Some(vec!["virus.fasta".as_bytes().to_vec()]), query_id: Some(0), query_name: Some("r1".as_bytes().to_vec()) },
+    /// ];
+    ///
+    /// let expected: Vec<u8> = vec![
+    ///     b"query_index\tquery_name\tchr.fasta\tplasmid.fasta\tvirus.fasta\n".to_vec(),
+    ///     b"0\tr1\t0\t0\t1\n".to_vec(),
+    /// ].into_iter().flatten().collect();
+    ///
+    /// let mut iter = data.into_iter();
+    ///
+    /// let printer = Printer::new(&mut iter, &targets, &name, queries.len(), Format::AhdaTSV);
+    /// assert!(printer.is_ok());
+    /// let mut printer = printer.unwrap();
+    ///
+    /// let record = printer.next();
+    /// assert!(record.is_some());
+    /// assert!(record.as_ref().unwrap().is_ok());
+    /// assert_eq!(record.unwrap().unwrap(), expected);
+    ///
+    /// let record = printer.next();
+    /// assert!(record.is_none());
+    /// ```
     fn next(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {
