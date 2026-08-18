@@ -214,7 +214,8 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
 }
 
 impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
-    pub fn print_header(
+    /// Print the header line, or nothing, for the specified format.
+    fn print_header(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {
         let mut out: Vec<u8> = Vec::new();
