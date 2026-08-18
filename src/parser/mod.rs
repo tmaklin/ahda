@@ -17,7 +17,7 @@
 //! Reads in 1 [PseudoAln] at a time using next(), in the order they appear in
 //! the input.
 //!
-//! The input format is detected automatically based on rules in [guess_format].
+//! The input format is detected automatically based on rules in [Format::from_bytes].
 //! Some input formats may be ambiguous, in which case the format needs to be
 //! specified using [new_with_format](Parser::new_with_format).
 //!

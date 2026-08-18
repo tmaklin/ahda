@@ -126,7 +126,7 @@ impl std::fmt::Display for MetagraphPrinterError {
 }
 impl std::error::Error for MetagraphPrinterError {}
 
-/// [guess_format](crate::parser::guess_format) did not recognize the input format given to [Parser](crate::parser::Parser).
+/// [Format::from_bytes] did not recognize the input format given to [Parser](crate::parser::Parser).
 #[derive(Debug, Clone)]
 pub struct UnrecognizedInputFormatErr;
 impl std::fmt::Display for UnrecognizedInputFormatErr {
@@ -136,7 +136,7 @@ impl std::fmt::Display for UnrecognizedInputFormatErr {
 }
 impl std::error::Error for UnrecognizedInputFormatErr {}
 
-/// [guess_format](crate::parser::guess_format) found a valid input format to [Parser](crate::parser::Parser) but could not confirm it with certainty.
+/// [Format::from_bytes] found a valid input format to [Parser](crate::parser::Parser) but could not confirm it with certainty.
 #[derive(Debug, Clone)]
 pub struct AmbiguousInputFormatErr;
 impl std::fmt::Display for AmbiguousInputFormatErr {
