@@ -431,6 +431,7 @@ impl<I: Iterator> Iterator for BitmapEncoder<'_, I> where I: Iterator<Item=u64> 
     fn next(
         &mut self,
     ) -> Option<Result<Vec<u8>, E>> {
+        assert!(self.header.n_queries > 0);
         let end_idx = ((self.blocks_written + 1) * self.header.block_size as usize).min(self.header.n_queries as usize);
         let n_targets = self.header.n_targets as u64;
         loop {

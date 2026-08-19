@@ -1432,7 +1432,7 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
     opts: EncodeOpts,
 ) -> Result<(), E> {
     // Read first bitmap
-    let (mut bitmap_a, header_a, mut flags_a, mut block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
+    let (mut bitmap_a, mut header_a, mut flags_a, mut block_flags) = decode_from_read_to_roaring(&mut conn_in[0])?;
     for conn in conn_in.iter_mut().skip(1) {
         decode_from_read_into_roaring(conn, merge_op, &mut bitmap_a)?;
     }
@@ -1442,8 +1442,10 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
     }
 
     let mut iter = bitmap_a.into_iter();
-    let n_queries = header_a.n_queries as usize;
-    let mut encoder = encoder::bitmap_encoder::BitmapEncoder::new(&mut iter, &flags_a.target_names, &flags_a.query_name, n_queries)?;
+    if header_a.n_queries == 0_u32 {
+        header_a.n_queries = block_flags.query_ids.as_ref().unwrap().len().try_into()?;
+    }
+    let mut encoder = encoder::bitmap_encoder::BitmapEncoder::new_from_header_and_flags(&mut iter, header_a, flags_a)?;
     if opts.encode_query_names && !opts.rename_queries {
         if let Some(query_names) = block_flags.queries {
             encoder.set_query_names(&query_names);
