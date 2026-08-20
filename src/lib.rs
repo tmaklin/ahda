@@ -1453,6 +1453,7 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
             return Err(Box::new(crate::errors::QueryNamesNotFilled {}))
         }
     } else if opts.encode_query_names && opts.rename_queries {
+        unimplemented!("Merge with renamed queries.");
         if let Some(query_ids) = block_flags.query_ids {
             let query_names = query_ids.iter().map(|query_id| {
                 let mut newname: Vec<u8> = opts.accession.clone();
@@ -1464,6 +1465,7 @@ pub fn merge_from_read_to_write<R: Read, W: Write>(
             return Err(Box::new(crate::errors::QueryIdsNotFilled {}))
         }
     } else {
+        unimplemented!("Merge without encoding query names.");
         block_flags.queries = None;
     }
 
