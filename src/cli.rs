@@ -177,7 +177,7 @@ pub enum Commands {
         output_file: Option<PathBuf>,
 
         // Merge operation
-        #[arg(short = 'm', long = "mode", default_value = "union", help = "Merge operation")]
+        #[arg(short = 'm', long = "mode", default_value = "intersection", help = "Merge operation")]
         operation: Option<ahda::MergeOp>,
 
         // Write to stdout
