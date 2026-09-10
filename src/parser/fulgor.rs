@@ -88,6 +88,36 @@ pub fn read_fulgor<R: Read>(
     Ok(res)
 }
 
+/// Parse a line from Fulgor >= v4.x.y
+///
+/// Reads a pseudoalignment line stored in the *Fulgor* format (v4 onwards).
+///
+/// Returns the [pseudoalignment](PseudoAln) on the line.
+///
+pub fn read_fulgor_v4<R: Read>(
+    conn: &mut R,
+) -> Result<PseudoAln, E> {
+    let separator: char = '\t';
+    let mut contents: String = String::new();
+    conn.read_to_string(&mut contents)?;
+
+    let mut records = contents.split(separator);
+
+    let read_id_bytes = records.next().ok_or(CorruptedInputErr{})?;
+    let _ = records.next().ok_or(CorruptedInputErr)?;
+
+    let query_id = read_id_bytes.parse::<u32>()?;
+    let mut ones: Vec<u32> = Vec::new();
+
+    for record in records {
+        let id = record.parse::<u32>()?;
+        ones.push(id);
+    }
+
+    let res = PseudoAln{ones_names: None,  query_id: Some(query_id), ones: Some(ones), query_name: None};
+    Ok(res)
+}
+
 // Tests
 #[cfg(test)]
 mod tests {
@@ -136,6 +166,55 @@ mod tests {
         let reader = BufReader::new(cursor);
         let got: Vec<PseudoAln> = reader.lines().map(|line| {
             read_fulgor(&mut line.unwrap().as_bytes()).unwrap()
+        }).collect();
+
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn read_fulgor_v4_multiple() {
+        use crate::PseudoAln;
+        use super::read_fulgor_v4;
+        use std::io::BufRead;
+        use std::io::BufReader;
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"4996\t0\n".to_vec();
+        data.append(&mut b"1262953\t1\t0\n".to_vec());
+        data.append(&mut b"1262954\t1\t1\n".to_vec());
+        data.append(&mut b"1262955\t1\t1\n".to_vec());
+        data.append(&mut b"1262956\t1\t0\n".to_vec());
+        data.append(&mut b"1262957\t1\t0\n".to_vec());
+        data.append(&mut b"1262958\t1\t0\n".to_vec());
+        data.append(&mut b"1262959\t1\t0\n".to_vec());
+        data.append(&mut b"651965\t2\t0\t1\n".to_vec());
+        data.append(&mut b"11302\t0\n".to_vec());
+        data.append(&mut b"1262960\t1\t0\n".to_vec());
+        data.append(&mut b"1262961\t1\t0\n".to_vec());
+        data.append(&mut b"1262962\t1\t0\n".to_vec());
+        data.append(&mut b"651965\t2\t0\t1\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![]), query_id: Some(4996) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262953) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![1]), query_id: Some(1262954) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![1]), query_id: Some(1262955) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262956) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262957) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262958) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262959) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0, 1]), query_id: Some(651965) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![]), query_id: Some(11302) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262960) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262961) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0]), query_id: Some(1262962) },
+            PseudoAln{ones_names: None,  query_name: None, ones: Some(vec![0, 1]), query_id: Some(651965) },
+        ];
+
+        let cursor = Cursor::new(data);
+        let reader = BufReader::new(cursor);
+        let got: Vec<PseudoAln> = reader.lines().map(|line| {
+            read_fulgor_v4(&mut line.unwrap().as_bytes()).unwrap()
         }).collect();
 
         assert_eq!(got, expected);

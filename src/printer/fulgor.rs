@@ -56,6 +56,45 @@ pub fn format_fulgor_line<W: Write>(
     Ok(())
 }
 
+/// Format a single pseudoalignment in Fulgor format (v4 onwards)
+///
+/// Writes bytes containing the formatted line containing the contents of
+/// `aln` to `conn`.
+///
+/// Terminates with a [FulgorPrinterError](crate::errors::FulgorPrinterError) if
+/// if the `query_id` field of [PseudoAln] or the `ones` field
+/// of [PseudoAln] is None.
+///
+pub fn format_fulgor_line_v4<W: Write>(
+    aln: &PseudoAln,
+    conn: &mut W,
+) -> Result<(), E> {
+    let separator: char = '\t';
+    let mut formatted: String = String::new();
+
+    if let Some(id) = &aln.query_id {
+        let q_id = id.to_string();
+        formatted += &q_id;
+        formatted += &separator.to_string();
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnQueryIdIsEmpty{}))
+    };
+
+    if let Some(ones) = &aln.ones {
+        formatted += &ones.len().to_string();
+        for target_idx in ones {
+            formatted += &separator.to_string();
+            formatted += &target_idx.to_string();
+        }
+        formatted += "\n";
+    } else {
+        return Err(Box::new(crate::errors::PseudoAlnOnesIsEmpty{}))
+    }
+
+    conn.write_all(formatted.as_bytes())?;
+    Ok(())
+}
+
 // Tests
 #[cfg(test)]
 mod tests {
@@ -71,6 +110,22 @@ mod tests {
 
         let mut got: Vec<u8> = Vec::new();
         format_fulgor_line(&data, &mut got).unwrap();
+
+        assert_eq!(got, expected);
+    }
+
+
+    #[test]
+    fn format_fulgor_line_v4_1st_aligned() {
+        use crate::PseudoAln;
+        use super::format_fulgor_line_v4;
+
+        let data = PseudoAln{ones_names: None,  query_id: Some(1262953), ones: Some(vec![0]), query_name: None };
+
+        let expected: Vec<u8> = b"1262953\t1\t0\n".to_vec();
+
+        let mut got: Vec<u8> = Vec::new();
+        format_fulgor_line_v4(&data, &mut got).unwrap();
 
         assert_eq!(got, expected);
     }

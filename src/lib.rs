@@ -274,6 +274,7 @@ pub enum Format {
     AhdaTSV,
     Bifrost,
     Fulgor,
+    FulgorV4,
     Metagraph,
     #[cfg(feature = "sam")]
     SAM,
@@ -286,7 +287,8 @@ impl std::str::FromStr for Format {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "bifrost" => Ok(Format::Bifrost),
-            "fulgor" => Ok(Format::Fulgor),
+            "fulgor" => Ok(Format::FulgorV4),
+            "fulgor1" => Ok(Format::Fulgor),
             "metagraph" => Ok(Format::Metagraph),
             #[cfg(feature = "sam")]
             "sam" => Ok(Format::SAM),
@@ -302,6 +304,7 @@ impl std::fmt::Display for Format {
         match self {
             Format::Bifrost => write!(f, "bifrost"),
             Format::Fulgor => write!(f, "fulgor"),
+            Format::FulgorV4 => write!(f, "fulgor"),
             Format::Metagraph => write!(f, "metagraph"),
             #[cfg(feature = "sam")]
             Format::SAM => write!(f, "SAM"),
@@ -370,21 +373,39 @@ impl Format {
             return Ok(Format::AhdaTSV)
         }
 
-        let maybe_metagraph: bool = first_record.parse::<u32>().is_ok();
+        let metagraph_or_fulgorv4: bool = first_record.parse::<u32>().is_ok();
 
         let next = records.next().ok_or(crate::errors::CorruptedInputErr{})?;
 
         let fulgor: bool = next.parse::<u32>().is_ok();
 
-        if fulgor && maybe_metagraph {
-            return Err(Box::new(crate::errors::AmbiguousInputFormatErr{}))
+        if fulgor && metagraph_or_fulgorv4 {
+            let record = records.next();
+            if let Some(second_record) = record {
+                if second_record.parse::<u32>().is_err() {
+                    return Ok(Format::Metagraph);
+                } else {
+                    let record = records.next();
+                    if let Some(third_record) = record {
+                        if third_record.parse::<u32>().is_err() {
+                            return Ok(Format::Metagraph);
+                        } else {
+                            return Ok(Format::FulgorV4)
+                        }
+                    } else {
+                        return Ok(Format::FulgorV4);
+                    }
+                }
+            } else {
+                return Ok(Format::FulgorV4);
+            }
         }
 
         if fulgor {
             return Ok(Format::Fulgor)
         }
 
-        if maybe_metagraph {
+        if metagraph_or_fulgorv4 {
             return Ok(Format::Metagraph)
         }
 
@@ -1027,6 +1048,10 @@ pub fn decode_from_read_to_write<R: Read, W: Write>(
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);
         },
+        Format::FulgorV4 => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_name(false);
+        },
         Format::Bifrost => {
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);
@@ -1157,6 +1182,10 @@ pub fn decode_to_write<W: Write>(
         Format::Fulgor => {
             decoder.fill_target_names(false);
             decoder.fill_query_id(false);
+        },
+        Format::FulgorV4 => {
+            decoder.fill_target_names(false);
+            decoder.fill_query_name(false);
         },
         Format::Bifrost => {
             decoder.fill_target_names(false);
