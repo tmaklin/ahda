@@ -86,6 +86,7 @@ use crate::PseudoAln;
 use crate::parser::ahda_tsv::read_ahda_tsv;
 use crate::parser::bifrost::read_bifrost;
 use crate::parser::fulgor::read_fulgor;
+use crate::parser::fulgor::read_fulgor_v4;
 use crate::parser::metagraph::read_metagraph;
 #[cfg(feature = "sam")]
 use crate::parser::sam::read_sam;
@@ -269,7 +270,7 @@ impl<'a, R: Read> Parser<'a, R> {
     ///
     /// ## Usage
     ///
-    /// ### Initialize for ambiguous input format
+    /// ### Initialize with forced format
     ///
     /// ```
     /// use ahda::Format;
@@ -292,14 +293,8 @@ impl<'a, R: Read> Parser<'a, R> {
     /// let mut data: Cursor<Vec<u8>> = Cursor::new(plaintext);
     /// let mut targets_it = targets.into_iter();
     /// let mut queries_it = queries.into_iter();
-    /// let parser = Parser::new(&mut data, Some(&mut queries_it), Some(&mut targets_it));
-    ///
-    /// // Format is ambiguous so the constructor will return an error
-    /// assert!(parser.is_err());
     ///
     /// // We can force the format since we know what it is
-    /// // Note that the previous constructor consumed the first line from the input so we need to rewind it!
-    /// data.rewind().unwrap();
     ///
     /// let format = Format::Fulgor;
     /// let parser = Parser::new_with_format(&mut data, Some(&mut queries_it), Some(&mut targets_it), format);
@@ -366,6 +361,7 @@ impl<R: Read> Parser<'_, R> {
         match self.format {
             Format::Themisto => Ok(None),
             Format::Fulgor => Ok(None),
+            Format::FulgorV4 => Ok(None),
             Format::Metagraph => Ok(None),
             Format::Bifrost => {
                 let separator: char = '\t';
@@ -967,6 +963,7 @@ impl<R: Read> Iterator for Parser<'_, R> {
         let try_record = match self.format {
             Format::Themisto => read_themisto(&mut self.buf),
             Format::Fulgor => read_fulgor(&mut self.buf),
+            Format::FulgorV4 => read_fulgor_v4(&mut self.buf),
             Format::Metagraph => read_metagraph(&mut self.buf),
             Format::Bifrost => read_bifrost(&mut self.buf),
             #[cfg(feature = "sam")]
@@ -1286,6 +1283,80 @@ mod tests {
         let (got, got_format) = (res, reader.format);
 
         assert_eq!(got_format, Format::Fulgor);
+        assert_eq!(got, expected);
+    }
+
+    #[test]
+    fn parse_fulgor_v4_output() {
+        use super::Parser;
+
+        use crate::Format;
+        use crate::PseudoAln;
+
+        use std::io::Cursor;
+
+        let mut data: Vec<u8> = b"0\t0\n".to_vec();
+        data.append(&mut b"1\t1\t0\n".to_vec());
+        data.append(&mut b"2\t1\t1\n".to_vec());
+        data.append(&mut b"3\t1\t1\n".to_vec());
+        data.append(&mut b"4\t1\t0\n".to_vec());
+        data.append(&mut b"5\t1\t0\n".to_vec());
+        data.append(&mut b"6\t1\t0\n".to_vec());
+        data.append(&mut b"7\t1\t0\n".to_vec());
+        data.append(&mut b"8\t2\t0\t1\n".to_vec());
+        data.append(&mut b"9\t0\n".to_vec());
+        data.append(&mut b"10\t1\t0\n".to_vec());
+        data.append(&mut b"11\t1\t0\n".to_vec());
+        data.append(&mut b"12\t1\t0\n".to_vec());
+        data.append(&mut b"8\t2\t0\t1\n".to_vec());
+
+        let expected = vec![
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(0), ones: Some(vec![]), query_name: Some("ERR4035126.4996".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(1), ones: Some(vec![0]), query_name: Some("ERR4035126.1262953".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(2), ones: Some(vec![1]), query_name: Some("ERR4035126.1262954".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(3), ones: Some(vec![1]), query_name: Some("ERR4035126.1262955".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(4), ones: Some(vec![0]), query_name: Some("ERR4035126.1262956".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(5), ones: Some(vec![0]), query_name: Some("ERR4035126.1262957".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(6), ones: Some(vec![0]), query_name: Some("ERR4035126.1262958".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(7), ones: Some(vec![0]), query_name: Some("ERR4035126.1262959".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(8), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec![]),  query_id: Some(9), ones: Some(vec![]), query_name: Some("ERR4035126.11302".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(10), ones: Some(vec![0]), query_name: Some("ERR4035126.1262960".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(11), ones: Some(vec![0]), query_name: Some("ERR4035126.1262961".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec()]),  query_id: Some(12), ones: Some(vec![0]), query_name: Some("ERR4035126.1262962".as_bytes().to_vec()) },
+            PseudoAln{ones_names: Some(vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()]),  query_id: Some(8), ones: Some(vec![0, 1]), query_name: Some("ERR4035126.651965".as_bytes().to_vec()) },
+        ];
+
+        let mut cursor: Cursor<Vec<u8>> = Cursor::new(data);
+
+        let targets = vec!["chr.fasta".as_bytes().to_vec(), "plasmid.fasta".as_bytes().to_vec()];
+        let queries = vec![
+            "ERR4035126.4996".as_bytes().to_vec(),
+            "ERR4035126.1262953".as_bytes().to_vec(),
+            "ERR4035126.1262954".as_bytes().to_vec(),
+            "ERR4035126.1262955".as_bytes().to_vec(),
+            "ERR4035126.1262956".as_bytes().to_vec(),
+            "ERR4035126.1262957".as_bytes().to_vec(),
+            "ERR4035126.1262958".as_bytes().to_vec(),
+            "ERR4035126.1262959".as_bytes().to_vec(),
+            "ERR4035126.651965".as_bytes().to_vec(),
+            "ERR4035126.11302".as_bytes().to_vec(),
+            "ERR4035126.1262960".as_bytes().to_vec(),
+            "ERR4035126.1262961".as_bytes().to_vec(),
+            "ERR4035126.1262962".as_bytes().to_vec(),
+        ];
+        let mut it = queries.into_iter();
+        let mut t_it = targets.into_iter();
+        let mut reader = Parser::new(&mut cursor, Some(&mut it), Some(&mut t_it)).unwrap();
+
+        let mut res: Vec<PseudoAln> = Vec::new();
+        for record in reader.by_ref() {
+            res.push(record.unwrap());
+        }
+
+        let (got, got_format) = (res, reader.format);
+
+        assert_eq!(got_format, Format::FulgorV4);
         assert_eq!(got, expected);
     }
 

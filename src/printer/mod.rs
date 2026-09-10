@@ -138,6 +138,7 @@ use ahda_tsv::format_ahda_tsv_header;
 use ahda_tsv::format_ahda_tsv_line;
 use bifrost::format_bifrost_line;
 use fulgor::format_fulgor_line;
+use fulgor::format_fulgor_line_v4;
 use metagraph::format_metagraph_line;
 #[cfg(feature = "sam")]
 use sam::{
@@ -261,6 +262,7 @@ impl<'a, I: Iterator> Printer<'a, I> where I: Iterator<Item=PseudoAln> {
         match self.format {
             Format::Themisto => None,
             Format::Fulgor => None,
+            Format::FulgorV4 => None,
             Format::Metagraph => None,
             Format::Bifrost => {
                 match format_bifrost_header(&self.flags.target_names, &mut out) {
@@ -379,6 +381,7 @@ impl<'a, I: Iterator> Iterator for Printer<'a, I> where I: Iterator<Item=PseudoA
             let ret = match self.format {
                 Format::Themisto => format_themisto_line(&record, &mut out),
                 Format::Fulgor => format_fulgor_line(&record, &mut out),
+                Format::FulgorV4 => format_fulgor_line_v4(&record, &mut out),
                 Format::Metagraph => format_metagraph_line(&record, &mut out),
                 Format::Bifrost => format_bifrost_line(&record, self.header.n_targets as usize, &mut out),
                 #[cfg(feature = "sam")]
